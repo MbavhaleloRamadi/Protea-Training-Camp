@@ -183,59 +183,158 @@ header p {
 
 /* Adding to the existing CSS */
 
-/* Leaderboard Styles */
+/* Leaderboard Glass Container */
 .leaderboard-container {
-  padding: 20px;
-  max-width: 1200px;
-  margin: 50px auto;
-  background-color: #fff;
-  border-radius: 10px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  max-width: 900px;
+  margin: 80px auto;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  color: #fff;
 }
 
+/* Header */
 .leaderboard-container h1 {
   text-align: center;
-  color: #2c3e50;
   font-size: 2.5rem;
   margin-bottom: 30px;
+  color: #ffffff;
 }
 
+/* Leaderboard Table */
 .leaderboard-table {
   display: grid;
   grid-template-columns: 1fr 2fr 1fr;
-  gap: 10px;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
 }
 
+/* Row Style */
 .leaderboard-row {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  gap: 10px;
-  align-items: center;
-  padding: 10px;
+  display: contents;
 }
 
 .leaderboard-row.header {
   font-weight: bold;
-  background-color: #f0f0f0;
+  background-color: rgba(255, 255, 255, 0.2);
 }
 
-.rank,
-.name,
-.score {
+.leaderboard-row > div {
+  padding: 10px;
   text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
 #leaderboardData .leaderboard-row:nth-child(odd) {
-  background-color: #fafafa;
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Responsive Design */
+/* Responsive */
 @media (max-width: 768px) {
+  .leaderboard-container {
+    margin: 20px;
+    padding: 20px;
+  }
+
   .leaderboard-table {
-      grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
+  }
+
+  .leaderboard-row.header,
+  .leaderboard-row > div {
+    display: block;
+    text-align: left;
   }
 }
 
+
+/* Welcome Message */
+.welcome-message {
+  text-align: center;
+  color: #fff;
+  margin-bottom: 30px;
+}
+
+/* Score Overview Cards */
+.score-cards {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 20px;
+  width: 250px;
+  border-radius: 15px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  text-align: center;
+  color: #fff;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.card h2 {
+  color: #d4edda;
+  font-size: 1.5em;
+}
+
+.card p {
+  font-size: 1.8em;
+  color: #ffffff;
+}
+
+/* Action Buttons */
+.action-buttons {
+  margin-top: 40px;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 15px 32px;
+  font-size: 1em;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+button:focus {
+  outline: none;
+}
+
+#admin-button {
+  background-color: #f1c40f;
+}
+
+#admin-button:hover {
+  background-color: #f39c12;
+}
+
+/* Responsive Layout */
+@media (max-width: 768px) {
+  .score-cards {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .card {
+    width: 80%;
+  }
+}
 
 
