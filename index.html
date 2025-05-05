@@ -1,14 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>PutBuddy Leaderboard</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="main.ts" defer></script>
 </head>
 <body>
-  <h1>🏌️ PutBuddy Leaderboard</h1>
-  <div id="leaderboard"></div>
-  <script type="module" src="main.js"></script>
+  <header>
+    <h1>🏌️ PutBuddy Leaderboard</h1>
+    <nav>
+      <a href="auth/login.html">Login</a> |
+      <a href="auth/register.html">Register</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="leaderboard-section">
+      <h2>Leaderboard</h2>
+      <table id="leaderboard">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Golfer</th>
+            <th>Total Score</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+          <!-- Leaderboard data will be inserted here dynamically -->
+        </tbody>
+      </table>
+    </section>
+
+    <section id="calendar-section">
+      <h2>Submission Calendar</h2>
+      <p>(Coming Soon...)</p>
+    </section>
+  </main>
+
+  <footer>
+    <p>&copy; 2025 PutBuddy App. All rights reserved.</p>
+  </footer>
 </body>
 </html>
+
