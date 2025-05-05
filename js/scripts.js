@@ -1,25 +1,36 @@
-// Wait for the DOM to load completely
-document.addEventListener("DOMContentLoaded", function() {
-    
-    // Hide the loader after the page has fully loaded
-    window.onload = function() {
-        const loader = document.querySelector('.loader');
-        loader.style.display = 'none';  // Hide the loader when the page is ready
-    };
+// Description: This script handles the loading animation and form submission for login and registration.
+document.addEventListener("DOMContentLoaded", function () {
+  
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+  
+    if (loginForm) {
+      loginForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        alert("Logged in! (Functionality to be implemented with Firebase)");
+      });
+    }
+  
+    if (registerForm) {
+      registerForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        alert("Registered! (Functionality to be implemented with Firebase)");
+      });
+    }
+  });
 
-    // Example for any button interactivity (for future features)
-    const primaryBtn = document.querySelector('.primary-btn');
-    const secondaryBtn = document.querySelector('.secondary-btn');
-
-    // Add functionality for buttons (for example, simple logging or navigation)
-    primaryBtn.addEventListener('click', function() {
-        console.log('Register button clicked');
-        // You can replace this with a real navigation or registration form
-    });
-
-    secondaryBtn.addEventListener('click', function() {
-        console.log('Login button clicked');
-        // You can replace this with a real navigation to the login page
-    });
-
-});
+  window.addEventListener("load", () => {
+    const loader = document.getElementById("loader");
+  
+    if (loader) {
+      loader.style.opacity = "0";
+      loader.style.transition = "opacity 0.6s ease";
+  
+      setTimeout(() => {
+        loader.style.display = "none";
+        document.body.style.visibility = "visible";
+      }, 600); // matches the CSS fade-out duration
+    }
+  });
+  
+  
