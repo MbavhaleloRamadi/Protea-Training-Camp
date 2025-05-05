@@ -16,19 +16,19 @@
     
 </head>
 <body>
-
-    <!-- Video background -->
-    <video autoplay muted loop class="background-video">
-        <source src="assets/videos/rainy_window.mp4" type="video/mp4">
+    <!-- Background Video -->
+    <video autoplay muted loop class="background-video" id="bg-video">
+       <source src="assets/video/backvideo.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
-
-    <!-- Fun Loader -->
-    <div class="loader">
-        <div class="raindrop"></div>
-        <div class="raindrop"></div>
-        <div class="raindrop"></div>
-        <div class="raindrop"></div>
+  
+    
+    <!-- Fullscreen Fun Loader -->
+    <div class="loader-overlay" id="loader">
+      <div class="loader-container">
+        <div class="golf-loader"></div>
+        <p>Warming up the greens...</p>
+      </div>
     </div>
 
     <!-- Main content -->
@@ -38,11 +38,10 @@
             <p>Track your scores in real-time and compete with other golfers.</p>
         </header>
 
-        <!-- Buttons for login/register or view leaderboard -->
         <div class="cta-buttons">
-            <button class="btn primary-btn" href="register.html">Register</button>
-            <button class="btn secondary-btn" href="login.html">Login</button>
-        </div>
+            <a href="register.html" class="btn primary-btn">Register</a>
+            <a href="login.html" class="btn secondary-btn">Login</a>
+          </div>  
     </div>
 
     <!-- Linking the main JavaScript -->

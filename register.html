@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -8,14 +9,23 @@
   <link rel="icon" href="assets/icons/golf.png" />
   <meta name="description" content="Create an account on the real-time Golf Leaderboard app." />
 </head>
+
 <body>
-  <video autoplay muted loop class="bg-video">
-    <source src="assets/video/background.mp4" type="video/mp4" />
-  </video>
+        <!-- Background Video -->
+        <video autoplay muted loop class="background-video" id="bg-video">
+            <source src="assets/video/backvideo.mp4" type="video/mp4">
+             Your browser does not support the video tag.
+         </video>
+
+        <!-- Fullscreen Fun Loader -->
+        <div class="loader-overlay" id="loader">
+            <div class="loader-container">
+              <div class="golf-loader"></div>
+              <p>Warming up the greens...</p>
+            </div>
+          </div>
 
   <div class="blur-overlay"></div>
-
-  <div class="loader">Loading...</div>
 
   <main class="auth-container">
     <h1>Create Your Account</h1>
