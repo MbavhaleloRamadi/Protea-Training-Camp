@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Register | Golf Leaderboard</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="assets/icons/golf.png" />
+  <meta name="description" content="Create an account on the real-time Golf Leaderboard app." />
+</head>
+<body>
+  <video autoplay muted loop class="bg-video">
+    <source src="assets/video/background.mp4" type="video/mp4" />
+  </video>
+
+  <div class="blur-overlay"></div>
+
+  <div class="loader">Loading...</div>
+
+  <main class="auth-container">
+    <h1>Create Your Account</h1>
+    <form id="registerForm" class="auth-form">
+      <input type="text" placeholder="Full Name" required />
+      <input type="email" placeholder="Email" required />
+      <input type="password" placeholder="Password" required />
+      <button type="submit" class="primary-btn">Register</button>
+    </form>
+    <p>Already have an account? <a href="login.html">Log In</a></p>
+  </main>
+
+  <script src="js/scripts.js"></script>
+</body>
+</html>
