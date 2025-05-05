@@ -1,0 +1,100 @@
+Golfing App Dev Rules.
+
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Folder Structure:
+/project-root
+  /index.html             # Main landing page
+  /styles.css             # Main stylesheet for the app
+  /scripts.js             # Main JavaScript file for frontend logic
+  /firebase-config.js     # Firebase configuration file (for authentication and database)
+  /assets/                # Folder for any images, icons, etc.
+    /images/              # Any image files (e.g., logos, background images)
+    /icons/               # Any icons used in the app (e.g., social media, buttons)
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Frontend Technologies:
+
+HTML for structuring the content.
+
+CSS for styling the page using one main stylesheet (styles.css) for consistency across all pages.
+
+JavaScript for functionality using one main JavaScript file (scripts.js) to manage dynamic interactions across all pages.
+
+Real-time Updates:
+
+Use Firebase Realtime Database to store and sync score data in real-time.
+
+Use onSnapshot to listen for changes in the Firebase database and dynamically update the leaderboard.
+
+Score Submission (JotForm Integration):
+
+Embed or link a JotForm form for golfers to submit their scores.
+
+Use JotForm’s webhook feature to send the score data to Firebase upon submission.
+
+User Authentication:
+
+Implement Firebase Authentication for user registration, login, and logout.
+
+Ensure that only authenticated users can submit scores and interact with the leaderboard.
+
+Security Rules:
+
+Firebase Realtime Database rules will be set to ensure only authenticated users can submit scores and access the leaderboard.
+
+Use Firebase rules like:
+
+json
+Copy
+Edit
+{
+  "rules": {
+    "leaderboard": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
+Deployment:
+
+Host the website using Firebase Hosting, Netlify, or Vercel for free.
+
+Ensure proper deployment setup with continuous integration and deployment (CI/CD) if needed.
+
+Folder Structure Consistency:
+
+Maintain the folder structure as outlined. Any additions or changes will be documented to ensure organization.
+
+The folder structure is as follows:
+
+bash
+Copy
+Edit
+/project-root
+  /index.html
+  /styles.css
+  /scripts.js
+  /firebase-config.js
+  /assets/
+    /images/
+    /icons/
+Responsiveness:
+
+The website must be responsive, ensuring that the content adapts to all screen sizes and devices (mobile, tablet, desktop).
+
+Use CSS media queries to adjust the layout and styling of the website based on the screen width.
+
+The layout, text, images, and leaderboard will resize appropriately to fit the device being used.
+
+Tracking Updates & Changes:
+
+Every new feature, change, or removal will be recorded and tracked to ensure consistency.
+
+I will maintain a log of updates so that no decision or change is lost in the process.
+
+Key Notes:
+One styles.css file will handle all the styling for the website across all pages.
+
+One scripts.js file will be used to handle all JavaScript functionality, including Firebase interactions, real-time updates, form submissions, etc.
+
+The website will be fully responsive by using CSS media queries to ensure it looks good on all devices.

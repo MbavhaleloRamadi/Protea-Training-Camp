@@ -1,75 +1,117 @@
-/* Basic Reset */
+/* Reset styles */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+/* Set font-family for the page */
 body {
-  font-family: 'Segoe UI', sans-serif;
-  margin: 0;
-  padding: 2rem;
-  background: #f4f4f9;
+  font-family: 'Roboto', sans-serif;
+  color: #fff;
 }
 
-header {
-  text-align: center;
-  padding: 1rem;
-  background-color: #00796b;
-  color: white;
-  margin-bottom: 2rem;
-}
-
-nav a {
-  color: white;
-  margin: 0 1rem;
-  text-decoration: none;
-}
-
-main {
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-section {
-  margin-bottom: 2rem;
-}
-
-table {
+/* Video background */
+.background-video {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 1rem;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+  filter: blur(8px);
+  pointer-events: none;
 }
 
-th, td {
-  padding: 0.75rem;
-  border: 1px solid #ccc;
+/* Loader Styles */
+.loader {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.raindrop {
+  position: absolute;
+  top: -10px;
+  width: 5px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.5);
+  animation: fall 1s infinite;
+}
+
+@keyframes fall {
+  0% {
+      top: -10px;
+  }
+  100% {
+      top: 100vh;
+  }
+}
+
+/* Main content styling */
+.main-content {
   text-align: center;
+  padding: 20px;
+  position: relative;
+  z-index: 2;
 }
 
-th {
-  background-color: #004d40;
+header h1 {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+header p {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* CTA buttons */
+.cta-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.btn {
+  padding: 10px 20px;
+  font-size: 1.2rem;
+  border: none;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+.primary-btn {
+  background-color: #4CAF50; /* Green */
   color: white;
 }
 
-footer {
-  text-align: center;
-  padding: 1rem;
-  margin-top: 2rem;
-  background-color: #ccc;
+.secondary-btn {
+  background-color: #008CBA; /* Blue */
+  color: white;
 }
 
-#leaderboard {
-  list-style: none;
-  padding: 0;
-  max-width: 600px;
-  margin: auto;
-}
+/* Responsive Design */
+@media (max-width: 768px) {
+  .main-content {
+      padding: 10px;
+  }
 
-#leaderboard li {
-  background: white;
-  margin: 0.75rem 0;
-  padding: 1rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  header h1 {
+      font-size: 2.5rem;
+  }
+
+  header p {
+      font-size: 1.2rem;
+  }
+
+  .btn {
+      font-size: 1rem;
+  }
 }
