@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Leaderboard - PutBuddy</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>PutBuddy Leaderboard</h1>
+  <ul id="leaderboard"></ul>
+
+  <script type="module">
+    import { db } from "./firebase-config";
+    import { collection, getDocs } from "firebase/firestore";
+
+    const leaderboard = document.getElementById("leaderboard");
+
+    async function loadLeaderboard() {
+      const snapshot = await getDocs(collection(db, "submissions"));
+      const scores = new Map();
+
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const name = `${data.name} ${data.surname}`;
+        const score = data.totalScore;
+
+        if (scores.has(name)) scores.set(name, scores.get(name) + score);
+        else scores.set(name, score);
+      });
+
+      const sorted = [...scores.entries()].sort((a, b) => b[1] - a[1]);
+
+      leaderboard.innerHTML = sorted.map(([name, score]) =>
+        `<li>${name}: ${score} pts</li>`).join('');
+    }
+
+    loadLeaderboard();
+  </script>
+</body>
+</html>
