@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+    <meta name="author" content="Your Name or Company">
+    <title>Golf Leaderboard</title>
+    
+    <!-- Linking the main stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Adding Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+      <!-- Firebase SDKs -->
+      <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+      <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    
+</head>
+<body>
+    <!-- Background Video -->
+    <video autoplay muted loop class="background-video" id="bg-video">
+        <source src="assets/video/backvideo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+
+    <!-- Fullscreen Fun Loader -->
+    <div class="loader-overlay" id="loader">
+        <div class="loader-container">
+            <div class="golf-loader"></div>
+            <p>Warming up the greens...</p>
+        </div>
+    </div>
+
+    <div class="blur-overlay"></div>
+
+    <div class="main-content">
+        <!-- Welcome Section -->
+        <div class="welcome-message">
+            <h1>Welcome, <span id="user-name">[User First Name]</span></h1>
+        </div>
+
+        <!-- Score Overview Cards -->
+        <div class="score-cards">
+            <div class="card" id="today-score">
+                <h2>Today's Score</h2>
+                <p id="today-score-value">0</p>
+            </div>
+            <div class="card" id="weekly-score">
+                <h2>Weekly Score</h2>
+                <p id="weekly-score-value">0</p>
+            </div>
+            <div class="card" id="all-time-score">
+                <h2>All-Time Score</h2>
+                <p id="all-time-score-value">0</p>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button onclick="submitTasks()">Submit Tasks</button>
+            <button onclick="viewLeaderboard()">View Leaderboard</button>
+            <button onclick="viewHistory()">History</button>
+            <button id="admin-button" onclick="manageTasks()" class="hidden">Manage Tasks</button>
+        </div>
+    </div>
+
+    <script src="js/scripts.js"></script>
+</body>
+</html>
