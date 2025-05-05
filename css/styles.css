@@ -9,6 +9,7 @@
 body {
   font-family: 'Roboto', sans-serif;
   color: #fff;
+  visibility: hidden;
 }
 
 /* Video background */
@@ -179,4 +180,62 @@ header p {
     padding: 1.5rem;
   }
 }
+
+/* Adding to the existing CSS */
+
+/* Leaderboard Styles */
+.leaderboard-container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: 50px auto;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.leaderboard-container h1 {
+  text-align: center;
+  color: #2c3e50;
+  font-size: 2.5rem;
+  margin-bottom: 30px;
+}
+
+.leaderboard-table {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 10px;
+  font-size: 1.2rem;
+}
+
+.leaderboard-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 10px;
+}
+
+.leaderboard-row.header {
+  font-weight: bold;
+  background-color: #f0f0f0;
+}
+
+.rank,
+.name,
+.score {
+  text-align: center;
+}
+
+#leaderboardData .leaderboard-row:nth-child(odd) {
+  background-color: #fafafa;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .leaderboard-table {
+      grid-template-columns: 1fr 1fr;
+  }
+}
+
+
 

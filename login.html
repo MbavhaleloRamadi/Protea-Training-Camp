@@ -1,13 +1,23 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login | Golf Leaderboard</title>
-  <link rel="stylesheet" href="css/styles.css" />
-  <link rel="icon" href="assets/icons/golf.png" />
-  <meta name="description" content="Log in to the real-time Golf Leaderboard app." />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+    <meta name="author" content="Your Name or Company">
+    <title>Golf Leaderboard</title>
+    
+    <!-- Linking the main stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Adding Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+     <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+
+    
 </head>
 
 <body>
@@ -27,18 +37,11 @@
 
   <div class="blur-overlay"></div>
 
-     <!-- Fun Golf Loader -->
-<div class="loader">
-    <div class="golf-ball"></div>
-    <div class="golf-ball delay"></div>
-    <div class="golf-ball delay-more"></div>
-  </div>
-
   <main class="auth-container">
     <h1>Welcome Back</h1>
     <form id="loginForm" class="auth-form">
-      <input type="email" placeholder="Email" required />
-      <input type="password" placeholder="Password" required />
+        <input type="email" id="loginEmail" placeholder="Email" required />
+        <input type="password" id="loginPassword" placeholder="Password" required />        
       <button type="submit" class="primary-btn">Log In</button>
     </form>
     <p>Don't have an account? <a href="register.html">Register</a></p>
