@@ -1,5 +1,4 @@
 "use strict";
-//main.ts
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -11,23 +10,28 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 // main.ts
-const firebase_config_1 = require("./firebase-config");
+const app_1 = require("firebase/app");
 const firestore_1 = require("firebase/firestore");
-function displayLeaderboard() {
+const firebase_config_1 = require("./firebase-config");
+const app = (0, app_1.initializeApp)(firebase_config_1.firebaseConfig);
+const db = (0, firestore_1.getFirestore)(app);
+// Function to load leaderboard from Firestore
+function loadLeaderboard() {
     return __awaiter(this, void 0, void 0, function* () {
-        const leaderboardDiv = document.getElementById("leaderboard");
-        const userScores = [];
-        const snapshot = yield (0, firestore_1.getDocs)((0, firestore_1.collection)(firebase_config_1.db, "submissions"));
-        snapshot.forEach((doc) => {
+        const leaderboardEl = document.getElementById('leaderboard');
+        if (!leaderboardEl)
+            return;
+        const submissionsSnap = yield (0, firestore_1.getDocs)((0, firestore_1.collection)(db, 'submissions'));
+        const scoreMap = {};
+        submissionsSnap.forEach((doc) => {
             const data = doc.data();
-            userScores.push({ name: data.name, score: data.totalScore });
+            if (data.name && data.score) {
+                scoreMap[data.name] = (scoreMap[data.name] || 0) + data.score;
+            }
         });
-        userScores.sort((a, b) => b.score - a.score);
-        leaderboardDiv.innerHTML = `
-    <ol>
-      ${userScores.map(user => `<li>${user.name}: ${user.score} pts</li>`).join('')}
-    </ol>
-  `;
+        const scores = Object.entries(scoreMap).map(([name, score]) => ({ name, score }));
+        scores.sort((a, b) => b.score - a.score);
+        leaderboardEl.innerHTML = scores.map((u, i) => `<li><strong>${i + 1}. ${u.name}</strong> - ${u.score} pts</li>`).join('');
     });
 }
-displayLeaderboard();
+document.addEventListener('DOMContentLoaded', loadLeaderboard);

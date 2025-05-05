@@ -6,10 +6,10 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f4f6f9;
-  color: #333;
-  padding: 1rem;
+  font-family: 'Segoe UI', sans-serif;
+  margin: 0;
+  padding: 2rem;
+  background: #f4f4f9;
 }
 
 header {
@@ -57,4 +57,19 @@ footer {
   padding: 1rem;
   margin-top: 2rem;
   background-color: #ccc;
+}
+
+#leaderboard {
+  list-style: none;
+  padding: 0;
+  max-width: 600px;
+  margin: auto;
+}
+
+#leaderboard li {
+  background: white;
+  margin: 0.75rem 0;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
 }
