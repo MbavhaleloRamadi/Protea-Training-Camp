@@ -251,137 +251,152 @@ document.addEventListener("DOMContentLoaded", () => {
   // Selected Practices (max 3)
   let selectedPractices = [];
 
-  // ───────────────────────────────────────────────────────────
-  // 1) When category changes, show the scrollable list
-  // ───────────────────────────────────────────────────────────
-  taskCategory.addEventListener("change", () => {
-    const cat = taskCategory.value;
-    practiceList.innerHTML = "";
+// ───────────────────────────────────────────────────────────
+// 1) When category changes, show the scrollable list
+// ───────────────────────────────────────────────────────────
+taskCategory.addEventListener("change", () => {
+  const cat = taskCategory.value;
+  practiceList.innerHTML = "";
 
-    if (!practicesData[cat]) {
-      practiceContainer.classList.add("hidden");
-      return;
-    }
-    practiceContainer.classList.remove("hidden");
-
-    practicesData[cat].forEach(practice => {
-      const card = document.createElement("div");
-      card.className = "practice-card";
-      card.innerHTML = `
-        <h4>${practice.name}</h4>
-        <p>${practice.description}</p>
-        <small>Points: ${practice.points}</small>
-      `;
-      card.addEventListener("click", () => {
-        if (selectedPractices.find(p=>p.name===practice.name)) {
-          alert("Practice already selected.");
-          return;
-        }
-        if (selectedPractices.length >= 3) {
-          alert("You can only select 3 practices.");
-          return;
-        }
-        selectedPractices.push(practice);
-        renderSelected();
-        showConfirmation(`✅ Added "${practice.name}"`, "green");
-      });
-      practiceList.appendChild(card);
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────
-  // 2) Render the “Selected Practices” list
-  // ───────────────────────────────────────────────────────────
-  function renderSelected() {
-    selectedList.innerHTML = "";
-    selectedPractices.forEach((p,i) => {
-      const li = document.createElement("li");
-      li.textContent = `${p.name} (${p.points} pts)`;
-      li.style.cursor = "pointer";
-      li.title = "Click to remove";
-      li.addEventListener("click", () => {
-        selectedPractices.splice(i,1);
-        renderSelected();
-      });
-      selectedList.appendChild(li);
-    });
-    selectedLabel.textContent = `Selected Practices (${selectedPractices.length}/3)`;
+  if (!practicesData[cat]) {
+    practiceContainer.classList.add("hidden");
+    return;
   }
+  practiceContainer.classList.remove("hidden");
 
-  // ───────────────────────────────────────────────────────────
-  // 3) Submit handler
-  // ───────────────────────────────────────────────────────────
-  submitForm.addEventListener("submit", async e => {
-    e.preventDefault();
-    const user = firebase.auth().currentUser;
-    if (!user) {
-      showConfirmation("⚠️ You must be logged in to submit.", "red");
-      return;
-    }
-
-    const name     = document.getElementById("golferName").value.trim();
-    const category = taskCategory.value;
-    const date     = new Date().toISOString().split("T")[0];  // YYYY-MM-DD
-
-    if (!category || selectedPractices.length===0) {
-      showConfirmation("⚠️ Select a category and at least one practice.", "red");
-      return;
-    }
-
-    const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g,"_").toLowerCase();
-    const userSubRef = dbFirestore
-      .collection("users")
-      .doc(user.uid)
-      .collection("task_submissions")
-      .doc(docId);
-
-    try {
-      const snap = await userSubRef.get();
-      if (snap.exists) {
-        showConfirmation("⛔ You already submitted this category today!", "red");
+  practicesData[cat].forEach(practice => {
+    const card = document.createElement("div");
+    card.className = "practice-card";
+    card.innerHTML = `
+      <h4>${practice.name}</h4>
+      <p>${practice.description}</p>
+      <small>Points: ${practice.points}</small>
+    `;
+    card.addEventListener("click", () => {
+      if (selectedPractices.find(p => p.name === practice.name)) {
+        showConfirmation("Practice already selected.", "red");
         return;
       }
-
-      const payload = {
-        golferName: name,
-        category,
-        date,
-        practices: selectedPractices,
-        timestamp: Date.now()
-      };
-
-      // Firestore
-      await userSubRef.set(payload);
-
-      // Realtime DB under same path
-      await dbRealtime
-        .ref(`users/${user.uid}/task_submissions/${docId}`)
-        .set(payload);
-
-      showConfirmation("✅ Task submitted successfully!", "green");
-      selectedPractices = [];
+      if (selectedPractices.length >= 3) {
+        showConfirmation("You can only select 3 practices.", "red");
+        return;
+      }
+      selectedPractices.push(practice);
       renderSelected();
-      submitForm.reset();
-      practiceContainer.classList.add("hidden");
-    } catch (err) {
-      console.error(err);
-      showConfirmation("⚠️ Submission failed. Try again.", "red");
+      showConfirmation(`✅ Added "${practice.name}"`, "green");
+    });
+    practiceList.appendChild(card);
+  });
+});
+
+// ───────────────────────────────────────────────────────────
+// 2) Render the “Selected Practices” list
+// ───────────────────────────────────────────────────────────
+function renderSelected() {
+  selectedList.innerHTML = "";
+  selectedPractices.forEach((p, i) => {
+    const li = document.createElement("li");
+    li.textContent = `${p.name} (${p.points} pts)`;
+    li.style.cursor = "pointer";
+    li.title = "Click to remove";
+    li.addEventListener("click", () => {
+      selectedPractices.splice(i, 1);
+      renderSelected();
+    });
+    selectedList.appendChild(li);
+  });
+  selectedLabel.textContent = `Selected Practices (${selectedPractices.length}/3)`;
+}
+
+// ───────────────────────────────────────────────────────────
+// 3) Submit handler
+// ───────────────────────────────────────────────────────────
+submitForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  const user = firebase.auth().currentUser;
+  if (!user) {
+    showConfirmation("⚠️ You must be logged in to submit.", "red");
+    return;
+  }
+
+  const name = document.getElementById("golferName").value.trim();
+  const category = taskCategory.value;
+  const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+
+  if (!category || selectedPractices.length === 0) {
+    showConfirmation("⚠️ Select a category and at least one practice.", "red");
+    return;
+  }
+
+  const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
+  const userSubRef = dbFirestore
+    .collection("users")
+    .doc(user.uid)
+    .collection("task_submissions")
+    .doc(docId);
+
+  try {
+    const snap = await userSubRef.get();
+    if (snap.exists) {
+      showConfirmation("⛔ You already submitted this category today!", "red");
+      return;
+    }
+
+    const payload = {
+      golferName: name,
+      category,
+      date,
+      practices: selectedPractices,
+      timestamp: Date.now()
+    };
+
+    // Disable the submit button to prevent multiple submissions
+    submitButton.disabled = true;
+    showConfirmation("Submitting your task...", "blue");
+
+    // Batch Firestore and Realtime DB updates
+    const batch = dbFirestore.batch();
+    const userSubRef = dbFirestore.collection("users").doc(user.uid).collection("task_submissions").doc(docId);
+    
+    // Batch Firestore update
+    batch.set(userSubRef, payload);
+
+    // Commit the batch and update Realtime DB
+    await batch.commit();
+    await dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`).set(payload);
+
+    showConfirmation("✅ Task submitted successfully!", "green");
+    selectedPractices = [];
+    renderSelected();
+    submitForm.reset();
+    practiceContainer.classList.add("hidden");
+
+  } catch (err) {
+    console.error(err);
+    showConfirmation("⚠️ Submission failed. Try again.", "red");
+  } finally {
+    // Re-enable the submit button after a delay
+    setTimeout(() => {
+      submitButton.disabled = false;
+      }, 3000); // Re-enable after 3 seconds
     }
   });
 
-  // ───────────────────────────────────────────────────────────
-  // Helper to show messages
-  // ───────────────────────────────────────────────────────────
-  function showConfirmation(msg, color) {
-    confirmEl.textContent = msg;
-    confirmEl.style.color = color;
-    confirmEl.style.backgroundColor =
-      color==="green" ? "rgba(40,167,69,0.2)" :
-      color==="red"   ? "rgba(220,53,69,0.2)" :
-                        "rgba(255,193,7,0.2)";
-    confirmEl.classList.remove("hidden");
-  }
+// ───────────────────────────────────────────────────────────
+// Helper to show messages
+// ───────────────────────────────────────────────────────────
+function showConfirmation(msg, color) {
+  confirmEl.textContent = msg;
+  confirmEl.style.color = color;
+  confirmEl.style.backgroundColor =
+    color === "green" ? "rgba(40,167,69,0.2)" :
+    color === "red"   ? "rgba(220,53,69,0.2)" :
+    color === "blue"  ? "rgba(13,110,253,0.2)" :
+    "rgba(255,193,7,0.2)";
+  confirmEl.classList.remove("hidden");
+}
 });
+
 
 // Button click handlers
 function submitTasks() {
