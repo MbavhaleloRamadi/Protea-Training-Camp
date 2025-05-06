@@ -34,6 +34,8 @@ body {
   height: 100%;
   background: rgba(20, 20, 20, 0.8);
   -webkit-backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
@@ -190,8 +192,8 @@ header p {
   margin: 80px auto;
   background: rgba(255, 255, 255, 0.15);
   border-radius: 20px;
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   color: #fff;
 }
@@ -337,4 +339,153 @@ button:focus {
   }
 }
 
+/* ===================== Submit Task Form ===================== */
 
+.main-content-form {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 50px auto;
+  padding: 40px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.main-content-form h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.main-content-form p {
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+.form-group {
+  margin-bottom: 1.8rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.1rem;
+  border: none;
+  border-radius: 6px;
+}
+
+.practice-preview {
+  margin-top: 15px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f9f9f9;
+  max-width: 500px;
+}
+
+#practiceName {
+  margin-top: 5px;
+  padding: 6px;
+  font-size: 1em;
+}
+
+.practice-list-scrollable {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 6px;
+}
+
+.practice-card {
+  padding: 10px;
+  border: 1px solid #999;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+.practice-card:hover {
+  background-color: #e2f0d9;
+}
+
+
+#addPracticeBtn {
+  margin-top: 0.5rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 1rem;
+  background: #007a33;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#addPracticeBtn:disabled {
+  background: #555;
+  cursor: not-allowed;
+}
+
+#selectedList {
+  list-style: none;
+  padding: 0;
+  font-size: 1.1rem;
+}
+
+#selectedList li {
+  margin: 0.4rem 0;
+  background: rgba(0,0,0,0.3);
+  padding: 0.6rem;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+}
+
+#selectedList li button {
+  background: transparent;
+  border: none;
+  color: #f66;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+button[type="submit"] {
+  width: 100%;
+  padding: 1rem;
+  font-size: 1.2rem;
+  background: #004d20;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+button[type="submit"]:hover {
+  background: #003616;
+}
+
+#confirmationMessage {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  font-size: 1.1rem;
+  border-radius: 6px;
+}
+
+.hidden {
+  display: none;
+}
