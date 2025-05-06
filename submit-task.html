@@ -6,6 +6,12 @@
   <meta name="description" content="Submit your daily golf improvement task. Only three submissions allowed per day." />
   <title>Golfer Goals Tracker</title>
   <link rel="stylesheet" href="css/styles.css" />
+
+  <!-- Firebase v8 SDK (compatible with your JavaScript code) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 
 <body>
@@ -66,13 +72,8 @@
     </form>
   </main>
 
-  <!-- Firebase (optional) -->
-  <script type="module" src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js"></script>
-  <script type="module" src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js"></script>
-  <script type="module" src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js"></script>
-  <script type="module" src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js"></script>
-
-  <script type="module" src="js/submit-task.js"></script>
+  <!-- Your main JavaScript file - AFTER Firebase scripts -->
+  <script src="js/scripts.js"></script>
 
 </body>
 </html>

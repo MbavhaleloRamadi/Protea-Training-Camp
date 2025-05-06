@@ -1,17 +1,48 @@
 document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────────────────────────────────
+  // DOM Elements - Define all DOM elements at the start
+  // ───────────────────────────────────────────────────────────
+  const elements = {
+    // Loader elements
+    loader: document.querySelector(".loader-overlay"),
+    
+    // Auth form elements
+    registerForm: document.getElementById("registerForm"),
+    registerName: document.getElementById("registerName"),
+    registerEmail: document.getElementById("registerEmail"),
+    registerPassword: document.getElementById("registerPassword"),
+    
+    loginForm: document.getElementById("loginForm"),
+    loginEmail: document.getElementById("loginEmail"),
+    loginPassword: document.getElementById("loginPassword"),
+    
+    // Leaderboard elements
+    leaderboardContainer: document.getElementById("leaderboardData"),
+    
+    // Task submission elements
+    submitForm: document.getElementById("submitTaskForm"),
+    confirmEl: document.getElementById("confirmationMessage"),
+    taskCategory: document.getElementById("taskCategory"),
+    practiceContainer: document.getElementById("practiceContainer"),
+    practiceList: document.getElementById("practiceList"), // Fixed: Was undefined
+    golferName: document.getElementById("golferName"),
+    selectedList: document.getElementById("selectedList"),
+    selectedLabel: document.getElementById("selectedLabel"),
+    submitButton: document.getElementById("submitButton") // Added: Was used but not defined
+  };
+
+  // ───────────────────────────────────────────────────────────
   // 1) PAGE LOADER
   // ───────────────────────────────────────────────────────────
-  const loader = document.querySelector(".loader-overlay");
-  if (loader) {
+  if (elements.loader) {
     window.addEventListener("load", () => {
       // fade out
-      loader.style.transition = "opacity 0.6s ease";
-      loader.style.opacity = "0";
+      elements.loader.style.transition = "opacity 0.6s ease";
+      elements.loader.style.opacity = "0";
 
       // then completely hide
       setTimeout(() => {
-        loader.style.display = "none";
+        elements.loader.style.display = "none";
         document.body.style.visibility = "visible";
       }, 600);
     });
@@ -20,6 +51,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────────────────────────────────
   // 2) FIREBASE INITIALIZATION
   // ───────────────────────────────────────────────────────────
+  // NOTE: In production, you should use environment variables for these values
+  // and load them via a build process rather than including them directly in client code
   const firebaseConfig = {
     apiKey: "AIzaSyCLFOHGb5xaMSUtE_vgVO0aaY6MfLySeTs",
     authDomain: "protea-training-camp.firebaseapp.com",
@@ -30,132 +63,183 @@ document.addEventListener("DOMContentLoaded", () => {
     measurementId: "G-K1HKHPG6HG"
   };
 
-  if (window.firebase) {
-    firebase.initializeApp(firebaseConfig);
-  } else {
-    console.error("Firebase SDK not found.");
-    return; // halt further setup
-  }
+  // Firebase services
+  let auth, dbFirestore, dbRealtime;
 
-  // Monitor auth‑state changes
-  firebase.auth().onAuthStateChanged(user => {
-    console.log(user ? "User is logged in" : "User is not logged in");
-  });
+  try {
+    if (window.firebase) {
+      firebase.initializeApp(firebaseConfig);
+      
+      // Initialize Firebase services
+      auth = firebase.auth();
+      dbFirestore = firebase.firestore();
+      dbRealtime = firebase.database();
+      
+      // Monitor auth‑state changes
+      auth.onAuthStateChanged(user => {
+        console.log(user ? "User is logged in" : "User is not logged in");
+      });
+    } else {
+      console.error("Firebase SDK not found. Make sure it's included before this script.");
+      showMessage("Firebase SDK not found. Please refresh or contact support.", "red");
+      return; // halt further setup
+    }
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
+    showMessage("Could not initialize Firebase. Please refresh or contact support.", "red");
+    return;
+  }
 
   // ───────────────────────────────────────────────────────────
   // 3) REGISTRATION FLOW
   // ───────────────────────────────────────────────────────────
-  const registerForm = document.getElementById("registerForm");
-  if (registerForm) {
-    registerForm.addEventListener("submit", e => {
+  if (elements.registerForm) {
+    elements.registerForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const name     = document.getElementById("registerName").value.trim();
-      const email    = document.getElementById("registerEmail").value.trim();
-      const password = document.getElementById("registerPassword").value;
+      // Get and validate form values
+      const name = elements.registerName?.value?.trim() || "";
+      const email = elements.registerEmail?.value?.trim() || "";
+      const password = elements.registerPassword?.value || "";
 
-      firebase.auth()
-        .createUserWithEmailAndPassword(email, password)
-        .then(async (userCredential) => {
-          const user = userCredential.user;
-          const uid = user.uid;
-          const createdAt = new Date().toISOString();
+      // Basic validation
+      if (!name || !email || !password) {
+        return showMessage("Please fill in all fields.", "red");
+      }
 
-          const userData = {
-            fullName: name,
-            email: email,
-            createdAt: createdAt,
-            uid: uid
-          };
+      if (password.length < 6) {
+        return showMessage("Password must be at least 6 characters.", "red");
+      }
 
-          // Save to Firestore
-          await firebase.firestore().collection("users").doc(uid).set(userData);
+      try {
+        // Create the user account
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
+        const uid = user.uid;
+        const createdAt = new Date().toISOString();
 
-          // Save to Realtime Database
-          await firebase.database().ref("users/" + uid).set(userData);
+        const userData = {
+          fullName: name,
+          email: email,
+          createdAt: createdAt,
+          uid: uid
+        };
 
-          alert("Registration successful!");
+        // Batch Firestore operations
+        const batch = dbFirestore.batch();
+        const userDocRef = dbFirestore.collection("users").doc(uid);
+        batch.set(userDocRef, userData);
+        
+        // Save data and redirect
+        await batch.commit();
+        await dbRealtime.ref("users/" + uid).set(userData);
+
+        showMessage("Registration successful! Redirecting to login...", "green");
+        setTimeout(() => {
           window.location.href = "login.html";
-        })
-        .catch(err => {
-          alert("Registration failed: " + err.message);
-        });
+        }, 1500);
+      } catch (err) {
+        console.error("Registration error:", err);
+        showMessage(`Registration failed: ${err.message}`, "red");
+      }
     });
   }
 
   // ───────────────────────────────────────────────────────────
   // 4) LOGIN FLOW
   // ───────────────────────────────────────────────────────────
-  const loginForm = document.getElementById("loginForm");
-  if (loginForm) {
-    loginForm.addEventListener("submit", e => {
+  if (elements.loginForm) {
+    elements.loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
 
-      const email    = document.getElementById("loginEmail").value.trim();
-      const password = document.getElementById("loginPassword").value;
+      // Get and validate form values
+      const email = elements.loginEmail?.value?.trim() || "";
+      const password = elements.loginPassword?.value || "";
 
-      firebase.auth()
-        .signInWithEmailAndPassword(email, password)
-        .then(() => {
+      // Basic validation
+      if (!email || !password) {
+        return showMessage("Please enter both email and password.", "red");
+      }
+
+      try {
+        await auth.signInWithEmailAndPassword(email, password);
+        showMessage("Login successful! Redirecting to dashboard...", "green");
+        
+        setTimeout(() => {
           window.location.href = "dashboard.html";
-        })
-        .catch(err => {
-          if (err.code === "auth/wrong-password") {
-            alert("Incorrect password. Please try again.");
-          } else {
-            alert("Login failed: Please register first.");
-          }
-        });
+        }, 1000);
+      } catch (err) {
+        console.error("Login error:", err);
+        
+        if (err.code === "auth/wrong-password") {
+          showMessage("Incorrect password. Please try again.", "red");
+        } else if (err.code === "auth/user-not-found") {
+          showMessage("Email not registered. Please sign up first.", "red");
+        } else {
+          showMessage(`Login failed: ${err.message}`, "red");
+        }
+      }
     });
   }
 
   // ───────────────────────────────────────────────────────────
   // 5) LEADERBOARD FETCH & RENDER
   // ───────────────────────────────────────────────────────────
-  const leaderboardContainer = document.getElementById("leaderboardData");
-  if (leaderboardContainer) {
-    const db           = firebase.firestore();
-    const leaderboard  = db
-      .collection("leaderboard")
-      .orderBy("score", "desc")
-      .limit(10);
+  if (elements.leaderboardContainer) {
+    try {
+      // Create a document fragment to improve performance
+      const fragment = document.createDocumentFragment();
+      const loadingMessage = document.createElement("div");
+      loadingMessage.textContent = "Loading leaderboard...";
+      elements.leaderboardContainer.appendChild(loadingMessage);
 
-    leaderboard.get()
-      .then(snapshot => {
-        let rank = 1;
-        snapshot.forEach(doc => {
-          const { name, score } = doc.data();
+      dbFirestore
+        .collection("leaderboard")
+        .orderBy("score", "desc")
+        .limit(10)
+        .get()
+        .then(snapshot => {
+          let rank = 1;
+          
+          // Remove loading message
+          elements.leaderboardContainer.innerHTML = "";
+          
+          if (snapshot.empty) {
+            const emptyMessage = document.createElement("div");
+            emptyMessage.textContent = "No leaderboard data available yet.";
+            elements.leaderboardContainer.appendChild(emptyMessage);
+            return;
+          }
+          
+          snapshot.forEach(doc => {
+            const { name, score } = doc.data();
 
-          const row = document.createElement("div");
-          row.classList.add("leaderboard-row");
+            const row = document.createElement("div");
+            row.classList.add("leaderboard-row");
 
-          row.innerHTML = `
-            <div class="rank">${rank++}</div>
-            <div class="name">${name}</div>
-            <div class="score">${score}</div>
-          `;
-          leaderboardContainer.appendChild(row);
+            row.innerHTML = `
+              <div class="rank">${rank++}</div>
+              <div class="name">${name ? escapeHtml(name) : "Anonymous"}</div>
+              <div class="score">${score || 0}</div>
+            `;
+            fragment.appendChild(row);
+          });
+          
+          // Single DOM update with all rows
+          elements.leaderboardContainer.appendChild(fragment);
+        })
+        .catch(err => {
+          console.error("Leaderboard error:", err);
+          elements.leaderboardContainer.innerHTML = "Error loading leaderboard. Please try again later.";
         });
-      })
-      .catch(err => console.error("Leaderboard error:", err));
+    } catch (err) {
+      console.error("Leaderboard setup error:", err);
+    }
   }
 
   // ───────────────────────────────────────────────────────────
   // 6) PRACTICE SELECTION & SUBMISSION
   // ───────────────────────────────────────────────────────────
-
-  const dbFirestore = firebase.firestore();
-  const dbRealtime  = firebase.database();
-
-  // DOM Elements
-  const submitForm       = document.getElementById("submitTaskForm");
-  const confirmEl        = document.getElementById("confirmationMessage");
-  const taskCategory     = document.getElementById("taskCategory");
-  const practiceContainer = document.getElementById("practiceContainer");
-  const practiceName     = document.getElementById("practiceName");
-  const addPracticeBtn   = document.getElementById("addPracticeBtn");
-  const selectedList     = document.getElementById("selectedList");
-  const selectedLabel    = document.getElementById("selectedLabel");
 
   // Practice Options
   const practicesData = {
@@ -251,154 +335,221 @@ document.addEventListener("DOMContentLoaded", () => {
   // Selected Practices (max 3)
   let selectedPractices = [];
 
-// ───────────────────────────────────────────────────────────
-// 1) When category changes, show the scrollable list
-// ───────────────────────────────────────────────────────────
-taskCategory.addEventListener("change", () => {
-  const cat = taskCategory.value;
-  practiceList.innerHTML = "";
-
-  if (!practicesData[cat]) {
-    practiceContainer.classList.add("hidden");
-    return;
+  // ───────────────────────────────────────────────────────────
+  // Task category and practice selection 
+  // ───────────────────────────────────────────────────────────
+  if (elements.taskCategory && elements.practiceList) {
+    elements.taskCategory.addEventListener("change", () => {
+      const category = elements.taskCategory.value;
+      renderPracticeOptions(category);
+    });
   }
-  practiceContainer.classList.remove("hidden");
 
-  practicesData[cat].forEach(practice => {
+  function renderPracticeOptions(category) {
+    if (!elements.practiceList) return;
+    
+    elements.practiceList.innerHTML = "";
+
+    if (!practicesData[category]) {
+      elements.practiceContainer.classList.add("hidden");
+      return;
+    }
+    
+    elements.practiceContainer.classList.remove("hidden");
+    
+    // Create a document fragment for better performance
+    const fragment = document.createDocumentFragment();
+    
+    practicesData[category].forEach(practice => {
+      const card = createPracticeCard(practice);
+      fragment.appendChild(card);
+    });
+    
+    // Single DOM update
+    elements.practiceList.appendChild(fragment);
+  }
+
+  function createPracticeCard(practice) {
     const card = document.createElement("div");
     card.className = "practice-card";
     card.innerHTML = `
-      <h4>${practice.name}</h4>
-      <p>${practice.description}</p>
+      <h4>${escapeHtml(practice.name)}</h4>
+      <p>${escapeHtml(practice.description)}</p>
       <small>Points: ${practice.points}</small>
     `;
-    card.addEventListener("click", () => {
-      if (selectedPractices.find(p => p.name === practice.name)) {
-        showConfirmation("Practice already selected.", "red");
-        return;
-      }
-      if (selectedPractices.length >= 3) {
-        showConfirmation("You can only select 3 practices.", "red");
-        return;
-      }
-      selectedPractices.push(practice);
-      renderSelected();
-      showConfirmation(`✅ Added "${practice.name}"`, "green");
-    });
-    practiceList.appendChild(card);
-  });
-});
-
-// ───────────────────────────────────────────────────────────
-// 2) Render the “Selected Practices” list
-// ───────────────────────────────────────────────────────────
-function renderSelected() {
-  selectedList.innerHTML = "";
-  selectedPractices.forEach((p, i) => {
-    const li = document.createElement("li");
-    li.textContent = `${p.name} (${p.points} pts)`;
-    li.style.cursor = "pointer";
-    li.title = "Click to remove";
-    li.addEventListener("click", () => {
-      selectedPractices.splice(i, 1);
-      renderSelected();
-    });
-    selectedList.appendChild(li);
-  });
-  selectedLabel.textContent = `Selected Practices (${selectedPractices.length}/3)`;
-}
-
-// ───────────────────────────────────────────────────────────
-// 3) Submit handler
-// ───────────────────────────────────────────────────────────
-submitForm.addEventListener("submit", async e => {
-  e.preventDefault();
-  const user = firebase.auth().currentUser;
-  if (!user) {
-    showConfirmation("⚠️ You must be logged in to submit.", "red");
-    return;
-  }
-
-  const name = document.getElementById("golferName").value.trim();
-  const category = taskCategory.value;
-  const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-
-  if (!category || selectedPractices.length === 0) {
-    showConfirmation("⚠️ Select a category and at least one practice.", "red");
-    return;
-  }
-
-  const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
-  const userSubRef = dbFirestore
-    .collection("users")
-    .doc(user.uid)
-    .collection("task_submissions")
-    .doc(docId);
-
-  try {
-    const snap = await userSubRef.get();
-    if (snap.exists) {
-      showConfirmation("⛔ You already submitted this category today!", "red");
-      return;
-    }
-
-    const payload = {
-      golferName: name,
-      category,
-      date,
-      practices: selectedPractices,
-      timestamp: Date.now()
-    };
-
-    // Disable the submit button to prevent multiple submissions
-    submitButton.disabled = true;
-    showConfirmation("Submitting your task...", "blue");
-
-    // Batch Firestore and Realtime DB updates
-    const batch = dbFirestore.batch();
-    const userSubRef = dbFirestore.collection("users").doc(user.uid).collection("task_submissions").doc(docId);
     
-    // Batch Firestore update
-    batch.set(userSubRef, payload);
+    card.addEventListener("click", () => {
+      handlePracticeSelection(practice);
+    });
+    
+    return card;
+  }
 
-    // Commit the batch and update Realtime DB
-    await batch.commit();
-    await dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`).set(payload);
-
-    showConfirmation("✅ Task submitted successfully!", "green");
-    selectedPractices = [];
-    renderSelected();
-    submitForm.reset();
-    practiceContainer.classList.add("hidden");
-
-  } catch (err) {
-    console.error(err);
-    showConfirmation("⚠️ Submission failed. Try again.", "red");
-  } finally {
-    // Re-enable the submit button after a delay
-    setTimeout(() => {
-      submitButton.disabled = false;
-      }, 3000); // Re-enable after 3 seconds
+  function handlePracticeSelection(practice) {
+    if (selectedPractices.find(p => p.name === practice.name)) {
+      return showMessage("Practice already selected.", "red");
     }
-  });
+    
+    if (selectedPractices.length >= 3) {
+      return showMessage("You can only select 3 practices.", "red");
+    }
+    
+    selectedPractices.push(practice);
+    renderSelected();
+    showMessage(`✅ Added "${practice.name}"`, "green");
+  }
 
-// ───────────────────────────────────────────────────────────
-// Helper to show messages
-// ───────────────────────────────────────────────────────────
-function showConfirmation(msg, color) {
-  confirmEl.textContent = msg;
-  confirmEl.style.color = color;
-  confirmEl.style.backgroundColor =
-    color === "green" ? "rgba(40,167,69,0.2)" :
-    color === "red"   ? "rgba(220,53,69,0.2)" :
-    color === "blue"  ? "rgba(13,110,253,0.2)" :
-    "rgba(255,193,7,0.2)";
-  confirmEl.classList.remove("hidden");
-}
+  // ───────────────────────────────────────────────────────────
+  // Render the "Selected Practices" list
+  // ───────────────────────────────────────────────────────────
+  function renderSelected() {
+    if (!elements.selectedList) return;
+    
+    elements.selectedList.innerHTML = "";
+    
+    selectedPractices.forEach((practice, index) => {
+      const li = document.createElement("li");
+      li.textContent = `${practice.name} (${practice.points} pts)`;
+      li.style.cursor = "pointer";
+      li.title = "Click to remove";
+      
+      li.addEventListener("click", () => {
+        selectedPractices.splice(index, 1);
+        renderSelected();
+        showMessage(`Removed "${practice.name}"`, "blue");
+      });
+      
+      elements.selectedList.appendChild(li);
+    });
+    
+    if (elements.selectedLabel) {
+      elements.selectedLabel.textContent = `Selected Practices (${selectedPractices.length}/3)`;
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Submit task form
+  // ───────────────────────────────────────────────────────────
+  if (elements.submitForm) {
+    elements.submitForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      
+      // Check if user is logged in
+      const user = auth.currentUser;
+      if (!user) {
+        return showMessage("⚠️ You must be logged in to submit.", "red");
+      }
+      
+      // Get form values
+      const name = elements.golferName?.value?.trim() || "";
+      const category = elements.taskCategory?.value || "";
+      const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      
+      // Validate form
+      if (!name) {
+        return showMessage("⚠️ Please enter your name.", "red");
+      }
+      
+      if (!category) {
+        return showMessage("⚠️ Please select a category.", "red");
+      }
+      
+      if (selectedPractices.length === 0) {
+        return showMessage("⚠️ Please select at least one practice.", "red");
+      }
+      
+      // Create unique ID with timestamp to prevent collisions
+      const timestamp = Date.now();
+      const docId = `${user.uid}_${category}_${date}_${timestamp}`.replace(/\s+/g, "_").toLowerCase();
+      
+      try {
+        // Disable submit button
+        if (elements.submitButton) {
+          elements.submitButton.disabled = true;
+        }
+        
+        showMessage("Submitting your task...", "blue");
+        
+        const payload = {
+          golferName: name,
+          category,
+          date,
+          practices: selectedPractices,
+          timestamp: timestamp,
+          userId: user.uid
+        };
+        
+        // Batch Firestore operations
+        const batch = dbFirestore.batch();
+        const userSubRef = dbFirestore
+          .collection("users")
+          .doc(user.uid)
+          .collection("task_submissions")
+          .doc(docId);
+          
+        batch.set(userSubRef, payload);
+        
+        // Commit batch and update Realtime DB
+        await batch.commit();
+        await dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`).set(payload);
+        
+        // Success - reset form
+        showMessage("✅ Task submitted successfully!", "green");
+        selectedPractices = [];
+        renderSelected();
+        elements.submitForm.reset();
+        elements.practiceContainer.classList.add("hidden");
+        
+      } catch (err) {
+        console.error("Task submission error:", err);
+        showMessage("⚠️ Submission failed. Please try again.", "red");
+      } finally {
+        // Re-enable submit button after delay
+        setTimeout(() => {
+          if (elements.submitButton) {
+            elements.submitButton.disabled = false;
+          }
+        }, 3000);
+      }
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // Helper Functions
+  // ───────────────────────────────────────────────────────────
+  
+  // Show confirmation/alert messages
+  function showMessage(message, color) {
+    if (!elements.confirmEl) return;
+    
+    elements.confirmEl.textContent = message;
+    elements.confirmEl.style.color = color;
+    elements.confirmEl.style.backgroundColor =
+      color === "green" ? "rgba(40,167,69,0.2)" :
+      color === "red"   ? "rgba(220,53,69,0.2)" :
+      color === "blue"  ? "rgba(13,110,253,0.2)" :
+      "rgba(255,193,7,0.2)";
+    elements.confirmEl.classList.remove("hidden");
+    
+    // Auto-hide non-error messages after 5 seconds
+    if (color !== "red") {
+      setTimeout(() => {
+        elements.confirmEl.classList.add("hidden");
+      }, 5000);
+    }
+  }
+  
+  // Escape HTML to prevent XSS
+  function escapeHtml(text) {
+    if (!text) return "";
+    
+    const div = document.createElement("div");
+    div.textContent = text;
+    return div.innerHTML;
+  }
 });
 
-
-// Button click handlers
+// Navigation Functions
 function submitTasks() {
   window.location.href = "submit-task.html";
 }
@@ -414,6 +565,3 @@ function viewHistory() {
 function manageTasks() {
   window.location.href = "manage-tasks.html";
 }
-
-
-  
