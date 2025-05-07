@@ -208,32 +208,103 @@ header p {
 
 /* Leaderboard Table */
 .leaderboard-table {
-  display: grid;
-  grid-template-columns: 1fr 2fr 1fr;
-  font-size: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
-/* Row Style */
 .leaderboard-row {
-  display: contents;
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #ccc;
+  color: #fff; /* Make text white for visibility */
 }
 
 .leaderboard-row.header {
   font-weight: bold;
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent black background */
+  color: #fff; /* Ensure header text is also white */
 }
 
-.leaderboard-row > div {
-  padding: 10px;
+/* Assign flex values */
+.leaderboard-row .rank {
+  flex: 1;
+  text-align: left;
+  padding-left: 12%;
+}
+
+.leaderboard-row .name {
+  flex: 2;
   text-align: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
 }
 
+.leaderboard-row .score {
+  flex: 1;
+  text-align: right;
+  padding-right: 10%;
+}
+
+/* Data Rows */
+#leaderboardData .leaderboard-row {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  width: 100%;
+  transition: background-color 0.3s ease;
+}
+
+#leaderboardData .leaderboard-row:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#leaderboardData .leaderboard-row > div {
+  padding: 12px 10px;
+  text-align: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Alternating row colors */
 #leaderboardData .leaderboard-row:nth-child(odd) {
   background-color: rgba(255, 255, 255, 0.05);
 }
 
-/* Responsive */
+/* Top 3 rankings */
+#leaderboardData .leaderboard-row.rank-1 {
+  background-color: rgba(255, 215, 0, 0.15); /* Gold */
+}
+
+#leaderboardData .leaderboard-row.rank-2 {
+  background-color: rgba(192, 192, 192, 0.15); /* Silver */
+}
+
+#leaderboardData .leaderboard-row.rank-3 {
+  background-color: rgba(205, 127, 50, 0.15); /* Bronze */
+}
+
+/* Current user highlight */
+#leaderboardData .leaderboard-row.current-user {
+  background-color: rgba(46, 204, 113, 0.15); /* Green highlight */
+  border-left: 4px solid #2ecc71;
+}
+
+/* Loading and error states */
+.loading-data, .no-data, .error-message {
+  grid-column: span 3;
+  text-align: center;
+  padding: 20px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #ffffff;
+  border-radius: 50%;
+  margin: 0 auto 15px;
+  animation: spin 1s linear infinite;
+}
+
+/* Responsive adjustments */
 @media (max-width: 768px) {
   .leaderboard-container {
     margin: 20px;
@@ -241,13 +312,21 @@ header p {
   }
 
   .leaderboard-table {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
-  .leaderboard-row.header,
-  .leaderboard-row > div {
-    display: block;
-    text-align: left;
+  .leaderboard-row.header {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+  }
+  
+  #leaderboardData .leaderboard-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr;
+  }
+  
+  .leaderboard-container h1 {
+    font-size: 2rem;
   }
 }
 
@@ -473,7 +552,6 @@ button:focus {
 .back-button:hover {
   background-color: #ddd;
 }
-
 
 #selectedList {
   list-style: none;
