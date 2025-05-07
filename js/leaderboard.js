@@ -141,78 +141,79 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   
-    // ───────────────────────────────────────────────────────────
-    // 6) DATA PROCESSING - UPDATED FOR GOLF SCORES
-    // ───────────────────────────────────────────────────────────
-    function processLeaderboardData(usersData) {
-      // Convert users data to array for sorting
-      const leaderboardEntries = [];
-      
-      // Process each user
-      Object.keys(usersData).forEach(userId => {
-        const userData = usersData[userId];
-        
-        // Skip users without necessary data
-        if (!userData.fullName) return;
-        
-        // Calculate total score from task submissions
-        // For golf, lower scores are better
-        let totalScore = 0;
-        let roundsPlayed = 0;
-        
-        if (userData.task_submissions) {
-          Object.values(userData.task_submissions).forEach(submission => {
-            if (submission.practices && Array.isArray(submission.practices)) {
-              submission.practices.forEach(practice => {
-                if (practice.points !== undefined) {
-                  totalScore += parseInt(practice.points) || 0;
-                  roundsPlayed++;
+   // ───────────────────────────────────────────────────────────
+// 6) DATA PROCESSING - UPDATED FOR POINTS SORTING
+// ───────────────────────────────────────────────────────────
+function processLeaderboardData(usersData) {
+  // Convert users data to array for sorting
+  const leaderboardEntries = [];
+  
+  // Process each user
+  Object.keys(usersData).forEach(userId => {
+    const userData = usersData[userId];
+    
+    // Skip users without necessary data
+    if (!userData.fullName) return;
+    
+    // Calculate total score from task submissions
+    // Higher points are better
+    let totalScore = 0;
+    let roundsPlayed = 0;
+    let latestSubmissionTime = 0; // For tiebreaker
+    
+    if (userData.task_submissions) {
+      Object.values(userData.task_submissions).forEach(submission => {
+        if (submission.practices && Array.isArray(submission.practices)) {
+          submission.practices.forEach(practice => {
+            if (practice.points !== undefined) {
+              totalScore += parseInt(practice.points) || 0;
+              roundsPlayed++;
+              
+              // Keep track of the latest submission time for tiebreaker
+              if (practice.submissionTime) {
+                const submissionTime = parseInt(practice.submissionTime) || 0;
+                if (submissionTime > latestSubmissionTime) {
+                  latestSubmissionTime = submissionTime;
                 }
-              });
+              }
             }
           });
         }
-        
-        // Format the score with appropriate golf notation
-        let formattedScore;
-        
-        if (roundsPlayed > 0) {
-          // Negative values are under par (good in golf)
-          // Positive values are over par (not as good in golf)
-          if (totalScore === 0) {
-            formattedScore = "E"; // Even par
-          } else if (totalScore > 0) {
-            formattedScore = `+${totalScore}`; // Over par
-          } else {
-            formattedScore = totalScore.toString(); // Under par (already has negative sign)
-          }
-        } else {
-          formattedScore = "N/A"; // No rounds played
-        }
-        
-        // Add to leaderboard entries
-        leaderboardEntries.push({
-          userId: userId,
-          name: userData.fullName,
-          rawScore: totalScore,
-          displayScore: formattedScore,
-          roundsPlayed: roundsPlayed
-        });
       });
-      
-      // Sort by score (lowest first for golf)
-      leaderboardEntries.sort((a, b) => {
-        // If a player hasn't played, they should be at the bottom
-        if (a.roundsPlayed === 0 && b.roundsPlayed > 0) return 1;
-        if (b.roundsPlayed === 0 && a.roundsPlayed > 0) return -1;
-        
-        // Otherwise sort by score (lower is better in golf)
-        return a.rawScore - b.rawScore;
-      });
-      
-      // Render sorted leaderboard
-      renderLeaderboard(leaderboardEntries);
     }
+    
+    // Format the score for display
+    const formattedScore = roundsPlayed > 0 ? totalScore.toString() : "N/A";
+    
+    // Add to leaderboard entries
+    leaderboardEntries.push({
+      userId: userId,
+      name: userData.fullName,
+      rawScore: totalScore,
+      displayScore: formattedScore,
+      roundsPlayed: roundsPlayed,
+      latestSubmissionTime: latestSubmissionTime
+    });
+  });
+  
+  // Sort by score (highest first for points)
+  leaderboardEntries.sort((a, b) => {
+    // If a player hasn't played, they should be at the bottom
+    if (a.roundsPlayed === 0 && b.roundsPlayed > 0) return 1;
+    if (b.roundsPlayed === 0 && a.roundsPlayed > 0) return -1;
+    
+    // Sort by score (higher is better for points)
+    if (b.rawScore !== a.rawScore) {
+      return b.rawScore - a.rawScore;
+    }
+    
+    // Tiebreaker: earlier submission time ranks higher
+    return a.latestSubmissionTime - b.latestSubmissionTime;
+  });
+  
+  // Render sorted leaderboard
+  renderLeaderboard(leaderboardEntries);
+}
   
     // ───────────────────────────────────────────────────────────
     // 7) RENDER LEADERBOARD - UPDATED FOR GOLF DISPLAY
