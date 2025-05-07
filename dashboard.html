@@ -13,12 +13,12 @@
     
     <!-- Adding Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+   
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
     <!-- Background Video -->
@@ -38,9 +38,14 @@
     <div class="blur-overlay"></div>
 
     <div class="main-content">
-        <!-- Welcome Section -->
-        <div class="welcome-message">
-            <h1>Welcome, <span id="user-name">Golfer</span></h1>
+        <!-- Header with Welcome and Logout -->
+        <div class="header-container">
+            <div class="welcome-message">
+                <h1>Welcome, <span id="user-name">Golfer</span></h1>
+            </div>
+            <div class="user-actions">
+                <button id="logout-button" onclick="logoutUser()" class="logout-btn">Logout</button>
+            </div>
         </div>
 
         <!-- Score Overview Cards -->
@@ -72,5 +77,19 @@
     </div>
 
     <script src="js/dashboard.js"></script>
+    <script>
+        // Logout function
+        function logoutUser() {
+            // Using Firebase Auth to sign out the user
+            firebase.auth().signOut().then(() => {
+                // Sign-out successful, redirect to login page
+                window.location.href = 'index.html'; // or your login page
+            }).catch((error) => {
+                // An error happened during logout
+                console.error("Logout Error:", error);
+                alert("There was an error logging out. Please try again.");
+            });
+        }
+    </script>
 </body>
 </html>
