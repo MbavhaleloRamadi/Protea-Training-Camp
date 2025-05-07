@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+    <meta name="author" content="Your Name or Company">
+    <title>Golf Leaderboard</title>
+    
+    <!-- Linking the main stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Adding Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    
+</head>
+<body>
+  <!-- Video Background -->
+  <video class="background-video" autoplay muted loop>
+    <source src="your-background-video.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
+
+  <!-- Loader Overlay - This will show initially and hide when page loads -->
+  <div class="loader-overlay" id="loaderOverlay">
+    <div class="loader-container">
+      <div class="golf-loader"></div>
+      <p>Loading your practice history...</p>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="history-container">
+    <h1>Your Practice History</h1>
+    
+    <!-- Stats Overview Section -->
+    <div class="stats-overview">
+      <div class="stat-card">
+        <h3>Total Practices</h3>
+        <div class="stat-value" id="totalPractices">0</div>
+        <div class="stat-detail">Submissions made</div>
+      </div>
+      
+      <div class="stat-card">
+        <h3>Practice Streak</h3>
+        <div class="stat-value" id="currentStreak">0</div>
+        <div class="stat-detail">Days in a row</div>
+      </div>
+      
+      <div class="stat-card">
+        <h3>Longest Streak</h3>
+        <div class="stat-value" id="longestStreak">0</div>
+        <div class="stat-detail">Best performance</div>
+      </div>
+    </div>
+    
+    <!-- Most Practiced Section -->
+    <div class="most-practiced">
+      <h2>Most Practiced</h2>
+      <div id="mostPracticedContainer">
+        <!-- Will be populated with JavaScript -->
+      </div>
+    </div>
+    
+    <!-- History Timeline Section -->
+    <div class="history-timeline">
+      <h2>Practice Timeline</h2>
+      
+      <div class="timeline-filters">
+        <div class="filter-group">
+          <label for="practiceFilter">Filter by:</label>
+          <select id="practiceFilter">
+            <option value="all">All Practices</option>
+            <!-- Will be populated with JavaScript -->
+          </select>
+        </div>
+        
+        <div class="filter-group">
+          <label for="dateRangeStart">From:</label>
+          <input type="date" id="dateRangeStart">
+          <label for="dateRangeEnd">To:</label>
+          <input type="date" id="dateRangeEnd">
+        </div>
+      </div>
+      
+      <div class="timeline-container" id="timelineContainer">
+        <!-- Will be populated with JavaScript -->
+      </div>
+    </div>
+    
+    <!-- Export/Print Controls -->
+    <div class="export-controls">
+      <button class="export-btn" id="exportCsvBtn">
+        <i class="fas fa-file-csv"></i> Export as CSV
+      </button>
+      <button class="export-btn" id="printHistoryBtn">
+        <i class="fas fa-print"></i> Print History
+      </button>
+    </div>
+    
+    <!-- Back Button -->
+    <button class="back-button" onclick="window.location.href='dashboard.html'">
+      <i class="fas fa-arrow-left"></i> Back to Dashboard
+    </button>
+  </div>
+
+  <!-- Empty State (Initially Hidden) -->
+  <div class="empty-state hidden" id="emptyState">
+    <img src="/api/placeholder/150/150" alt="No data">
+    <h3>No Practice History Found</h3>
+    <p>You haven't submitted any practices yet. Start practicing to track your progress!</p>
+    <a href="submit.html" class="start-btn">Begin Practice</a>
+  </div>
+
+  <!-- Include the JavaScript for this page -->
+  <script src="js/history.js"></script>
+</body>
+</html>
