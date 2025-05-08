@@ -13,50 +13,48 @@
     
     <!-- Adding Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-     
+    
     <!-- Firebase SDKs -->
-   <!-- Firebase App -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase App -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 
-<!-- Firebase Auth -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <!-- Firebase Auth -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 
-<!-- Firebase Firestore -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <!-- Firebase Firestore -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<!-- Firebase Realtime Database -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
+    <!-- Firebase Realtime Database -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
     
 </head>
 
 <body>
-        <!-- Background Video -->
-        <video autoplay muted loop class="background-video" id="bg-video">
-            <source src="assets/video/backvideo.mp4" type="video/mp4">
-             Your browser does not support the video tag.
-         </video>
+    <!-- Background Video -->
+    <video autoplay muted loop class="background-video" id="bg-video">
+        <source src="assets/video/backvideo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
 
-        <!-- Fullscreen Fun Loader -->
-        <div class="loader-overlay" id="loader">
-            <div class="loader-container">
-              <div class="golf-loader"></div>
-              <p>Warming up the greens...</p>
-            </div>
-          </div> 
+    <!-- Fullscreen Fun Loader -->
+    <div class="loader-overlay" id="loader">
+        <div class="loader-container">
+          <div class="golf-loader"></div>
+          <p>Warming up the greens...</p>
+        </div>
+    </div>
+    <div class="blur-overlay"></div>
 
-  <div class="blur-overlay"></div>
+    <main class="auth-container">
+        <h1>Welcome Back</h1>
+        <form id="loginForm" class="auth-form">
+            <input type="text" id="loginUsername" placeholder="Username" required />
+            <input type="password" id="loginPassword" placeholder="Password" required />
+            <button type="submit" class="primary-btn">Log In</button>
+        </form>
+        <p>Don't have an account? <a href="register.html">Register</a></p>
+    </main>
 
-  <main class="auth-container">
-    <h1>Welcome Back</h1>
-    <form id="loginForm" class="auth-form">
-        <input type="email" id="loginEmail" placeholder="Email" required />
-        <input type="password" id="loginPassword" placeholder="Password" required />        
-      <button type="submit" class="primary-btn">Log In</button>
-    </form>
-    <p>Don't have an account? <a href="register.html">Register</a></p>
-  </main>
-
-  <script src="js/scripts.js"></script>
+    <script src="js/scripts.js"></script>
 </body>
 </html>
