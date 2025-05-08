@@ -10,7 +10,7 @@ document.addEventListener("DOMContentLoaded", () => {
     userName: document.getElementById("user-name"),
     
     // Score display elements
-    todayScoreValue: document.getElementById("today-score-value"),
+    leaderboardPositionValue: document.getElementById("leaderboard-position-value"),
     weeklyScoreValue: document.getElementById("weekly-score-value"),
     allTimeScoreValue: document.getElementById("all-time-score-value"),
     
@@ -127,6 +127,9 @@ document.addEventListener("DOMContentLoaded", () => {
           // Fetch and calculate scores
           fetchUserScores(user.uid);
           
+          // Fetch user's leaderboard position
+          fetchLeaderboardPosition(user.uid);
+          
           // Set up real-time listeners for score updates
           setupRealtimeListeners(user.uid);
         } else {
@@ -140,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       // User is not logged in, redirect to login page
       console.log("User is not logged in, redirecting...");
-      window.location.href = "login.html";
+      window.location.href = "index.html";
     }
   }
 
@@ -187,16 +190,14 @@ document.addEventListener("DOMContentLoaded", () => {
       
       if (submissionsSnapshot.empty) {
         console.log("No task submissions found");
-        updateScoreDisplays(0, 0, 0);
+        updateScoreDisplays(0, 0);
         return;
       }
       
       // Calculate scores
-      const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
       const oneWeekAgo = new Date();
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       
-      let todayScore = 0;
       let weeklyScore = 0;
       let allTimeScore = 0;
       
@@ -211,10 +212,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 0);
         
         // Add to appropriate counters
-        if (submissionDate === today) {
-          todayScore += submissionPoints;
-        }
-        
         const submissionTimestamp = new Date(submissionDate);
         if (submissionTimestamp >= oneWeekAgo) {
           weeklyScore += submissionPoints;
@@ -224,7 +221,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       
       // Update UI with calculated scores
-      updateScoreDisplays(todayScore, weeklyScore, allTimeScore);
+      updateScoreDisplays(weeklyScore, allTimeScore);
       
     } catch (error) {
       console.error("Error fetching user scores:", error);
@@ -233,13 +230,95 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 7) UPDATE SCORE DISPLAYS
+  // 7) FETCH LEADERBOARD POSITION
   // ───────────────────────────────────────────────────────────
-  function updateScoreDisplays(today, weekly, allTime) {
-    if (elements.todayScoreValue) {
-      elements.todayScoreValue.textContent = today;
+  async function fetchLeaderboardPosition(userId) {
+    try {
+      // Get all users and their scores
+      const usersSnapshot = await dbFirestore.collection("users").get();
+      const userScores = [];
+      
+      // Process each user
+      for (const userDoc of usersSnapshot.docs) {
+        const userData = userDoc.data();
+        const uid = userDoc.id;
+        
+        // Skip users without necessary data
+        if (!userData.fullName) continue;
+        
+        // Get user's submissions
+        const submissionsSnapshot = await dbFirestore
+          .collection("users")
+          .doc(uid)
+          .collection("task_submissions")
+          .get();
+        
+        // Calculate total score
+        let totalScore = 0;
+        submissionsSnapshot.forEach(doc => {
+          const submission = doc.data();
+          const practices = submission.practices || [];
+          
+          const submissionPoints = practices.reduce((total, practice) => {
+            return total + (practice.points || 0);
+          }, 0);
+          
+          totalScore += submissionPoints;
+        });
+        
+        // Add to scores array
+        userScores.push({
+          uid,
+          name: userData.fullName,
+          score: totalScore
+        });
+      }
+      
+      // Sort by score (descending)
+      userScores.sort((a, b) => b.score - a.score);
+      
+      // Find current user's position
+      const userPosition = userScores.findIndex(user => user.uid === userId) + 1;
+      
+      // Update UI
+      if (elements.leaderboardPositionValue) {
+        if (userPosition > 0) {
+          const suffix = getOrdinalSuffix(userPosition);
+          elements.leaderboardPositionValue.textContent = `${userPosition}${suffix}`;
+        } else {
+          elements.leaderboardPositionValue.textContent = "Not ranked";
+        }
+      }
+      
+    } catch (error) {
+      console.error("Error fetching leaderboard position:", error);
+      if (elements.leaderboardPositionValue) {
+        elements.leaderboardPositionValue.textContent = "--";
+      }
     }
+  }
+
+  // Helper function to get ordinal suffix (1st, 2nd, 3rd, etc.)
+  function getOrdinalSuffix(num) {
+    const j = num % 10;
+    const k = num % 100;
     
+    if (j === 1 && k !== 11) {
+      return "st";
+    }
+    if (j === 2 && k !== 12) {
+      return "nd";
+    }
+    if (j === 3 && k !== 13) {
+      return "rd";
+    }
+    return "th";
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // 8) UPDATE SCORE DISPLAYS
+  // ───────────────────────────────────────────────────────────
+  function updateScoreDisplays(weekly, allTime) {
     if (elements.weeklyScoreValue) {
       elements.weeklyScoreValue.textContent = weekly;
     }
@@ -250,7 +329,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 8) SETUP REALTIME LISTENERS
+  // 9) SETUP REALTIME LISTENERS
   // ───────────────────────────────────────────────────────────
   function setupRealtimeListeners(userId) {
     // Set up Realtime Database listener for score updates
@@ -261,6 +340,15 @@ document.addEventListener("DOMContentLoaded", () => {
       
       // Re-fetch and calculate scores when data changes
       fetchUserScores(userId);
+      fetchLeaderboardPosition(userId);
+    });
+    
+    // Also listen for global leaderboard changes
+    const leaderboardRef = dbRealtime.ref('leaderboard');
+    
+    leaderboardRef.on("value", (snapshot) => {
+      console.log("Leaderboard update received");
+      fetchLeaderboardPosition(userId);
     });
   }
 
@@ -303,6 +391,14 @@ function viewHistory() {
   window.location.href = "history.html";
 }
 
+function viewTournament() {
+  window.location.href = "tournament.html";
+}
+
+function viewMatchPlay() {
+  window.location.href = "match-play.html";
+}
+
 function manageTasks() {
   window.location.href = "manage-tasks.html";
 }
@@ -312,13 +408,13 @@ function logout() {
   if (typeof firebase !== 'undefined' && firebase.auth) {
     firebase.auth().signOut()
       .then(() => {
-        window.location.href = "login.html";
+        window.location.href = "index.html";
       })
       .catch((error) => {
         console.error("Logout error:", error);
       });
   } else {
     console.error("Firebase auth not initialized for logout");
-    window.location.href = "login.html";
+    window.location.href = "index.html";
   }
 }
