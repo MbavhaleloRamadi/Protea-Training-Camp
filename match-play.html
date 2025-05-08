@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🏆 Tournament Lobby</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      text-align: center;
+      background: url('assets/images/tournament-bg.jpg') no-repeat center center/cover;
+      color: white;
+    }
+    .lobby-container {
+      background-color: rgba(0,0,0,0.6);
+      padding: 3rem;
+      margin-top: 10vh;
+      border-radius: 12px;
+      display: inline-block;
+    }
+    h1 {
+      font-size: 2.5rem;
+    }
+    
+  </style>
+</head>
+
+<body>
+  <div class="lobby-container">
+    <h1>🏌️ Tournament Time!</h1>
+    <p>Get ready to join your team and compete on the virtual green.</p>
+    
+    <div class="loader"></div>
+    <div class="countdown" id="countdown">Redirecting in 10 seconds...</div>
+    
+    <button class="btn btn-primary" id="joinNowBtn">Join Now</button>
+    <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+  </div>
+
+  <script>
+    const msTeamsLink = "https://teams.microsoft.com/l/message/19:0394556f-908c-4e48-aa58-13d807db1f1a_8c867efb-af56-4344-bbe2-0c66391007a0@unq.gbl.spaces/1746683061264?context=%7B%22contextType%22%3A%22chat%22%7D";
+
+    let countdown = 10;
+    const countdownEl = document.getElementById("countdown");
+    const interval = setInterval(() => {
+      countdown--;
+      countdownEl.textContent = `Redirecting in ${countdown} seconds...`;
+      if (countdown <= 0) {
+        clearInterval(interval);
+        window.location.href = msTeamsLink;
+      }
+    }, 1000);
+
+    document.getElementById("joinNowBtn").addEventListener("click", () => {
+      clearInterval(interval);
+      window.location.href = msTeamsLink;
+    });
+
+    document.getElementById("cancelBtn").addEventListener("click", () => {
+      clearInterval(interval);
+      countdownEl.textContent = "Redirect canceled.";
+    });
+  </script>
+</body>
+</html>
