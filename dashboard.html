@@ -13,7 +13,7 @@
     
     <!-- Adding Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-   
+    
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
@@ -44,15 +44,15 @@
                 <h1>Welcome, <span id="user-name">Golfer</span></h1>
             </div>
             <div class="user-actions">
-                <button id="logout-button" onclick="logoutUser()" class="logout-btn">Logout</button>
+                <button id="logout-button" onclick="logout()" class="logout-btn">Logout</button>
             </div>
         </div>
 
         <!-- Score Overview Cards -->
         <div class="score-cards">
-            <div class="card" id="today-score">
-                <h2>Today's Score</h2>
-                <p id="today-score-value">0</p>
+            <div class="card" id="leaderboard-position">
+                <h2>Leaderboard Pos.</h2>
+                <p id="leaderboard-position-value">--</p>
             </div>
             <div class="card" id="weekly-score">
                 <h2>Weekly Score</h2>
@@ -69,6 +69,8 @@
             <button onclick="submitTasks()">Submit Tasks</button>
             <button onclick="viewLeaderboard()">View Leaderboard</button>
             <button onclick="viewHistory()">History</button>
+            <button onclick="viewTournament()">Tournament View</button>
+            <button onclick="viewMatchPlay()">Match Play Rules</button>
             <button id="admin-button" onclick="manageTasks()" class="hidden">Manage Tasks</button>
         </div>
         
@@ -77,19 +79,5 @@
     </div>
 
     <script src="js/dashboard.js"></script>
-    <script>
-        // Logout function
-        function logoutUser() {
-            // Using Firebase Auth to sign out the user
-            firebase.auth().signOut().then(() => {
-                // Sign-out successful, redirect to login page
-                window.location.href = 'index.html'; // or your login page
-            }).catch((error) => {
-                // An error happened during logout
-                console.error("Logout Error:", error);
-                alert("There was an error logging out. Please try again.");
-            });
-        }
-    </script>
 </body>
 </html>
