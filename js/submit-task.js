@@ -1,95 +1,166 @@
 document.addEventListener("DOMContentLoaded", () => {
-    // ───────────────────────────────────────────────────────────
-    // 1) PAGE LOADER
-    // ───────────────────────────────────────────────────────────
-    const loader = document.querySelector(".loader-overlay");
-    if (loader) {
-      window.addEventListener("load", () => {
-        // fade out
-        loader.style.transition = "opacity 0.6s ease";
-        loader.style.opacity = "0";
-  
-        // then completely hide
-        setTimeout(() => {
-          loader.style.display = "none";
-          document.body.style.visibility = "visible";
-        }, 600);
-      });
-    }
-  
-    // ───────────────────────────────────────────────────────────
-    // 2) FIREBASE INITIALIZATION
-    // ───────────────────────────────────────────────────────────
-    const firebaseConfig = {
-      apiKey: "AIzaSyCLFOHGb5xaMSUtE_vgVO0aaY6MfLySeTs",
-      authDomain: "protea-training-camp.firebaseapp.com",
-      projectId: "protea-training-camp",
-      storageBucket: "protea-training-camp.appspot.com",
-      messagingSenderId: "649833361697",
-      appId: "1:649833361697:web:5c402a67872ca10fe30e60",
-      measurementId: "G-K1HKHPG6HG"
-    };
-  
-    if (window.firebase) {
-      firebase.initializeApp(firebaseConfig);
-    } else {
-      console.error("Firebase SDK not found.");
-      return; // halt further setup
-    }
-  
-    // Monitor auth‑state changes
-    firebase.auth().onAuthStateChanged(user => {
-      console.log(user ? "User is logged in" : "User is not logged in");
+  // ───────────────────────────────────────────────────────────
+  // 1) PAGE LOADER
+  // ───────────────────────────────────────────────────────────
+  const loader = document.querySelector(".loader-overlay");
+  if (loader) {
+    window.addEventListener("load", () => {
+      // fade out
+      loader.style.transition = "opacity 0.6s ease";
+      loader.style.opacity = "0";
+
+      // then completely hide
+      setTimeout(() => {
+        loader.style.display = "none";
+        document.body.style.visibility = "visible";
+      }, 600);
     });
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // 2) FIREBASE INITIALIZATION
+  // ───────────────────────────────────────────────────────────
+  const firebaseConfig = {
+    apiKey: "AIzaSyCLFOHGb5xaMSUtE_vgVO0aaY6MfLySeTs",
+    authDomain: "protea-training-camp.firebaseapp.com",
+    projectId: "protea-training-camp",
+    storageBucket: "protea-training-camp.appspot.com",
+    messagingSenderId: "649833361697",
+    appId: "1:649833361697:web:5c402a67872ca10fe30e60",
+    measurementId: "G-K1HKHPG6HG"
+  };
+
+  if (window.firebase) {
+    firebase.initializeApp(firebaseConfig);
+  } else {
+    console.error("Firebase SDK not found.");
+    return; // halt further setup
+  }
+
+  // Monitor auth‑state changes
+  firebase.auth().onAuthStateChanged(user => {
+    console.log(user ? "User is logged in" : "User is not logged in");
+  });
+
+
+  // ───────────────────────────────────────────────────────────
+  // 5) LEADERBOARD FETCH & RENDER
+  // ───────────────────────────────────────────────────────────
+  const leaderboardContainer = document.getElementById("leaderboardData");
+  if (leaderboardContainer) {
+    const db           = firebase.firestore();
+    const leaderboard  = db
+      .collection("leaderboard")
+      .orderBy("score", "desc")
+      .limit(10);
+
+    leaderboard.get()
+      .then(snapshot => {
+        let rank = 1;
+        snapshot.forEach(doc => {
+          const { name, score } = doc.data();
+
+          const row = document.createElement("div");
+          row.classList.add("leaderboard-row");
+
+          row.innerHTML = `
+            <div class="rank">${rank++}</div>
+            <div class="name">${name}</div>
+            <div class="score">${score}</div>
+          `;
+          leaderboardContainer.appendChild(row);
+        });
+      })
+      .catch(err => console.error("Leaderboard error:", err));
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // SPECIAL POINTS DATE RANGES & TOURNAMENT DAYS
+  // ───────────────────────────────────────────────────────────
   
+  // Helper function to check if a date is within a range
+  function isDateInRange(date, startDate, endDate) {
+    return date >= startDate && date <= endDate;
+  }
   
-    // ───────────────────────────────────────────────────────────
-    // 5) LEADERBOARD FETCH & RENDER
-    // ───────────────────────────────────────────────────────────
-    const leaderboardContainer = document.getElementById("leaderboardData");
-    if (leaderboardContainer) {
-      const db           = firebase.firestore();
-      const leaderboard  = db
-        .collection("leaderboard")
-        .orderBy("score", "desc")
-        .limit(10);
+  // Helper function to create Date objects with consistent timezone handling
+  function createDate(year, month, day) {
+    // Month is 0-indexed in JavaScript Date (0 = January, 11 = December)
+    return new Date(year, month - 1, day);
+  }
   
-      leaderboard.get()
-        .then(snapshot => {
-          let rank = 1;
-          snapshot.forEach(doc => {
-            const { name, score } = doc.data();
+  // Special points periods for each category
+  const specialPointsPeriods = {
+    "Putting": [
+      { start: createDate(2025, 7, 1), end: createDate(2025, 7, 6) },
+      { start: createDate(2025, 8, 11), end: createDate(2025, 8, 17) }
+    ],
+    "Chipping": [
+      { start: createDate(2025, 7, 7), end: createDate(2025, 7, 13) },
+      { start: createDate(2025, 8, 18), end: createDate(2025, 8, 24) }
+    ],
+    "Irons & Tee Shot": [
+      { start: createDate(2025, 7, 14), end: createDate(2025, 7, 20) },
+      { start: createDate(2025, 8, 4), end: createDate(2025, 8, 10) }
+    ],
+    "Tournament Prep": [
+      { start: createDate(2025, 7, 21), end: createDate(2025, 7, 27) },
+      { start: createDate(2025, 9, 15), end: createDate(2025, 9, 23) }
+    ],
+    "Mental": [
+      { start: createDate(2025, 7, 28), end: createDate(2025, 8, 3) },
+      { start: createDate(2025, 9, 8), end: createDate(2025, 9, 14) }
+    ],
+    "Fitness": [
+      { start: createDate(2025, 8, 25), end: createDate(2025, 8, 31) }
+    ]
+  };
   
-            const row = document.createElement("div");
-            row.classList.add("leaderboard-row");
+  // Tournament days (no submissions allowed)
+  const tournamentStart = createDate(2025, 9, 24);
+  const tournamentEnd = createDate(2025, 9, 28);
   
-            row.innerHTML = `
-              <div class="rank">${rank++}</div>
-              <div class="name">${name}</div>
-              <div class="score">${score}</div>
-            `;
-            leaderboardContainer.appendChild(row);
-          });
-        })
-        .catch(err => console.error("Leaderboard error:", err));
-    }
+  // Function to check if double points apply for a category on a specific date
+  function shouldDoublePoints(category, date) {
+    if (!specialPointsPeriods[category]) return false;
+    
+    return specialPointsPeriods[category].some(period => 
+      isDateInRange(date, period.start, period.end)
+    );
+  }
   
-    // ───────────────────────────────────────────────────────────
-  // PRACTICE SELECTION & SUBMISSION - FIXED CODE
+  // Function to check if submissions are allowed (not tournament days)
+  function areSubmissionsAllowed(date) {
+    return !(isDateInRange(date, tournamentStart, tournamentEnd));
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // PRACTICE SELECTION & SUBMISSION - UPDATED CODE WITH SPECIAL POINTS
   // ───────────────────────────────────────────────────────────
 
   const dbFirestore = firebase.firestore();
   const dbRealtime  = firebase.database();
 
-  // DOM Elements - Fixed with proper checks
+  // DOM Elements
   const submitForm       = document.getElementById("submitTaskForm");
   const confirmEl        = document.getElementById("confirmationMessage");
   const taskCategory     = document.getElementById("taskCategory");
   const practiceContainer = document.getElementById("practiceContainer");
-  const practiceList     = document.getElementById("practiceList"); // FIXED: Missing element
-  const submitButton     = document.getElementById("submitButton"); // FIXED: Missing element
+  const practiceList     = document.getElementById("practiceList");
+  const submitButton     = document.getElementById("submitButton");
   const selectedList     = document.getElementById("selectedList");
   const selectedLabel    = document.getElementById("selectedLabel");
+  
+  // Add special points info element
+  const specialPointsInfo = document.createElement("div");
+  specialPointsInfo.id = "specialPointsInfo";
+  specialPointsInfo.className = "special-points-info";
+  specialPointsInfo.style.margin = "10px 0";
+  specialPointsInfo.style.padding = "10px";
+  specialPointsInfo.style.borderRadius = "5px";
+  if (practiceContainer && practiceContainer.parentNode) {
+    practiceContainer.parentNode.insertBefore(specialPointsInfo, practiceContainer);
+  }
 
   // Practice Options
   const practicesData = {
@@ -185,14 +256,36 @@ document.addEventListener("DOMContentLoaded", () => {
   // Selected Practices (max 3)
   let selectedPractices = [];
 
+  // Check tournament days on page load
+  function checkTournamentDays() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
+    
+    if (!areSubmissionsAllowed(today)) {
+      // Disable the form during tournament days
+      if (submitForm) {
+        submitForm.innerHTML = `
+          <div class="tournament-notification" style="background-color: #ffe0e0; padding: 20px; border-radius: 5px; text-align: center;">
+            <h3>⛳ Tournament in Progress!</h3>
+            <p>Task submissions are disabled from September 24-28, 2025 during the tournament.</p>
+            <p>Good luck to all participants!</p>
+          </div>
+        `;
+      }
+    }
+  }
+  
+  // Run the tournament check on page load
+  checkTournamentDays();
+
   // ───────────────────────────────────────────────────────────
-  // 1) When category changes, show the scrollable list
+  // 1) When category changes, show the scrollable list and special points info
   // ───────────────────────────────────────────────────────────
   if (taskCategory) {
     taskCategory.addEventListener("change", () => {
       const cat = taskCategory.value;
       
-      // FIXED: Check if practiceList exists before manipulating it
+      // Check if practiceList exists before manipulating it
       if (!practiceList) {
         console.error("Practice list element not found!");
         return;
@@ -202,18 +295,46 @@ document.addEventListener("DOMContentLoaded", () => {
     
       if (!practicesData[cat]) {
         practiceContainer.classList.add("hidden");
+        specialPointsInfo.innerHTML = "";
         return;
       }
       practiceContainer.classList.remove("hidden");
+      
+      // Update special points info
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
+      
+      const isSpecialPointsDay = shouldDoublePoints(cat, today);
+      
+      if (isSpecialPointsDay) {
+        specialPointsInfo.innerHTML = `
+          <div style="background-color: #e6f7ff; padding: 10px; border-radius: 5px; border-left: 4px solid #1890ff;">
+            <h4 style="margin-top: 0;">🎯 DOUBLE POINTS ACTIVE!</h4>
+            <p>All ${cat} practices submitted today will receive DOUBLE POINTS!</p>
+          </div>
+        `;
+        specialPointsInfo.style.display = "block";
+      } else {
+        specialPointsInfo.innerHTML = "";
+        specialPointsInfo.style.display = "none";
+      }
     
       practicesData[cat].forEach(practice => {
         const card = document.createElement("div");
         card.className = "practice-card";
+        
+        // Calculate points based on special date ranges
+        const displayPoints = isSpecialPointsDay ? practice.points * 2 : practice.points;
+        const pointsText = isSpecialPointsDay ? 
+          `<small>Points: <span style="color: #1890ff; font-weight: bold;">${displayPoints} (2x Bonus!)</span></small>` :
+          `<small>Points: ${displayPoints}</small>`;
+          
         card.innerHTML = `
           <h4>${practice.name}</h4>
           <p>${practice.description}</p>
-          <small>Points: ${practice.points}</small>
+          ${pointsText}
         `;
+        
         card.addEventListener("click", () => {
           if (selectedPractices.find(p => p.name === practice.name)) {
             showConfirmation("Practice already selected.", "red");
@@ -223,7 +344,16 @@ document.addEventListener("DOMContentLoaded", () => {
             showConfirmation("You can only select 3 practices.", "red");
             return;
           }
-          selectedPractices.push(practice);
+          
+          // Add practice with potentially double points
+          const practiceToAdd = {
+            ...practice,
+            originalPoints: practice.points,
+            points: isSpecialPointsDay ? practice.points * 2 : practice.points,
+            isDoublePoints: isSpecialPointsDay
+          };
+          
+          selectedPractices.push(practiceToAdd);
           renderSelected();
           showConfirmation(`✅ Added "${practice.name}"`, "green");
         });
@@ -246,7 +376,13 @@ document.addEventListener("DOMContentLoaded", () => {
     selectedList.innerHTML = "";
     selectedPractices.forEach((p, i) => {
       const li = document.createElement("li");
-      li.textContent = `${p.name} (${p.points} pts)`;
+      
+      // Show double points indicator if applicable
+      const pointsText = p.isDoublePoints ? 
+        `${p.points} pts (2x Bonus!)` : 
+        `${p.points} pts`;
+        
+      li.innerHTML = `${p.name} <span style="${p.isDoublePoints ? 'color: #1890ff; font-weight: bold;' : ''}">(${pointsText})</span>`;
       li.style.cursor = "pointer";
       li.title = "Click to remove";
       li.addEventListener("click", () => {
@@ -262,11 +398,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 3) Submit handler - FIXED
+  // 3) Submit handler - Updated to check tournament days
   // ───────────────────────────────────────────────────────────
   if (submitForm) {
     submitForm.addEventListener("submit", async e => {
       e.preventDefault();
+      
+      // Check if today is during tournament days
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
+      
+      if (!areSubmissionsAllowed(today)) {
+        showConfirmation("⛔ Submissions are disabled during tournament days (Sept 24-28, 2025).", "red");
+        return;
+      }
+      
       const user = firebase.auth().currentUser;
       if (!user) {
         showConfirmation("⚠️ You must be logged in to submit.", "red");
@@ -281,7 +427,7 @@ document.addEventListener("DOMContentLoaded", () => {
       
       const name = nameElement.value.trim();
       const category = taskCategory ? taskCategory.value : null;
-      const date = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+      const date = today.toISOString().split("T")[0]; // YYYY-MM-DD
     
       if (!category || selectedPractices.length === 0) {
         showConfirmation("⚠️ Select a category and at least one practice.", "red");
@@ -290,7 +436,7 @@ document.addEventListener("DOMContentLoaded", () => {
     
       const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
       
-      // FIXED: Create references once
+      // Create references once
       const userSubRef = dbFirestore
         .collection("users")
         .doc(user.uid)
@@ -319,7 +465,7 @@ document.addEventListener("DOMContentLoaded", () => {
         
         showConfirmation("Submitting your task...", "blue");
     
-        // FIXED: Use the already defined userSubRef
+        // Use the already defined userSubRef
         const batch = dbFirestore.batch();
         batch.set(userSubRef, payload);
     
@@ -333,6 +479,10 @@ document.addEventListener("DOMContentLoaded", () => {
         submitForm.reset();
         if (practiceContainer) {
           practiceContainer.classList.add("hidden");
+        }
+        if (specialPointsInfo) {
+          specialPointsInfo.innerHTML = "";
+          specialPointsInfo.style.display = "none";
         }
     
       } catch (err) {
@@ -371,24 +521,21 @@ document.addEventListener("DOMContentLoaded", () => {
     confirmEl.classList.remove("hidden");
   }
 });
-  
-  
-  // Button click handlers
-  function submitTasks() {
-    window.location.href = "submit-task.html";
-  }
-  
-  function viewLeaderboard() {
-    window.location.href = "leaderboard.html";
-  }
-  
-  function viewHistory() {
-    window.location.href = "history.html";
-  }
-  
-  function manageTasks() {
-    window.location.href = "manage-tasks.html";
-  }
-  
-  
-    
+
+
+// Button click handlers
+function submitTasks() {
+  window.location.href = "submit-task.html";
+}
+
+function viewLeaderboard() {
+  window.location.href = "leaderboard.html";
+}
+
+function viewHistory() {
+  window.location.href = "history.html";
+}
+
+function manageTasks() {
+  window.location.href = "manage-tasks.html";
+}
