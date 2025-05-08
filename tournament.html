@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+    <meta name="author" content="Mbavhalelo Innocent Ramadi">
+    <title>Tournament</title>
+  
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <!-- Background Video -->
+    <video autoplay muted loop class="background-video" id="bg-video">
+        <source src="assets/video/backvideo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    
+    <!-- Loader -->
+    <div class="loader-overlay">
+        <div class="loader"></div>
+    </div>
+    
+    <!-- Tournament Container -->
+    <div class="tournament-container" id="tournamentContainer">
+        <div class="tournament-card">
+            <div class="tournament-header">
+                <div class="golf-icon">🏌️</div>
+                <h1>Tournament Time!</h1>
+            </div>
+            
+            <div class="tournament-body">
+                <p>Get ready to join your team and compete on the virtual green.</p>
+                
+                <div class="countdown-section">
+                    <p>Redirecting in <span id="countdown">10</span> seconds...</p>
+                </div>
+                
+                <div class="button-container">
+                    <button class="btn btn-primary" id="joinNowBtn">Join Now</button>
+                    <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Preview Container (shown after joining) -->
+    <div class="preview-container" id="previewContainer">
+        <div class="preview-header">
+            <div class="golf-icon">🏆</div>
+            <h1>Tournament Tour Opened</h1>
+        </div>
+        
+        <div class="preview-body">
+            <p>We've opened the tournament tour in a new tab for you.</p>
+            <p>If it didn't open automatically, <a href="https://www.youtube.com/playlist?list=PLk4_nsOUDG273ux1NuupxwnYUoxfWAq2_" target="_blank" rel="noopener">click here</a> to view it.</p>
+        </div>
+        
+        <div class="preview-footer">
+            <button class="btn-dashboard" id="backToDashboardBtn">Back to Dashboard</button>
+        </div>
+    </div>
+    
+    <!-- Confirmation Message Container -->
+    <div id="confirmationMessage" class="confirmation-message hidden"></div>
+    
+    <!-- Scripts -->
+    <script src="js/tournament.js"></script>
+</body>
+</html>
