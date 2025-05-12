@@ -219,16 +219,16 @@ document.addEventListener("DOMContentLoaded", () => {
     "On The Course": [
       { name: "OTC-Quick9",          description: "Play 9 holes on an official Golf Course",                                 points: 1 },
       { name: "OTC-Myball",          description: "Finish with the Ball you started",                                       points: 1 },
-      { name: "OTC-Partime",         description: "Score a Par on a Hole (unlimitted per day)",                             points: 1 },
-      { name: "OTC-Par3",            description: "Score a par or lower on a par 3 (unlimitted per day)",                   points: 1 },
-      { name: "OTC-Up&Down",         description: "Score an Up&Down for par or lower out of a greenside bunker (unlimitted per day)", points: 1 },
+      { name: "OTC-Partime",         description: "Score a Par on a Hole (unlimitted per day)",                             points: 1, allowMultiple: true },
+      { name: "OTC-Par3",            description: "Score a par or lower on a par 3 (unlimitted per day)",                   points: 1, allowMultiple: true },
+      { name: "OTC-Up&Down",         description: "Score an Up&Down for par or lower out of a greenside bunker (unlimitted per day)", points: 1, allowMultiple: true },
       { name: "OTC-Full18",          description: "Play 18 holes on an official Golf Course",                               points: 2 },
-      { name: "OTC-Birdies",         description: "Score a Birdie on a Hole (unlimitted per day)",                           points: 2 },
+      { name: "OTC-Birdies",         description: "Score a Birdie on a Hole (unlimitted per day)",                           points: 2, allowMultiple: true },
       { name: "OTC-Fairways4days",   description: "Hit 75% Fairways in regulation",                                          points: 2 },
       { name: "OTC-Deadaim",         description: "Hit 50% Greens in regulation",                                            points: 2 },
       { name: "OTC-MrPutt",          description: "Score average of 2 putts or less per hole",                               points: 2 },
       { name: "OTC-Beatme",          description: "Score below your course handicap",                                        points: 3 },
-      { name: "OTC-Eagle",           description: "Score an Eagle (unlimitted per day)",                                     points: 5 }
+      { name: "OTC-Eagle",           description: "Score an Eagle (unlimitted per day)",                                     points: 5, allowMultiple: true }
     ],
     "Tournament Prep": [
       { name: "TP-Visualize",    description: "Map out a hole of Magalies park golf course, Distances, Obstacles, Stroke, Par, Gameplan", points: 1 },
@@ -253,7 +253,7 @@ document.addEventListener("DOMContentLoaded", () => {
     ]
   };
 
-  // Selected Practices (max 3)
+  // Selected Practices (max 3 for normal practices, but unlimited for specified practices)
   let selectedPractices = [];
 
   // Check tournament days on page load
@@ -333,15 +333,20 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${practice.name}</h4>
           <p>${practice.description}</p>
           ${pointsText}
+          ${practice.allowMultiple ? '<small style="color: #28a745; display: block; margin-top: 4px;">Can be added multiple times</small>' : ''}
         `;
         
         card.addEventListener("click", () => {
-          if (selectedPractices.find(p => p.name === practice.name)) {
+          // Check if practice is already selected and doesn't allow multiple entries
+          if (!practice.allowMultiple && selectedPractices.find(p => p.name === practice.name)) {
             showConfirmation("Practice already selected.", "red");
             return;
           }
-          if (selectedPractices.length >= 3) {
-            showConfirmation("You can only select 3 practices.", "red");
+          
+          // Check if we've reached the maximum of 3 non-multiple practices
+          const nonMultipleCount = selectedPractices.filter(p => !p.allowMultiple).length;
+          if (!practice.allowMultiple && nonMultipleCount >= 3) {
+            showConfirmation("You can only select 3 regular practices.", "red");
             return;
           }
           
@@ -353,9 +358,16 @@ document.addEventListener("DOMContentLoaded", () => {
             isDoublePoints: isSpecialPointsDay
           };
           
+          // For multiple allowed practices, add a unique identifier
+          if (practice.allowMultiple) {
+            // Count how many of this practice are already selected
+            const count = selectedPractices.filter(p => p.name === practice.name).length;
+            practiceToAdd.uniqueId = `${practice.name}_${count + 1}`;
+          }
+          
           selectedPractices.push(practiceToAdd);
           renderSelected();
-          showConfirmation(`✅ Added "${practice.name}"`, "green");
+          showConfirmation(`✅ Added "${practice.name}"${practice.allowMultiple ? ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
         });
         practiceList.appendChild(card);
       });
@@ -381,8 +393,17 @@ document.addEventListener("DOMContentLoaded", () => {
       const pointsText = p.isDoublePoints ? 
         `${p.points} pts (2x Bonus!)` : 
         `${p.points} pts`;
-        
-      li.innerHTML = `${p.name} <span style="${p.isDoublePoints ? 'color: #1890ff; font-weight: bold;' : ''}">(${pointsText})</span>`;
+      
+      // For multiple allowed practices, show the count
+      let displayName = p.name;
+      if (p.allowMultiple) {
+        // Find how many of this type exist
+        const practiceCount = selectedPractices.filter(sp => sp.name === p.name).length;
+        const thisIndex = selectedPractices.filter(sp => sp.name === p.name).indexOf(p) + 1;
+        displayName = `${p.name} #${thisIndex}`;
+      }
+      
+      li.innerHTML = `${displayName} <span style="${p.isDoublePoints ? 'color: #1890ff; font-weight: bold;' : ''}">(${pointsText})</span>`;
       li.style.cursor = "pointer";
       li.title = "Click to remove";
       li.addEventListener("click", () => {
@@ -392,8 +413,12 @@ document.addEventListener("DOMContentLoaded", () => {
       selectedList.appendChild(li);
     });
     
+    // Count regular practices (non-multiple)
+    const regularPracticesCount = selectedPractices.filter(p => !p.allowMultiple).length;
+    const multiplePracticesCount = selectedPractices.filter(p => p.allowMultiple).length;
+    
     if (selectedLabel) {
-      selectedLabel.textContent = `Selected Practices (${selectedPractices.length}/3)`;
+      selectedLabel.textContent = `Selected Practices (${regularPracticesCount}/3 regular, ${multiplePracticesCount} special)`;
     }
   }
 

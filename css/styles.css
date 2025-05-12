@@ -34,8 +34,6 @@ body {
   height: 100%;
   background: rgba(20, 20, 20, 0.8);
   -webkit-backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
   display: flex;
   justify-content: center;
@@ -63,8 +61,7 @@ body {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
-
-
+ 
 /* Main content styling */
 .main-content {
   display: flex;
@@ -77,18 +74,20 @@ body {
   position: relative;
   z-index: 2;
 }
-
-
+ 
 header h1 {
   font-size: 3rem;
   margin-bottom: 1rem;
-  color: black;
+  color: white;
+  font-weight: bold;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
 }
 
 header p {
   font-size: 1.5rem;
   margin-bottom: 2rem;
-  color: black;
+  color: white;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 /* CTA buttons */
@@ -96,6 +95,7 @@ header p {
   display: flex;
   justify-content: center;
   gap: 15px;
+  margin-bottom: 40px;
 }
 
 .btn {
@@ -104,6 +104,13 @@ header p {
   border: none;
   cursor: pointer;
   border-radius: 5px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
 }
 
 .primary-btn {
@@ -116,22 +123,89 @@ header p {
   color: white;
 }
 
+/* Logo container styling */
+.logo-container {
+  display: flex;
+  justify-content: center;
+  gap: 50px;
+  margin-top: 20px;
+}
+
+.floating-logo {
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 10px 10px rgba(0, 0, 0, 0.4));
+}
+
+.logo {
+  width: 120px;
+  height: auto;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+/* Popup message styles */
+.popup-message {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 5px;
+  background-color: rgba(40, 167, 69, 0.9);
+  color: white;
+  font-weight: bold;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transform: translateX(150%);
+  transition: transform 0.4s ease-out;
+}
+
+.popup-message.show {
+  transform: translateX(0);
+}
+
+.popup-message.error {
+  background-color: rgba(220, 53, 69, 0.9);
+}
+
+.popup-message.info {
+  background-color: rgba(13, 110, 253, 0.9);
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .main-content {
-      padding: 10px;
+    padding: 10px;
   }
-
+  
   header h1 {
-      font-size: 2.5rem;
+    font-size: 2.5rem;
   }
-
+  
   header p {
-      font-size: 1.2rem;
+    font-size: 1.2rem;
   }
-
+  
   .btn {
-      font-size: 1rem;
+    font-size: 1rem;
+  }
+  
+  .logo-container {
+    flex-direction: column;
+    gap: 30px;
+  }
+  
+  .logo {
+    width: 100px;
   }
 }
 
@@ -183,7 +257,55 @@ header p {
   }
 }
 
-/* Adding to the existing CSS */
+/* Base SVG Container */
+.svg-bg {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: -1;
+  opacity: 10%;
+  transition: opacity 1.8s ease, transform 0.8s ease;
+  pointer-events: none;
+}
+
+.left-bg {
+  left: 150px;
+}
+
+.right-bg {
+  right: 150px;
+}
+
+.svg-logo {
+  height: 200px; /* adjust as needed */
+  width: auto;
+  opacity: 1;
+  transform: scale(0.8);
+  animation: idlePulse 6s ease-in-out infinite;
+}
+
+/* On load animation (JS adds this class) */
+.page-loaded .svg-bg {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+/* On exit animation (JS adds this class before leaving) */
+.page-exit .svg-bg {
+  opacity: 0;
+  transform: translateY(-50%) scale(0.5);
+}
+
+/* Optional idle animation while user is on page */
+@keyframes idlePulse {
+  0%, 100% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(0.85);
+  }
+}
+
 
 /* Leaderboard Glass Container */
 .leaderboard-container {
