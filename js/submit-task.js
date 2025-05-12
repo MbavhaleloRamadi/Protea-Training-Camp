@@ -547,6 +547,43 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+firebase.auth().onAuthStateChanged(user => {
+  if (!user) {
+    document.getElementById("golferNameDisplay").textContent = "Please log in";
+    return;
+  }
+
+  const userId = user.uid;
+  const nameDisplay = document.getElementById("golferNameDisplay");
+  const nameInput = document.getElementById("golferName");
+
+  // First try Firestore
+  firebase.firestore().collection("users").doc(userId).get()
+    .then(doc => {
+      if (doc.exists && doc.data().fullName) {
+        const fullName = doc.data().fullName;
+        nameDisplay.textContent = fullName;
+        nameInput.value = fullName;
+      } else {
+        // Fallback to Realtime DB if Firestore doesn't have fullName
+        return firebase.database().ref('users/' + userId).once('value');
+      }
+    })
+    .then(snapshot => {
+      if (snapshot && snapshot.exists()) {
+        const data = snapshot.val();
+        const fullName = data.fullName || "Unnamed Golfer";
+        nameDisplay.textContent = fullName;
+        nameInput.value = fullName;
+      } else if (!nameInput.value) {
+        nameDisplay.textContent = "Name not found";
+      }
+    })
+    .catch(error => {
+      console.error("Error fetching name:", error);
+      nameDisplay.textContent = "Error loading name";
+    });
+});
 
 // Button click handlers
 function submitTasks() {

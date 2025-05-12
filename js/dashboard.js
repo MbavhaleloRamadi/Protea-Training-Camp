@@ -420,7 +420,7 @@ function viewHistory() {
 }
 
 function viewTournament() {
-  window.location.href = "tournament.html";
+  window.location.href = "https://www.youtube.com/playlist?list=PLk4_nsOUDG273ux1NuupxwnYUoxfWAq2_";
 }
 
 function viewMatchPlay() {

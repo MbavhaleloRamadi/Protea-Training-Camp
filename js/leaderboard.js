@@ -141,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   
-   // ───────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────
 // 6) DATA PROCESSING - UPDATED FOR POINTS SORTING
 // ───────────────────────────────────────────────────────────
 function processLeaderboardData(usersData) {
@@ -153,7 +153,7 @@ function processLeaderboardData(usersData) {
     const userData = usersData[userId];
     
     // Skip users without necessary data
-    if (!userData.fullName) return;
+    if (!userData.username) return; // Changed from fullName to username
     
     // Calculate total score from task submissions
     // Higher points are better
@@ -188,7 +188,7 @@ function processLeaderboardData(usersData) {
     // Add to leaderboard entries
     leaderboardEntries.push({
       userId: userId,
-      name: userData.fullName,
+      name: userData.username, // Changed from fullName to username
       rawScore: totalScore,
       displayScore: formattedScore,
       roundsPlayed: roundsPlayed,

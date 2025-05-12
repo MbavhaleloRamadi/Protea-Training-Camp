@@ -34,14 +34,18 @@
   <main class="main-content-form">
 
     <form id="submitTaskForm">
-      <h1>Submit Your Daily Tasks</h1>
-      <p>You may submit up to <strong>3 practices</strong> per day. No duplicates.</p>
+      <h1>Log your Training</h1>
+      <p>User are allowed to submit unlimited practises, but can only submit one of each, except for the
+         <strong>On the Course Items</strong>. On the course items can be logged unlimited times per day. 
+      
+<!-- Golfer Name Display (auto-filled from Firebase) -->
+<div class="form-group">
+  <label>Your Name</label>
+  <p id="golferNameDisplay" class="readonly-display">Loading...</p>
+  <input type="hidden" id="golferName" name="golferName" />
+</div>
 
-      <!-- Golfer Name -->
-      <div class="form-group">
-        <label for="golferName">Your Name</label>
-        <input type="text" id="golferName" name="golferName" placeholder="e.g. Jane Doe" required>
-      </div>
+
 
       <!-- Category Selector -->
       <div class="form-group">
