@@ -18,7 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
     adminButton: document.getElementById("admin-button"),
     
     // Confirmation message
-    confirmEl: document.getElementById("confirmationMessage")
+    confirmEl: document.getElementById("confirmationMessage"),
+
+    // Navigation toggle
+    navToggle: document.getElementById("nav-toggle")
   };
 
   // ───────────────────────────────────────────────────────────
@@ -151,10 +154,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // 4) DISPLAY USER INFORMATION
   // ───────────────────────────────────────────────────────────
   function displayUserInfo(userData) {
-    if (elements.userName && userData.fullName) {
-      // Get first name (for personalization)
-      const firstName = userData.fullName.split(" ")[0];
-      elements.userName.textContent = firstName;
+    if (elements.userName && userData.username) {
+      // Use username instead of fullName
+      elements.userName.textContent = userData.username;
+    } else if (elements.userName && userData.fullName) {
+      // Fallback to fullName if username doesn't exist
+      elements.userName.textContent = userData.fullName;
     }
   }
 
@@ -244,7 +249,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const uid = userDoc.id;
         
         // Skip users without necessary data
-        if (!userData.fullName) continue;
+        if (!userData.username && !userData.fullName) continue;
         
         // Get user's submissions
         const submissionsSnapshot = await dbFirestore
@@ -269,7 +274,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Add to scores array
         userScores.push({
           uid,
-          name: userData.fullName,
+          name: userData.username || userData.fullName,
           score: totalScore
         });
       }
@@ -376,6 +381,29 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 5000);
     }
   }
+  
+  // Initialize mobile navigation toggle
+  if (elements.navToggle) {
+    elements.navToggle.addEventListener('click', () => {
+      const navbar = document.querySelector('.navbar');
+      navbar.classList.toggle('active');
+      elements.navToggle.classList.toggle('active');
+    });
+  }
+});
+
+  // ───────────────────────────────────────────────────────────
+  // Pro Range Session 
+  // ───────────────────────────────────────────────────────────
+
+// Wait for the DOM to load before adding event listeners
+document.addEventListener("DOMContentLoaded", () => {
+  const profileButton = document.getElementById("kriekProfileBtn");
+
+  // Open Kriek's profile in a new tab when button is clicked
+  profileButton.addEventListener("click", () => {
+    window.open("https://sunshinetour.com/playerprofile/KRI012", "_blank");
+  });
 });
 
 // Navigation Functions
@@ -397,6 +425,14 @@ function viewTournament() {
 
 function viewMatchPlay() {
   window.location.href = "match-play.html";
+}
+
+function viewImportantDates() {
+  window.location.href = "important-dates.html";
+}
+
+function viewProSessions() {
+  window.location.href = "pro-range-session.html";
 }
 
 function manageTasks() {

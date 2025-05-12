@@ -14,6 +14,9 @@
     <!-- Adding Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
@@ -44,14 +47,16 @@
                 <h1>Welcome, <span id="user-name">Golfer</span></h1>
             </div>
             <div class="user-actions">
-                <button id="logout-button" onclick="logout()" class="logout-btn">Logout</button>
+                <button id="logout-button" onclick="logout()" class="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
             </div>
         </div>
 
         <!-- Score Overview Cards -->
         <div class="score-cards">
             <div class="card" id="leaderboard-position">
-                <h2>Leaderboard</h2>
+                <h2>Current Position</h2>
                 <p id="leaderboard-position-value">--</p>
             </div>
             <div class="card" id="weekly-score">
@@ -64,16 +69,65 @@
             </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="action-buttons">
-            <button onclick="submitTasks()">Submit Tasks</button>
-            <button onclick="viewLeaderboard()">View Leaderboard</button>
-            <button onclick="viewHistory()">History</button>
-            <button onclick="viewTournament()">Tournament View</button>
-            <button onclick="viewMatchPlay()">Match Play Rules</button>
-            <button id="admin-button" onclick="manageTasks()" class="hidden">Manage Tasks</button>
+        <!-- Primary Action Buttons -->
+        <div class="primary-actions">
+            <button onclick="submitTasks()" class="primary-btn">
+                <i class="fas fa-golf-ball"></i> Log Training
+            </button>
+            <button onclick="viewLeaderboard()" class="primary-btn">
+                <i class="fas fa-trophy"></i> View Leaderboard
+            </button>
         </div>
         
+        <!-- Mobile Navigation Toggle -->
+        <div class="nav-toggle" id="nav-toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+
+        <!-- Navigation Bar -->
+        <nav class="navbar">
+            <ul>
+                <li>
+                    <a href="javascript:void(0)" onclick="viewHistory()">
+                        <i class="fas fa-history"></i>
+                        <span>History</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="javascript:void(0)" onclick="viewTournament()">
+                        <i class="fas fa-flag"></i>
+                        <span>Course View</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="javascript:void(0)" onclick="viewMatchPlay()">
+                        <i class="fas fa-users"></i>
+                        <span>Match Play Rules</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="javascript:void(0)" onclick="viewImportantDates()">
+                        <i class="far fa-calendar-alt"></i>
+                        <span>Important Dates</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="javascript:void(0)" onclick="viewProSessions()">
+                        <i class="fas fa-user-tie"></i>
+                        <span>Pro Range Sessions</span>
+                    </a>
+                </li>
+                <li id="admin-button" class="hidden">
+                    <a href="javascript:void(0)" onclick="manageTasks()">
+                        <i class="fas fa-cog"></i>
+                        <span>Admin</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+
         <!-- Confirmation/Alert Message Area -->
         <div id="confirmationMessage" class="hidden"></div>
     </div>

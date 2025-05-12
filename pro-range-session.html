@@ -6,27 +6,25 @@
     <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
     <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
     <meta name="author" content="Your Name or Company">
-    <title>Golf Leaderboard</title>
+    <title>Pro Range Session</title>
     
     <!-- Linking the main stylesheet -->
     <link rel="stylesheet" href="css/styles.css">
     
     <!-- Adding Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-</head>
 
+
+</head>
 <body>
 
-   <!-- Background Video -->
+         <!-- Background Video -->
     <video autoplay muted loop class="background-video" id="bg-video">
        <source src="assets/video/backvideo.mp4" type="video/mp4">
         Your browser does not support the video tag.
@@ -40,38 +38,24 @@
       </div>
     </div>
     
-     <!-- SVG Background Wrappers -->
-<div class="svg-bg left-bg">
-  <img src="assets/images/Guarra Logo.jpg.svg" alt="Left Logo" class="svg-logo left-logo" />
-</div>
-<div class="svg-bg right-bg">
-  <img src="assets/images/Proteas Logo.png.svg" alt="Right Logo" class="svg-logo right-logo" />
-</div>
+  <div class="container">
+    <h1>Christiaan Kriek Tour Pro</h1>
+    <h2>
+      Kriek agreed to having a Group Putting Session and a range session for 2 players at a time. 
+      Follow our WhatsApp group for more information.
+    </h2>
 
-  <div class="lobby-container">
-    <div class="instructions">
-      <p>Click the logo below to view the tournament rules:</p>
+    <!-- Kriek Image -->
+    <div class="image-container">
+      <img src="assets/images/Christiaan Kriek.jpeg" alt="Christiaan Kriek" />
     </div>
 
-    <div class="logo-wrapper">
-      <img
-        src="assets/images/the-ra-seeklogo-2.svg"
-        alt="Tournament Rules Logo"
-        class="rotating-logo"
-        id="rulesLogo"
-      />
+    <!-- Profile Button -->
+    <div class="button-container">
+      <button id="kriekProfileBtn">Kriek’s Profile</button>
     </div>
-
-    <div class="download-buttons">
-      <a href="https://play.google.com/store/apps/details?id=com.randa.android&pcampaignid=web_share" target="_blank" rel="noopener" class="btn android">Download for Android</a>
-      <a href="https://apps.apple.com/ro/app/rules-of-golf-2023/id1435204099" target="_blank" rel="noopener" class="btn ios">Download for iOS</a>
-    </div>
-    
-  </div><button class="back-button" onclick="window.location.href='dashboard.html'">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </button>
   </div>
 
-  <script src="js/scripts.js"></script>
+  <script src="js/dashboard.js"></script>
 </body>
 </html>

@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+    <meta name="author" content="Your Name or Company">
+    <title>Leaderboard</title>
+    
+    <!-- Linking the main stylesheet -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <!-- Adding Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+
+</head>
+<body>
+
+     <!-- Background Video -->
+    <video autoplay muted loop class="background-video" id="bg-video">
+       <source src="assets/video/backvideo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+        
+    <!-- Fullscreen Fun Loader -->
+    <div class="loader-overlay" id="loader">
+      <div class="loader-container">
+        <div class="golf-loader"></div>
+        <p>Warming up the greens...</p>
+      </div>
+    </div>
+
+  <div class="container">
+    <header>
+      <img src="assets/images/Guarra Logo.jpg.svg" alt="Left Logo" class="logo">
+      <h1>Champions Training Camp</h1>
+      <img src="assets/images/Guarra Logo.jpg.svg" alt="Right Logo" class="logo">
+    </header>
+
+    <section id="calendarSection">
+  <div class="calendar-container">
+    <h2>July 2025</h2>
+    <div id="julyCalendar"></div>
+  </div>
+
+  <div class="calendar-container">
+    <h2>August 2025</h2>
+    <div id="augustCalendar"></div>
+  </div>
+
+  <div class="calendar-container">
+    <h2>September 2025</h2>
+    <div id="septemberCalendar"></div>
+  </div>
+</section>
+
+      <div class="info-panels">
+        <div class="panel bonus-points">
+          <h3>Weekly Bonus Points X</h3>
+          <ul>
+            <li><span class="box putting"></span> Putting - BPoints</li>
+            <li><span class="box chipping"></span> Chipping - BPoints</li>
+            <li><span class="box irons"></span> Irons - BPoints</li>
+            <li><span class="box tour-prep"></span> Tour Prep - BPoints</li>
+            <li><span class="box mental"></span> Mental - BPoints</li>
+            <li><span class="box fitness"></span> Fitness - BPoints</li>
+            <li><span class="box tournament"></span> Tournament</li>
+          </ul>
+        </div>
+
+        <div class="panel important-dates">
+          <h3>Important Dates</h3>
+          <p><strong>Quiz Night Break - 12 Sept</strong></p>
+          <p>Driving Range Games - Irons only 18 Holes</p>
+          <p>Every Tuesday 15h - 9 Holes free on Wi</p>
+          <p>Trophy Weekly Tour - 14 July - 20 Sept</p>
+        </div>
+
+        <div class="panel rules">
+          <h3>TRAINING CAMP RULES</h3>
+          <p>Try to gain as much points per day as possible</p>
+          <p>Only one exercise entry per day (unless indicated)</p>
+          <p>Multiple different exercise entries allowed per day</p>
+          <p>Bonus points will be awarded x2 (Captain will assign them weekly)</p>
+          <p>It's an Honesty entry Rule, please respect this.</p>
+          <p>Commit to our cause and believe in yourself</p>
+        </div>
+      </div>
+
+      <button id="dashboardBtn" class="dashboard-btn">Back to Dashboard</button>
+    </main>
+  </div>
+
+  <script src="js/scripts.js"></script>
+</body>
+</html>
