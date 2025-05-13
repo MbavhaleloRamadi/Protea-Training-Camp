@@ -23,82 +23,106 @@
 
 </head>
 <body>
+       <div class="training-camp">
+        <div class="training-camp__header">
+            <h1 class="training-camp__title">Champions Training Camp</h1>
+        </div>
 
-     <!-- Background Video -->
-    <video autoplay muted loop class="background-video" id="bg-video">
-       <source src="assets/video/backvideo.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-        
-    <!-- Fullscreen Fun Loader -->
-    <div class="loader-overlay" id="loader">
-      <div class="loader-container">
-        <div class="golf-loader"></div>
-        <p>Warming up the greens...</p>
-      </div>
+        <div class="video-container">
+            <video autoplay muted loop>
+                <source src="your-video-source.mp4" type="video/mp4">
+                <div class="video-fallback">Your browser does not support the video tag. Warming up the greens...</div>
+            </video>
+        </div>
+
+        <div class="camp-dates">
+            <div class="camp-month">
+                <h3>July 2025</h3>
+                <p>Camp kickoff</p>
+            </div>
+            <div class="camp-month">
+                <h3>August 2025</h3>
+                <p>Mid-camp</p>
+            </div>
+            <div class="camp-month">
+                <h3>September 2025</h3>
+                <p>Tournament Month</p>
+            </div>
+        </div>
+
+        <div class="bonus-points">
+            <h2 class="bonus-points__title">Weekly Bonus Points <span>X2</span></h2>
+            <div class="bonus-points__items">
+                <div class="bonus-point-item">
+                    <span>Putting</span>
+                    <span>B-Points</span>
+                </div>
+                <div class="bonus-point-item">
+                    <span>Chipping</span>
+                    <span>B-Points</span>
+                </div>
+                <div class="bonus-point-item">
+                    <span>Irons</span>
+                    <span>B-Points</span>
+                </div>
+                <div class="bonus-point-item">
+                    <span>Tour Prep</span>
+                    <span>B-Points</span>
+                </div>
+                <div class="bonus-point-item">
+                    <span>Mental</span>
+                    <span>B-Points</span>
+                </div>
+                <div class="bonus-point-item">
+                    <span>Fitness</span>
+                    <span>B-Points</span>
+                </div>
+                <div class="bonus-point-item">
+                    <span>Tournament</span>
+                    <span>B-Points</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="important-dates">
+            <h2 class="important-dates__title">Important Dates</h2>
+            
+            <div id="calendar-container" class="calendar-container">
+                <!-- Calendar will be rendered here by JavaScript -->
+            </div>
+            
+            <ul class="important-dates__list">
+                <li class="important-date">
+                    <strong>Quiz Night Break - 12 Sept</strong>
+                </li>
+                <li class="important-date">
+                    <strong>Driving Range Games - Irons only 18 Holes</strong>
+                    <p>Every Tuesday 15h</p>
+                </li>
+                <li class="important-date">
+                    <strong>9 Holes free on Wednesdays</strong>
+                </li>
+                <li class="important-date">
+                    <strong>Trophy Weekly Tour - 14 July - 20 Sept</strong>
+                </li>
+            </ul>
+        </div>
+
+        <div class="training-rules">
+            <h2 class="training-rules__title">TRAINING CAMP RULES</h2>
+            <ul class="training-rules__list">
+                <li class="rule-item">Try to gain as much points per day as possible</li>
+                <li class="rule-item">Only one exercise entry per day (unless indicated)</li>
+                <li class="rule-item">Multiple different exercise entries allowed per day</li>
+                <li class="rule-item">Bonus points will be awarded x2 (Captain will assign them weekly)</li>
+                <li class="rule-item">It's an Honesty entry Rule, please respect this.</li>
+                <li class="rule-item">Commit to our cause and believe in yourself</li>
+            </ul>
+        </div>
+
+        <a href="#" class="back-button">Back to Dashboard</a>
     </div>
 
-  <div class="container">
-    <header>
-      <img src="assets/images/Guarra Logo.jpg.svg" alt="Left Logo" class="logo">
-      <h1>Champions Training Camp</h1>
-      <img src="assets/images/Guarra Logo.jpg.svg" alt="Right Logo" class="logo">
-    </header>
-
-    <section id="calendarSection">
-  <div class="calendar-container">
-    <h2>July 2025</h2>
-    <div id="julyCalendar"></div>
-  </div>
-
-  <div class="calendar-container">
-    <h2>August 2025</h2>
-    <div id="augustCalendar"></div>
-  </div>
-
-  <div class="calendar-container">
-    <h2>September 2025</h2>
-    <div id="septemberCalendar"></div>
-  </div>
-</section>
-
-      <div class="info-panels">
-        <div class="panel bonus-points">
-          <h3>Weekly Bonus Points X</h3>
-          <ul>
-            <li><span class="box putting"></span> Putting - BPoints</li>
-            <li><span class="box chipping"></span> Chipping - BPoints</li>
-            <li><span class="box irons"></span> Irons - BPoints</li>
-            <li><span class="box tour-prep"></span> Tour Prep - BPoints</li>
-            <li><span class="box mental"></span> Mental - BPoints</li>
-            <li><span class="box fitness"></span> Fitness - BPoints</li>
-            <li><span class="box tournament"></span> Tournament</li>
-          </ul>
-        </div>
-
-        <div class="panel important-dates">
-          <h3>Important Dates</h3>
-          <p><strong>Quiz Night Break - 12 Sept</strong></p>
-          <p>Driving Range Games - Irons only 18 Holes</p>
-          <p>Every Tuesday 15h - 9 Holes free on Wi</p>
-          <p>Trophy Weekly Tour - 14 July - 20 Sept</p>
-        </div>
-
-        <div class="panel rules">
-          <h3>TRAINING CAMP RULES</h3>
-          <p>Try to gain as much points per day as possible</p>
-          <p>Only one exercise entry per day (unless indicated)</p>
-          <p>Multiple different exercise entries allowed per day</p>
-          <p>Bonus points will be awarded x2 (Captain will assign them weekly)</p>
-          <p>It's an Honesty entry Rule, please respect this.</p>
-          <p>Commit to our cause and believe in yourself</p>
-        </div>
-      </div>
-
-      <button id="dashboardBtn" class="dashboard-btn">Back to Dashboard</button>
-    </main>
-  </div>
-
-  <script src="js/scripts.js"></script>
+  <script src="js/important-dates.js"></script>
 </body>
 </html>
