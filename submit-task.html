@@ -1,86 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <meta name="description" content="Submit your daily golf improvement task. Only three submissions allowed per day." />
-  <title>Submit Task</title>
-  <link rel="stylesheet" href="css/styles.css" />
-
-  <!-- Firebase v8 SDK (compatible with your JavaScript code) -->
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="Submit your daily golf improvement task. Only three submissions allowed per day." />
+    <title>Submit Task</title>
+    <link rel="stylesheet" href="css/styles.css" />
+    <!-- Firebase v8 SDK (compatible with your JavaScript code) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
-
 <body>
-  <!-- Background Video -->
-  <video autoplay muted loop class="background-video" id="bg-video">
-    <source src="assets/video/backvideo.mp4" type="video/mp4">
-    Your browser does not support the video tag.
-  </video>
-
-  <!-- Fullscreen Fun Loader -->
-  <div class="loader-overlay" id="loader">
-    <div class="loader-container">
-      <div class="golf-loader"></div>
-      <p>Warming up the greens...</p>
+    <!-- Background Video -->
+    <video autoplay muted loop class="background-video" id="bg-video">
+        <source src="assets/video/backvideo.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    
+    <!-- Fullscreen Fun Loader -->
+    <div class="loader-overlay" id="loader">
+        <div class="loader-container">
+            <div class="golf-loader"></div>
+            <p>Warming up the greens...</p>
+        </div>
     </div>
-  </div>
-
-  <button onclick="history.back()" class="back-button">← Back</button>
-
-  <main class="main-content-form">
-
-    <form id="submitTaskForm">
-      <h1>Log your Training</h1>
-      <p>User are allowed to submit unlimited practises, but can only submit one of each, except for the
-         <strong>On the Course Items</strong>. On the course items can be logged unlimited times per day. 
-      
-<!-- Golfer Name Display (auto-filled from Firebase) -->
-<div class="form-group">
-  <label>Your Name</label>
-  <p id="golferNameDisplay" class="readonly-display">Loading...</p>
-  <input type="hidden" id="golferName" name="golferName" />
-</div>
-
-
-
-      <!-- Category Selector -->
-      <div class="form-group">
-        <label for="taskCategory">Category</label>
-        <select id="taskCategory" required>
-          <option value="">-- Select Category --</option>
-          <option value="Putting">Putting</option>
-          <option value="Chipping">Chipping</option>
-          <option value="Irons & Tee Shot">Irons & Tee Shot</option>
-          <option value="Mental">Mental</option>
-          <option value="On The Course">On The Course</option>
-          <option value="Tournament Prep">Tournament Prep</option>
-          <option value="Fitness">Fitness</option>
-        </select>
-      </div>
-   
-      <div id="practiceContainer" class="form-group hidden">
-        <div id="practiceList" class="practice-list-scrollable"></div>
-      </div>
-      
-      
-      <!-- Selected Practices List -->
-      <div class="form-group">
-        <label id="selectedLabel">Selected Practices (0/3)</label>
-        <ul id="selectedList"></ul>
-      </div>
-
-      <!-- Submit -->
-      <button type="submit" id="submitBtn">Submit Practice</button>
-      <div id="confirmationMessage" class="hidden"></div>
-    </form>
-  </main>
-
-  <!-- Your main JavaScript file - AFTER Firebase scripts -->
-  <script src="js/submit-task.js"></script>
-
+    
+    <button onclick="history.back()" class="back-button">← Back</button>
+    
+    <main class="main-content-form">
+        <form id="submitTaskForm">
+            <h1>Log your Training</h1>
+            <p>User are allowed to submit unlimited practises, but can only submit one of each, except for the <strong>On the Course Items</strong>. On the course items can be logged unlimited times per day.
+            
+            <!-- Golfer Name Display (auto-filled from Firebase) -->
+            <div class="form-group">
+                <label>Your Name</label>
+                <p id="golferNameDisplay" class="readonly-display">Loading...</p>
+                <input type="hidden" id="golferName" name="golferName" />
+            </div>
+            
+            <!-- Category Selector -->
+            <div class="form-group">
+                <label for="taskCategory">Category</label>
+                <select id="taskCategory" required>
+                    <option value="">-- Select Category --</option>
+                    <option value="Putting">Putting</option>
+                    <option value="Chipping">Chipping</option>
+                    <option value="Irons & Tee Shot">Irons & Tee Shot</option>
+                    <option value="Mental">Mental</option>
+                    <option value="On The Course">On The Course</option>
+                    <option value="Tournament Prep">Tournament Prep</option>
+                    <option value="Fitness">Fitness</option>
+                </select>
+            </div>
+            
+            <div id="practiceContainer" class="form-group hidden">
+                <div id="practiceList" class="practice-list-scrollable"></div>
+            </div>
+            
+            <!-- Selected Practices List -->
+            <div class="form-group">
+                <label id="selectedLabel">Selected Practices (0/3)</label>
+                <ul id="selectedList"></ul>
+            </div>
+            
+            <!-- Submit Button -->
+            <button type="submit" id="submitBtn">Submit Practice</button>
+            
+            <!-- Confirmation Message (moved below the button) -->
+            <div id="confirmationMessage" class="confirmation-message hidden"></div>
+        </form>
+    </main>
+    
+    <!-- Your main JavaScript file - AFTER Firebase scripts -->
+    <script src="js/submit-task.js"></script>
 </body>
 </html>

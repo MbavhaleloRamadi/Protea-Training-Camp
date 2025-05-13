@@ -25,13 +25,12 @@
 </head>
 
 <body>
-
-   <!-- Background Video -->
+    <!-- Background Video -->
     <video autoplay muted loop class="background-video" id="bg-video">
-       <source src="assets/video/backvideo.mp4" type="video/mp4">
+        <source src="assets/video/backvideo.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
-        
+    
     <!-- Fullscreen Fun Loader -->
     <div class="loader-overlay" id="loader">
       <div class="loader-container">
@@ -40,7 +39,7 @@
       </div>
     </div>
     
-     <!-- SVG Background Wrappers -->
+    <!-- SVG Background Wrappers -->
 <div class="svg-bg left-bg">
   <img src="assets/images/Guarra Logo.jpg.svg" alt="Left Logo" class="svg-logo left-logo" />
 </div>
@@ -48,27 +47,32 @@
   <img src="assets/images/Proteas Logo.png.svg" alt="Right Logo" class="svg-logo right-logo" />
 </div>
 
-  <div class="lobby-container">
+<div class="lobby-container">
     <div class="instructions">
       <p>Click the logo below to view the tournament rules:</p>
     </div>
-
+    
     <div class="logo-wrapper">
-      <img
-        src="assets/images/the-ra-seeklogo-2.svg"
-        alt="Tournament Rules Logo"
-        class="rotating-logo"
-        id="rulesLogo"
-        href="https://www.randa.org/en/rog/the-rules-of-golf"
-      />
+      <a href="https://www.randa.org/en/rog/the-rules-of-golf" target="_blank" rel="noopener">
+        <img
+          src="assets/images/the-ra-seeklogo-2.svg"
+          alt="Tournament Rules Logo"
+          class="rotating-logo"
+          id="rulesLogo"
+        />
+      </a>
     </div>
 
+     <div class="external-link-info">
+        <a href="https://www.randa.org/en/rog/the-rules-of-golf " target="_blank" rel="noopener" class="official-link">Cick Here:</a>
+    </div>
+    
     <div class="download-buttons">
       <a href="https://play.google.com/store/apps/details?id=com.randa.android&pcampaignid=web_share" target="_blank" rel="noopener" class="btn android">Download for Android</a>
       <a href="https://apps.apple.com/ro/app/rules-of-golf-2023/id1435204099" target="_blank" rel="noopener" class="btn ios">Download for iOS</a>
     </div>
     
-  </div><button class="back-button" onclick="window.location.href='dashboard.html'">
+    </div><button class="back-button" onclick="window.location.href='dashboard.html'">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
     </button>
   </div>

@@ -37,11 +37,59 @@ document.addEventListener("DOMContentLoaded", () => {
     return; // halt further setup
   }
 
-  // Monitor auth‑state changes
+  // User Authentication & Name Loading
+  // We'll put this in one place to avoid duplication
   firebase.auth().onAuthStateChanged(user => {
     console.log(user ? "User is logged in" : "User is not logged in");
-  });
+    
+    if (!user) {
+      const nameDisplay = document.getElementById("golferNameDisplay");
+      if (nameDisplay) {
+        nameDisplay.textContent = "Please log in";
+      }
+      return;
+    }
 
+    const userId = user.uid;
+    const nameDisplay = document.getElementById("golferNameDisplay");
+    const nameInput = document.getElementById("golferName");
+
+    if (!nameDisplay || !nameInput) {
+      console.error("Name display or input elements not found");
+      return;
+    }
+
+    // First try Firestore
+    firebase.firestore().collection("users").doc(userId).get()
+      .then(doc => {
+        if (doc.exists && doc.data().fullName) {
+          const fullName = doc.data().fullName;
+          nameDisplay.textContent = fullName;
+          nameInput.value = fullName;
+          console.log("Name loaded from Firestore:", fullName);
+        } else {
+          console.log("Name not found in Firestore, trying Realtime DB");
+          // Fallback to Realtime DB if Firestore doesn't have fullName
+          return firebase.database().ref('users/' + userId).once('value');
+        }
+      })
+      .then(snapshot => {
+        if (snapshot && snapshot.exists()) {
+          const data = snapshot.val();
+          const fullName = data.fullName || "Unnamed Golfer";
+          nameDisplay.textContent = fullName;
+          nameInput.value = fullName;
+          console.log("Name loaded from Realtime DB:", fullName);
+        } else if (!nameInput.value) {
+          nameDisplay.textContent = "Name not found";
+          console.log("Name not found in either database");
+        }
+      })
+      .catch(error => {
+        console.error("Error fetching name:", error);
+        nameDisplay.textContent = "Error loading name";
+      });
+  });
 
   // ───────────────────────────────────────────────────────────
   // 5) LEADERBOARD FETCH & RENDER
@@ -147,7 +195,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const taskCategory     = document.getElementById("taskCategory");
   const practiceContainer = document.getElementById("practiceContainer");
   const practiceList     = document.getElementById("practiceList");
-  const submitButton     = document.getElementById("submitButton");
+  const submitButton     = document.getElementById("submitBtn"); // Fixed ID to match HTML
   const selectedList     = document.getElementById("selectedList");
   const selectedLabel    = document.getElementById("selectedLabel");
   
@@ -529,62 +577,38 @@ document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────────────────────────────────
   // Helper to show messages
   // ───────────────────────────────────────────────────────────
-  function showConfirmation(msg, color) {
-    if (!confirmEl) {
-      console.error("Confirmation element not found!");
-      console.log(msg); // At least log the message
-      return;
-    }
-    
-    confirmEl.textContent = msg;
-    confirmEl.style.color = color;
-    confirmEl.style.backgroundColor =
-      color === "green" ? "rgba(40,167,69,0.2)" :
-      color === "red"   ? "rgba(220,53,69,0.2)" :
-      color === "blue"  ? "rgba(13,110,253,0.2)" :
-      "rgba(255,193,7,0.2)";
-    confirmEl.classList.remove("hidden");
-  }
-});
-
-firebase.auth().onAuthStateChanged(user => {
-  if (!user) {
-    document.getElementById("golferNameDisplay").textContent = "Please log in";
+function showConfirmation(message, color) {
+  const confirmationDiv = document.getElementById("confirmationMessage");
+  
+  if (!confirmationDiv) {
+    console.error("Confirmation message element not found!");
     return;
   }
-
-  const userId = user.uid;
-  const nameDisplay = document.getElementById("golferNameDisplay");
-  const nameInput = document.getElementById("golferName");
-
-  // First try Firestore
-  firebase.firestore().collection("users").doc(userId).get()
-    .then(doc => {
-      if (doc.exists && doc.data().fullName) {
-        const fullName = doc.data().fullName;
-        nameDisplay.textContent = fullName;
-        nameInput.value = fullName;
-      } else {
-        // Fallback to Realtime DB if Firestore doesn't have fullName
-        return firebase.database().ref('users/' + userId).once('value');
-      }
-    })
-    .then(snapshot => {
-      if (snapshot && snapshot.exists()) {
-        const data = snapshot.val();
-        const fullName = data.fullName || "Unnamed Golfer";
-        nameDisplay.textContent = fullName;
-        nameInput.value = fullName;
-      } else if (!nameInput.value) {
-        nameDisplay.textContent = "Name not found";
-      }
-    })
-    .catch(error => {
-      console.error("Error fetching name:", error);
-      nameDisplay.textContent = "Error loading name";
-    });
+  
+  // Set the message and styling
+  confirmationDiv.textContent = message;
+  confirmationDiv.style.backgroundColor = color === "green" ? "rgba(76, 175, 80, 0.8)" :
+                                        color === "red" ? "rgba(244, 67, 54, 0.8)" :
+                                        color === "blue" ? "rgba(33, 150, 243, 0.8)" : color;
+  confirmationDiv.style.color = "white";
+  
+  // Show the message
+  confirmationDiv.classList.remove("hidden");
+  
+  // Force a reflow to restart animation if we add it
+  void confirmationDiv.offsetWidth;
+  
+  // Add animation class if not already present
+  if (!confirmationDiv.classList.contains("fade-in-out")) {
+    confirmationDiv.classList.add("fade-in-out");
+  }
+  
+  // Hide after a delay
+  setTimeout(() => {
+    confirmationDiv.classList.add("hidden");
+  }, 3000);
+}
 });
-
 // Button click handlers
 function submitTasks() {
   window.location.href = "submit-task.html";

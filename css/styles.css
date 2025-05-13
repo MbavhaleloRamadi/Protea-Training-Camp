@@ -1304,6 +1304,41 @@ button:focus {
   }
 }
 
+/* Add this to your existing CSS file (styles.css) */
+
+.confirmation-message {
+    margin-top: 15px;
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.success-message {
+    background-color: rgba(76, 175, 80, 0.8);
+    color: white;
+}
+
+.error-message {
+    background-color: rgba(244, 67, 54, 0.8);
+    color: white;
+}
+
+
+/* Animation for the confirmation message */
+@keyframes fadeInOut {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+.fade-in-out {
+    animation: fadeInOut 3s forwards;
+}
+
 /* =========================================
    PRACTICE HISTORY PAGE STYLES
    ========================================= */
@@ -2677,4 +2712,150 @@ button:focus {
   top: -45px;
   max-width: 200px;
   white-space: normal;
+}
+
+/* =========================================
+   PRO RANGE SESSION SPECIFIC STYLES
+   ========================================= */
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  animation: fadeIn 1s ease-out;
+}
+
+/* Animated entrance for main content */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.image-container {
+  margin: 2rem auto;
+  position: relative;
+  width: 300px;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.6);
+  border: 4px solid var(--primary-color);
+  transition: transform 0.5s ease, box-shadow 0.5s ease;
+  animation: pulse 3s infinite alternate;
+}
+
+.image-container:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 30px rgba(76, 175, 80, 0.8);
+}
+
+/* Subtle pulsing animation for image container */
+@keyframes pulse {
+  from { box-shadow: 0 0 20px rgba(76, 175, 80, 0.6); }
+  to { box-shadow: 0 0 30px rgba(76, 175, 80, 0.9); }
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.image-container:hover img {
+  transform: scale(1.1);
+}
+
+.button-container {
+  margin: 2rem 0;
+  animation: slideUp 0.8s ease-out 0.5s both;
+}
+
+/* Slide up animation for button */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#kriekProfileBtn {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  font-size: 1.1rem;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+#kriekProfileBtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent
+  );
+  transition: left 0.7s ease;
+}
+
+#kriekProfileBtn:hover {
+  background-color: var(--secondary-color);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+#kriekProfileBtn:hover::before {
+  left: 100%;
+}
+
+#kriekProfileBtn:active {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  h1 {
+    font-size: 2rem;
+  }
+  
+  h2 {
+    font-size: 1.5rem;
+  }
+  
+  .image-container {
+    width: 220px;
+    height: 220px;
+  }
+}
+
+@media (max-width: 480px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+  
+  h2 {
+    font-size: 1.25rem;
+  }
+  
+  .image-container {
+    width: 180px;
+    height: 180px;
+  }
 }
