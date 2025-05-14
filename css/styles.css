@@ -2248,11 +2248,71 @@ button:focus {
   align-items: center;
   transition: all 0.3s ease;
   border-left: 3px solid #4CAF50;
+  cursor: pointer;
 }
 
 .bonus-point-item:hover {
   background-color: rgba(0, 0, 0, 0.3);
   transform: translateX(5px);
+}
+
+/* Bonus Points Popup */
+.bonus-description-popup {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+  animation: fadeIn 0.3s;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.popup-content {
+  background-color: #0a2f0a;
+  background-image: linear-gradient(135deg, #0a2f0a 0%, #1e4d20 100%);
+  padding: 2rem;
+  border-radius: 10px;
+  max-width: 500px;
+  width: 90%;
+  box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+  position: relative;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.close-popup {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: white;
+  transition: all 0.2s;
+}
+
+.close-popup:hover {
+  color: #4CAF50;
+  transform: scale(1.2);
+}
+
+.popup-title {
+  color: #4CAF50;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.popup-description {
+  line-height: 1.6;
 }
 
 /* Calendar and Important Dates */
@@ -2340,23 +2400,46 @@ button:focus {
   color: #e0e0e0;
 }
 
+/* Calendar Day Styling */
 .calendar-day {
   aspect-ratio: 1/1;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
   position: relative;
   background-color: rgba(255, 255, 255, 0.05);
   border-radius: 4px;
   transition: all 0.2s ease;
   font-weight: 500;
   cursor: pointer;
+  padding: 0.25rem;
+  overflow: hidden;
 }
 
 .calendar-day:hover {
   background-color: rgba(255, 255, 255, 0.1);
-  transform: scale(1.05);
-  z-index: 2;
+  transform: scale(1.02);
+}
+
+.day-number {
+  position: absolute;
+  top: 2px;
+  left: 5px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.event-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  height: 100%;
+  width: 100%;
+  font-size: 0.65rem;
+  line-height: 1.1;
+  padding-top: 5px;
 }
 
 .inactive-day {
@@ -2398,28 +2481,37 @@ button:focus {
   background-color: white;
 }
 
-/* Event Tooltip */
-.event-tooltip {
-  position: absolute;
-  top: -40px;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: rgba(0, 0, 0, 0.8);
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  font-size: 0.8rem;
-  opacity: 0;
-  visibility: hidden;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  z-index: 3;
+/* Double Points Text */
+.double-points-text {
+  color: #FFC107;
+  font-weight: 600;
+  font-size: 0.7rem;
+  margin-top: 3px;
 }
 
-.calendar-day:hover .event-tooltip {
-  opacity: 1;
-  visibility: visible;
-  top: -45px;
+/* Event colors for double points */
+.double-points-putting {
+  border-bottom: 3px solid #FFC107;
+}
+
+.double-points-chipping {
+  border-bottom: 3px solid #00BCD4;
+}
+
+.double-points-irons {
+  border-bottom: 3px solid #FF5722;
+}
+
+.double-points-tour-prep {
+  border-bottom: 3px solid #9C27B0;
+}
+
+.double-points-mental {
+  border-bottom: 3px solid #2196F3;
+}
+
+.double-points-fitness {
+  border-bottom: 3px solid #4CAF50;
 }
 
 /* Event Legend */
@@ -2463,6 +2555,11 @@ button:focus {
   background-color: rgba(156, 39, 176, 0.8);
 }
 
+/* Legend for double points */
+.legend-double-points {
+  background: linear-gradient(to right, #FFC107, #FFC107);
+}
+
 /* Important Dates List */
 .important-dates__list {
   list-style: none;
@@ -2501,6 +2598,85 @@ button:focus {
 .important-date:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* Tournament Schedule Styling */
+.tournament-schedule-container {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  animation: fadeIn 0.6s;
+}
+
+.tournament-schedule-title {
+  color: #FF9800;
+  font-size: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  position: relative;
+}
+
+.tournament-schedule-title::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 25%;
+  width: 50%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #FF9800, transparent);
+}
+
+.tournament-schedule {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.tournament-table {
+  width: 100%;
+  border-collapse: collapse;
+  border-spacing: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tournament-table th {
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 12px 15px;
+  text-align: center;
+  font-weight: 600;
+  color: #4CAF50;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.tournament-table td {
+  padding: 12px 15px;
+  text-align: center;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  vertical-align: middle;
+}
+
+.tournament-table .day-column {
+  text-align: left;
+  min-width: 180px;
+}
+
+/* Color coding for tournament days */
+.light-yellow {
+  background-color: rgba(255, 235, 59, 0.15);
+}
+
+.light-blue {
+  background-color: rgba(33, 150, 243, 0.15);
+}
+
+.light-pink {
+  background-color: rgba(233, 30, 99, 0.15);
+}
+
+.light-green {
+  background-color: rgba(76, 175, 80, 0.15);
 }
 
 /* Training Camp Rules */
@@ -2548,26 +2724,12 @@ button:focus {
   color: white;
   padding: 0.75rem 1.5rem;
   border-radius: 50px;
-  margin-top: 1.5rem;
+  margin-top: 2rem;
   text-decoration: none;
-  font-weight: bold;
+  font-weight: 600;
   transition: all 0.3s ease;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  position: relative;
-  overflow: hidden;
-  z-index: 1;
-}
-
-.back-button::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.5s ease;
+  text-align: center;
 }
 
 .back-button:hover {
@@ -2576,36 +2738,27 @@ button:focus {
   box-shadow: 0 6px 15px rgba(0, 0, 0, 0.3);
 }
 
-.back-button:hover::after {
-  transform: translateX(100%);
-}
-
-/* Responsive Adjustments */
-@media (max-width: 992px) {
-  .camp-dates {
-    flex-direction: column;
+/* Responsive tweaks */
+@media screen and (max-width: 768px) {
+  .tournament-table {
+    font-size: 0.85rem;
   }
   
-  .camp-month {
-    margin: 0.5rem 0;
+  .tournament-table td,
+  .tournament-table th {
+    padding: 8px 10px;
   }
   
-  .bonus-points__items {
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  .tournament-table .day-column {
+    min-width: 140px;
   }
   
-  .calendar-day {
-    font-size: 0.9rem;
+  .event-content {
+    font-size: 0.6rem;
   }
   
-  .event-tooltip {
-    font-size: 0.7rem;
-  }
-}
-
-@media (max-width: 768px) {
-  .training-camp {
-    padding: 1.5rem;
+  .day-number {
+    font-size: 0.8rem;
   }
   
   .training-camp__title {
@@ -2613,105 +2766,8 @@ button:focus {
   }
   
   .bonus-points__items {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
-  
-  .calendar-container {
-    overflow-x: auto;
-  }
-  
-  .calendar-grid {
-    min-width: 500px;
-  }
-  
-  .calendar-day-names {
-    min-width: 500px;
-  }
-  
-  .legend-item {
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .training-camp {
-    padding: 1rem;
-  }
-  
-  .training-camp__title {
-    font-size: 1.75rem;
-  }
-  
-  .camp-month {
-    padding: 0.75rem;
-  }
-  
-  .important-date {
-    padding: 0.75rem;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  
-  .event-legend {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  
-  .legend-item {
-    margin-bottom: 5px;
-  }
-}
-
-.double-points-putting {
-  background-color: rgba(255, 193, 7, 0.3) !important;
-  border: 1px solid rgba(255, 193, 7, 0.5) !important;
-}
-
-.double-points-chipping {
-  background-color: rgba(139, 195, 74, 0.3) !important;
-  border: 1px solid rgba(139, 195, 74, 0.5) !important;
-}
-
-.double-points-irons {
-  background-color: rgba(3, 169, 244, 0.3) !important;
-  border: 1px solid rgba(3, 169, 244, 0.5) !important;
-}
-
-.double-points-tour-prep {
-  background-color: rgba(233, 30, 99, 0.3) !important;
-  border: 1px solid rgba(233, 30, 99, 0.5) !important;
-}
-
-.double-points-mental {
-  background-color: rgba(156, 39, 176, 0.3) !important;
-  border: 1px solid rgba(156, 39, 176, 0.5) !important;
-}
-
-.double-points-fitness {
-  background-color: rgba(0, 150, 136, 0.3) !important;
-  border: 1px solid rgba(0, 150, 136, 0.5) !important;
-}
-
-/* Legend for double points */
-.legend-double-points {
-  background: linear-gradient(90deg, 
-    rgba(255, 193, 7, 0.8) 0%, 
-    rgba(139, 195, 74, 0.8) 20%, 
-    rgba(3, 169, 244, 0.8) 40%, 
-    rgba(233, 30, 99, 0.8) 60%,
-    rgba(156, 39, 176, 0.8) 80%,
-    rgba(0, 150, 136, 0.8) 100%
-  );
-}
-
-/* Enhanced event tooltip for double points */
-.calendar-day:hover .event-tooltip {
-  opacity: 1;
-  visibility: visible;
-  top: -45px;
-  max-width: 200px;
-  white-space: normal;
 }
 
 /* =========================================
