@@ -124,23 +124,23 @@ function renderCalendar(containerId, year, month, highlights) {
     <div class="event-legend">
         <div class="legend-item">
             <span class="legend-color legend-tournament"></span>
-            <span>Tournament</span>
+            <span>Putting (Double Points)</span>
         </div>
         <div class="legend-item">
             <span class="legend-color legend-training"></span>
-            <span>Training</span>
+            <span>Chipping (Double Points)</span>
         </div>
         <div class="legend-item">
             <span class="legend-color legend-free"></span>
-            <span>Free Play</span>
+            <span>Irons (Double Points)</span>
         </div>
         <div class="legend-item">
             <span class="legend-color legend-special"></span>
-            <span>Special Event</span>
+            <span>Mental (Double Points)</span>
         </div>
         <div class="legend-item">
             <span class="legend-color legend-double-points"></span>
-            <span>Double Points</span>
+            <span>Double Points Colours</span>
         </div>
     </div>`;
     

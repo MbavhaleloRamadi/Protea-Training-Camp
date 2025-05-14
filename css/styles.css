@@ -2770,6 +2770,140 @@ button:focus {
   }
 }
 
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+  .camp-dates {
+    flex-direction: column;
+  }
+  
+  .camp-month {
+    margin: 0.5rem 0;
+  }
+  
+  .bonus-points__items {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
+  
+  .calendar-day {
+    font-size: 0.9rem;
+  }
+  
+  .event-tooltip {
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .training-camp {
+    padding: 1.5rem;
+  }
+  
+  .training-camp__title {
+    font-size: 2rem;
+  }
+  
+  .bonus-points__items {
+    grid-template-columns: 1fr;
+  }
+  
+  .calendar-container {
+    overflow-x: auto;
+  }
+  
+  .calendar-grid {
+    min-width: 500px;
+  }
+  
+  .calendar-day-names {
+    min-width: 500px;
+  }
+  
+  .legend-item {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .training-camp {
+    padding: 1rem;
+  }
+  
+  .training-camp__title {
+    font-size: 1.75rem;
+  }
+  
+  .camp-month {
+    padding: 0.75rem;
+  }
+  
+  .important-date {
+    padding: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .event-legend {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .legend-item {
+    margin-bottom: 5px;
+  }
+}
+
+.double-points-putting {
+  background-color: rgba(255, 193, 7, 0.3) !important;
+  border: 1px solid rgba(255, 193, 7, 0.5) !important;
+}
+
+.double-points-chipping {
+  background-color: rgba(139, 195, 74, 0.3) !important;
+  border: 1px solid rgba(139, 195, 74, 0.5) !important;
+}
+
+.double-points-irons {
+  background-color: rgba(3, 169, 244, 0.3) !important;
+  border: 1px solid rgba(3, 169, 244, 0.5) !important;
+}
+
+.double-points-tour-prep {
+  background-color: rgba(233, 30, 99, 0.3) !important;
+  border: 1px solid rgba(233, 30, 99, 0.5) !important;
+}
+
+.double-points-mental {
+  background-color: rgba(156, 39, 176, 0.3) !important;
+  border: 1px solid rgba(156, 39, 176, 0.5) !important;
+}
+
+.double-points-fitness {
+  background-color: rgba(0, 150, 136, 0.3) !important;
+  border: 1px solid rgba(0, 150, 136, 0.5) !important;
+}
+
+/* Legend for double points */
+.legend-double-points {
+  background: linear-gradient(90deg, 
+    rgba(255, 193, 7, 0.8) 0%, 
+    rgba(139, 195, 74, 0.8) 20%, 
+    rgba(3, 169, 244, 0.8) 40%, 
+    rgba(233, 30, 99, 0.8) 60%,
+    rgba(156, 39, 176, 0.8) 80%,
+    rgba(0, 150, 136, 0.8) 100%
+  );
+}
+
+/* Enhanced event tooltip for double points */
+.calendar-day:hover .event-tooltip {
+  opacity: 1;
+  visibility: visible;
+  top: -45px;
+  max-width: 200px;
+  white-space: normal;
+}
+
 /* =========================================
    PRO RANGE SESSION SPECIFIC STYLES
    ========================================= */
