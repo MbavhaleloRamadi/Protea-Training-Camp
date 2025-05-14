@@ -2859,3 +2859,29 @@ button:focus {
     height: 180px;
   }
 }
+
+/* For the message container - this will be created dynamically but these styles can be added for consistency */
+#messageContainer {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-weight: bold;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    z-index: 2000;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+/* Add success and error colors for reference */
+.message-success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.message-error {
+    background-color: #F44336;
+    color: white;
+}

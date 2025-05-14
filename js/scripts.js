@@ -1,7 +1,17 @@
-document.addEventListener("DOMContentLoaded", () => {
-  const elements = {
-    loader: document.querySelector(".loader-overlay"),
+// Combined JavaScript Authentication Implementation
 
+document.addEventListener("DOMContentLoaded", () => {
+  // Global variables
+  let messageTimeout;
+
+  // ───────────────────────────────────────────────────────────
+  // UI ELEMENTS
+  // ───────────────────────────────────────────────────────────
+  const elements = {
+    // Loader elements  
+    loader: document.querySelector(".loader-overlay"),
+    loaderSpinner: document.getElementById("loader"),
+    
     // Auth elements
     registerForm: document.getElementById("registerForm"),
     registerName: document.getElementById("registerName"),
@@ -9,23 +19,13 @@ document.addEventListener("DOMContentLoaded", () => {
     registerPassword: document.getElementById("registerPassword"),
     registerUsername: document.getElementById("registerUsername"),
     loginForm: document.getElementById("loginForm"),
-    loginEmail: document.getElementById("loginEmail"),
-    loginPassword: document.getElementById("loginPassword"),
     loginUsername: document.getElementById("loginUsername"),
-
-    // UI elements
-    leaderboardContainer: document.getElementById("leaderboardData"),
-    submitForm: document.getElementById("submitTaskForm"),
+    loginPassword: document.getElementById("loginPassword"),
+    loginEmail: document.getElementById("loginEmail"),
+    
+    // Message container
     confirmEl: document.getElementById("confirmationMessage"),
-    taskCategory: document.getElementById("taskCategory"),
-    practiceContainer: document.getElementById("practiceContainer"),
-    practiceList: document.getElementById("practiceList"),
-    golferName: document.getElementById("golferName"),
-    selectedList: document.getElementById("selectedList"),
-    selectedLabel: document.getElementById("selectedLabel"),
-    submitButton: document.getElementById("submitButton"),
-    loader: document.getElementById("loader"),
-
+    
     // Calendar containers
     july: document.getElementById("julyCalendar"),
     august: document.getElementById("augustCalendar"),
@@ -44,6 +44,11 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.style.visibility = "visible";
       }, 600);
     });
+  } else {
+    // Use spinner loader fallback if overlay loader not available
+    setTimeout(() => {
+      showLoading(false);
+    }, 2000);
   }
 
   // ───────────────────────────────────────────────────────────
@@ -80,6 +85,76 @@ document.addEventListener("DOMContentLoaded", () => {
     console.error("Firebase init error:", error);
     showMessage("Init error. Try refresh.", "red");
     return;
+  }
+
+  // ───────────────────────────────────────────────────────────
+  // UTILITY FUNCTIONS
+  // ───────────────────────────────────────────────────────────
+  
+  // Function to show/hide loading state
+  function showLoading(isLoading) {
+    // First try the spinner loader
+    if (elements.loaderSpinner) {
+      elements.loaderSpinner.style.display = isLoading ? 'flex' : 'none';
+    }
+    // Also handle overlay loader if available
+    if (elements.loader) {
+      elements.loader.style.display = isLoading ? 'flex' : 'none';
+    }
+  }
+
+  // Function to show status messages
+  function showMessage(message, color = "green") {
+    // First check if we have the dedicated confirmation element
+    if (elements.confirmEl) {
+      elements.confirmEl.textContent = message;
+      elements.confirmEl.style.color = color;
+      elements.confirmEl.style.backgroundColor =
+        color === "green" ? "rgba(40,167,69,0.2)" :
+        color === "red" ? "rgba(220,53,69,0.2)" :
+        "rgba(255,193,7,0.2)";
+      elements.confirmEl.classList.remove("hidden");
+      if (color !== "red") {
+        setTimeout(() => elements.confirmEl.classList.add("hidden"), 5000);
+      }
+      return;
+    }
+    
+    // Fallback to floating message if no confirmation element
+    // Clear any existing timeout
+    if (messageTimeout) {
+      clearTimeout(messageTimeout);
+    }
+    
+    // Get or create message container
+    let messageContainer = document.getElementById('messageContainer');
+    
+    if (!messageContainer) {
+      messageContainer = document.createElement('div');
+      messageContainer.id = 'messageContainer';
+      messageContainer.style.position = 'fixed';
+      messageContainer.style.top = '20px';
+      messageContainer.style.left = '50%';
+      messageContainer.style.transform = 'translateX(-50%)';
+      messageContainer.style.padding = '12px 24px';
+      messageContainer.style.borderRadius = '4px';
+      messageContainer.style.fontWeight = 'bold';
+      messageContainer.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
+      messageContainer.style.zIndex = '2000';
+      messageContainer.style.transition = 'opacity 0.3s ease';
+      document.body.appendChild(messageContainer);
+    }
+    
+    // Set the message and color
+    messageContainer.textContent = message;
+    messageContainer.style.backgroundColor = color === "green" ? "#4CAF50" : color === "red" ? "#F44336" : "#FFC107";
+    messageContainer.style.color = "white";
+    messageContainer.style.opacity = '1';
+    
+    // Hide after 3 seconds
+    messageTimeout = setTimeout(() => {
+      messageContainer.style.opacity = '0';
+    }, 3000);
   }
 
   // ───────────────────────────────────────────────────────────
@@ -211,28 +286,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  function showLoading(show) {
-    if (elements.loader) elements.loader.style.display = show ? 'flex' : 'none';
-  }
-
-  function showMessage(message, color) {
-    if (!elements.confirmEl) return;
-    elements.confirmEl.textContent = message;
-    elements.confirmEl.style.color = color;
-    elements.confirmEl.style.backgroundColor =
-      color === "green" ? "rgba(40,167,69,0.2)" :
-      color === "red" ? "rgba(220,53,69,0.2)" :
-      "rgba(255,193,7,0.2)";
-    elements.confirmEl.classList.remove("hidden");
-    if (color !== "red") {
-      setTimeout(() => elements.confirmEl.classList.add("hidden"), 5000);
-    }
-  }
-
   // ───────────────────────────────────────────────────────────
   // CALENDAR RENDERING
   // ───────────────────────────────────────────────────────────
   function renderCalendar(container, month, year, highlights = {}) {
+    if (!container) return;
+    
     const days = ["S", "M", "T", "W", "T", "F", "S"];
     const date = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0).getDate();
