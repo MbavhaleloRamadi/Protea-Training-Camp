@@ -37,59 +37,59 @@ document.addEventListener("DOMContentLoaded", () => {
     return; // halt further setup
   }
 
-  // User Authentication & Name Loading
-  // We'll put this in one place to avoid duplication
-  firebase.auth().onAuthStateChanged(user => {
-    console.log(user ? "User is logged in" : "User is not logged in");
-    
-    if (!user) {
-      const nameDisplay = document.getElementById("golferNameDisplay");
-      if (nameDisplay) {
-        nameDisplay.textContent = "Please log in";
-      }
-      return;
-    }
-
-    const userId = user.uid;
+  // User Authentication & Username Loading
+// We'll put this in one place to avoid duplication
+firebase.auth().onAuthStateChanged(user => {
+  console.log(user ? "User is logged in" : "User is not logged in");
+  
+  if (!user) {
     const nameDisplay = document.getElementById("golferNameDisplay");
-    const nameInput = document.getElementById("golferName");
-
-    if (!nameDisplay || !nameInput) {
-      console.error("Name display or input elements not found");
-      return;
+    if (nameDisplay) {
+      nameDisplay.textContent = "Please log in";
     }
+    return;
+  }
 
-    // First try Firestore
-    firebase.firestore().collection("users").doc(userId).get()
-      .then(doc => {
-        if (doc.exists && doc.data().fullName) {
-          const fullName = doc.data().fullName;
-          nameDisplay.textContent = fullName;
-          nameInput.value = fullName;
-          console.log("Name loaded from Firestore:", fullName);
-        } else {
-          console.log("Name not found in Firestore, trying Realtime DB");
-          // Fallback to Realtime DB if Firestore doesn't have fullName
-          return firebase.database().ref('users/' + userId).once('value');
-        }
-      })
-      .then(snapshot => {
-        if (snapshot && snapshot.exists()) {
-          const data = snapshot.val();
-          const fullName = data.fullName || "Unnamed Golfer";
-          nameDisplay.textContent = fullName;
-          nameInput.value = fullName;
-          console.log("Name loaded from Realtime DB:", fullName);
-        } else if (!nameInput.value) {
-          nameDisplay.textContent = "Name not found";
-          console.log("Name not found in either database");
-        }
-      })
-      .catch(error => {
-        console.error("Error fetching name:", error);
-        nameDisplay.textContent = "Error loading name";
-      });
-  });
+  const userId = user.uid;
+  const nameDisplay = document.getElementById("golferNameDisplay");
+  const nameInput = document.getElementById("golferName");
+
+  if (!nameDisplay || !nameInput) {
+    console.error("Name display or input elements not found");
+    return;
+  }
+
+  // First try Firestore
+  firebase.firestore().collection("users").doc(userId).get()
+    .then(doc => {
+      if (doc.exists && doc.data().username) {
+        const username = doc.data().username;
+        nameDisplay.textContent = username;
+        nameInput.value = username;
+        console.log("Username loaded from Firestore:", username);
+      } else {
+        console.log("Username not found in Firestore, trying Realtime DB");
+        // Fallback to Realtime DB if Firestore doesn't have username
+        return firebase.database().ref('users/' + userId).once('value');
+      }
+    })
+    .then(snapshot => {
+      if (snapshot && snapshot.exists()) {
+        const data = snapshot.val();
+        const username = data.username || "Unnamed Golfer";
+        nameDisplay.textContent = username;
+        nameInput.value = username;
+        console.log("Username loaded from Realtime DB:", username);
+      } else if (!nameInput.value) {
+        nameDisplay.textContent = "Name not found";
+        console.log("Username not found in either database");
+      }
+    })
+    .catch(error => {
+      console.error("Error fetching username:", error);
+      nameDisplay.textContent = "Error loading name";
+    });
+});
 
   // ───────────────────────────────────────────────────────────
   // 5) LEADERBOARD FETCH & RENDER
@@ -265,19 +265,19 @@ document.addEventListener("DOMContentLoaded", () => {
       { name: "Mind Learn",        description: "Complete any Book or Audio Book by Dr Bob Rotella (minimum 100minutes)",       points: 5 }
     ],
     "On The Course": [
-      { name: "OTC-Quick9",          description: "Play 9 holes on an official Golf Course",                                 points: 1 },
-      { name: "OTC-Myball",          description: "Finish with the Ball you started",                                       points: 1 },
-      { name: "OTC-Partime",         description: "Score a Par on a Hole (unlimitted per day)",                             points: 1, allowMultiple: true },
-      { name: "OTC-Par3",            description: "Score a par or lower on a par 3 (unlimitted per day)",                   points: 1, allowMultiple: true },
-      { name: "OTC-Up&Down",         description: "Score an Up&Down for par or lower out of a greenside bunker (unlimitted per day)", points: 1, allowMultiple: true },
-      { name: "OTC-Full18",          description: "Play 18 holes on an official Golf Course",                               points: 2 },
-      { name: "OTC-Birdies",         description: "Score a Birdie on a Hole (unlimitted per day)",                           points: 2, allowMultiple: true },
-      { name: "OTC-Fairways4days",   description: "Hit 75% Fairways in regulation",                                          points: 2 },
-      { name: "OTC-Deadaim",         description: "Hit 50% Greens in regulation",                                            points: 2 },
-      { name: "OTC-MrPutt",          description: "Score average of 2 putts or less per hole",                               points: 2 },
-      { name: "OTC-Beatme",          description: "Score below your course handicap",                                        points: 3 },
-      { name: "OTC-Eagle",           description: "Score an Eagle (unlimitted per day)",                                     points: 5, allowMultiple: true }
-    ],
+    { name: "OTC-Quick9",          description: "Play 9 holes on an official Golf Course",                                 points: 1 },
+    { name: "OTC-Myball",          description: "Finish with the Ball you started",                                       points: 1 },
+    { name: "OTC-Partime",         description: "Score a Par on a Hole (unlimitted per day)",                             points: 1, allowMultiple: true },
+    { name: "OTC-Par3",            description: "Score a par or lower on a par 3 (unlimitted per day)",                   points: 1, allowMultiple: true },
+    { name: "OTC-Up&Down",         description: "Score an Up&Down for par or lower out of a greenside bunker (unlimitted per day)", points: 1, allowMultiple: true },
+    { name: "OTC-Full18",          description: "Play 18 holes on an official Golf Course",                               points: 2 },
+    { name: "OTC-Birdies",         description: "Score a Birdie on a Hole (unlimitted per day)",                          points: 2, allowMultiple: true },
+    { name: "OTC-Fairways4days",   description: "Hit 75% Fairways in regulation",                                         points: 2 },
+    { name: "OTC-Deadaim",         description: "Hit 50% Greens in regulation",                                           points: 2 },
+    { name: "OTC-MrPutt",          description: "Score average of 2 putts or less per hole",                              points: 2 },
+    { name: "OTC-Beatme",          description: "Score below your course handicap",                                       points: 3 },
+    { name: "OTC-Eagle",           description: "Score an Eagle (unlimitted per day)",                                    points: 5, allowMultiple: true }
+  ],
     "Tournament Prep": [
       { name: "TP-Visualize",    description: "Map out a hole of Magalies park golf course, Distances, Obstacles, Stroke, Par, Gameplan", points: 1 },
       { name: "TP-Recon",        description: "Create a player card of an opposing player with strengths, weaknesses, hcp performance etc.", points: 1 },
@@ -301,279 +301,570 @@ document.addEventListener("DOMContentLoaded", () => {
     ]
   };
 
-  // Selected Practices (max 3 for normal practices, but unlimited for specified practices)
-  let selectedPractices = [];
+// Initialize the selected practices array
+let selectedPractices = [];
 
-  // Check tournament days on page load
-  function checkTournamentDays() {
+// Function to show confirmation messages to the user
+function showConfirmation(message, type = "green") {
+  const confirmationMessage = document.getElementById('confirmationMessage');
+  if (!confirmationMessage) return;
+  
+  confirmationMessage.textContent = message;
+  confirmationMessage.classList.remove('hidden');
+  
+  // Set color based on type
+  if (type === "green") {
+    confirmationMessage.style.backgroundColor = "rgba(40, 167, 69, 0.9)";
+  } else if (type === "red") {
+    confirmationMessage.style.backgroundColor = "rgba(220, 53, 69, 0.9)";
+  } else if (type === "blue") {
+    confirmationMessage.style.backgroundColor = "rgba(0, 123, 255, 0.9)";
+  }
+  
+  // Show the message
+  confirmationMessage.style.opacity = "1";
+  confirmationMessage.style.transform = "translateY(0)";
+  
+  // Hide after 3 seconds
+  setTimeout(() => {
+    confirmationMessage.style.opacity = "0";
+    confirmationMessage.style.transform = "translateY(10px)";
+    
+    // After the fade out animation completes, hide the element
+    setTimeout(() => {
+      confirmationMessage.classList.add('hidden');
+    }, 300);
+  }, 3000);
+}
+
+// Function to update the selected practices display
+function updateSelectedPracticesDisplay() {
+  const selectedList = document.getElementById('selectedList');
+  const selectedLabel = document.getElementById('selectedLabel');
+  const submitBtn = document.getElementById('submitBtn');
+  
+  if (!selectedList || !selectedLabel) {
+    console.error("Required elements for selected practices display not found");
+    return;
+  }
+  
+  // Clear the current list
+  selectedList.innerHTML = "";
+  
+  // Show/hide the "no practices" message
+  if (selectedPractices.length === 0) {
+    selectedLabel.textContent = "Selected Practices (None)";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.classList.add('disabled');
+    }
+    return;
+  } else {
+    selectedLabel.textContent = `Selected Practices (${selectedPractices.length})`;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.classList.remove('disabled');
+    }
+  }
+  
+  // Calculate total points
+  let totalPoints = 0;
+  
+  // Add each selected practice to the list
+  selectedPractices.forEach((practice, index) => {
+    const listItem = document.createElement('li');
+    listItem.className = 'selected-practice-item';
+    
+    // Calculate points for display
+    const pointsToShow = practice.points;
+    totalPoints += pointsToShow;
+    
+    // Create the HTML for the list item
+    listItem.innerHTML = `
+      <div class="practice-details">
+        <span class="practice-name">${practice.name}</span>
+        <span class="practice-category">Category: ${practice.category}</span>
+      </div>
+      <div class="practice-points-section">
+        <span class="practice-points ${practice.isDoublePoints ? 'bonus-points' : ''}">
+          ${pointsToShow} points ${practice.isDoublePoints ? '(2x)' : ''}
+        </span>
+        <button type="button" class="remove-practice-btn" data-index="${index}">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+            <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+          </svg>
+        </button>
+      </div>
+    `;
+    
+    selectedList.appendChild(listItem);
+    
+    // Add event listener to the remove button
+    const removeButton = listItem.querySelector('.remove-practice-btn');
+    if (removeButton) {
+      removeButton.addEventListener('click', function(e) {
+        e.preventDefault(); // Prevent form submission
+        const index = parseInt(this.getAttribute('data-index'));
+        if (!isNaN(index) && index >= 0 && index < selectedPractices.length) {
+          // Add fadeout class for animation
+          listItem.classList.add('fadeout');
+          
+          // Wait for animation to complete
+          setTimeout(() => {
+            // Remove the practice from the array
+            selectedPractices.splice(index, 1);
+            // Update the display
+            updateSelectedPracticesDisplay();
+          }, 300); // Match this to your CSS animation duration
+        }
+      });
+    }
+  });
+  
+  // Display total points if there are practices selected
+  if (selectedPractices.length > 0) {
+    const totalItem = document.createElement('li');
+    totalItem.className = 'total-points-item';
+    totalItem.innerHTML = `
+      <strong>Total Points: ${totalPoints}</strong>
+    `;
+    selectedList.appendChild(totalItem);
+  }
+}
+
+// Add CSS to the page for selected practices styling
+function addSelectedPracticesStyles() {
+  const styleElement = document.createElement('style');
+  styleElement.textContent = `
+    #selectedList {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .selected-practice-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      background-color: rgba(255, 255, 255, 0.8);
+      border-radius: 5px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+      border-left: 3px solid #28a745;
+    }
+    
+    .practice-details {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .practice-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .practice-category {
+      font-size: 0.85rem;
+      color: #6c757d;
+    }
+    
+    .practice-points-section {
+      display: flex;
+      align-items: center;
+    }
+    
+    .practice-points {
+      margin-right: 10px;
+      font-weight: 500;
+    }
+    
+    .bonus-points {
+      color: #1890ff;
+      font-weight: bold;
+    }
+    
+    .remove-practice-btn {
+      background: none;
+      border: none;
+      color: #dc3545;
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 3px;
+      transition: background-color 0.2s;
+    }
+    
+    .remove-practice-btn:hover {
+      background-color: rgba(220, 53, 69, 0.1);
+    }
+    
+    .total-points-item {
+      text-align: right;
+      padding: 10px;
+      font-size: 1.1rem;
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      margin-top: 5px;
+    }
+    
+    .fadeout {
+      opacity: 0;
+      transform: translateX(20px);
+      transition: opacity 0.3s, transform 0.3s;
+    }
+    
+    @media (max-width: 768px) {
+      .selected-practice-item {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      
+      .practice-points-section {
+        width: 100%;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+      }
+    }
+  `;
+  document.head.appendChild(styleElement);
+}
+
+// ───────────────────────────────────────────────────────────
+// 1) When category changes, show the scrollable list and special points info
+// ───────────────────────────────────────────────────────────
+if (taskCategory) {
+  taskCategory.addEventListener("change", () => {
+    const cat = taskCategory.value;
+    
+    // Check if practiceList exists before manipulating it
+    if (!practiceList) {
+      console.error("Practice list element not found!");
+      return;
+    }
+    
+    practiceList.innerHTML = "";
+  
+    if (!practicesData[cat]) {
+      practiceContainer.classList.add("hidden");
+      specialPointsInfo.innerHTML = "";
+      return;
+    }
+    practiceContainer.classList.remove("hidden");
+    
+    // Update special points info
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
+    
+    const isSpecialPointsDay = shouldDoublePoints(cat, today);
+    
+    if (isSpecialPointsDay) {
+      specialPointsInfo.innerHTML = `
+        <div style="background-color: #e6f7ff; padding: 10px; border-radius: 5px; border-left: 4px solid #1890ff;">
+          <h4 style="margin-top: 0;">🎯 DOUBLE POINTS ACTIVE!</h4>
+          <p>All ${cat} practices submitted today will receive DOUBLE POINTS!</p>
+        </div>
+      `;
+      specialPointsInfo.style.display = "block";
+    } else {
+      specialPointsInfo.innerHTML = "";
+      specialPointsInfo.style.display = "none";
+    }
+  
+    practicesData[cat].forEach(practice => {
+      const card = document.createElement("div");
+      card.className = "practice-card";
+      card.style.cssText = `
+        padding: 16px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 12px;
+        transition: transform 0.2s, box-shadow 0.2s;
+        background-color: #ffffff;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        border-left: 4px solid ${practice.allowMultiple ? '#28a745' : '#6c757d'};
+        width: 100%;
+        max-width: 600px;
+        min-height: 140px; /* Increased height */
+        background-image: radial-gradient(circle at 1px 1px, rgba(0,0,0,0.03) 1px, transparent 0);
+        background-size: 10px 10px;
+      `;
+
+      // Add hover effect
+      card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-2px)';
+        card.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+        card.style.backgroundColor = '#f9f9f9'; // Slightly different background on hover
+      });
+
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+        card.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+        card.style.backgroundColor = '#ffffff'; // Restore original background
+      });
+
+      // Calculate points based on special date ranges
+      const displayPoints = isSpecialPointsDay ? practice.points * 2 : practice.points;
+      const pointsText = isSpecialPointsDay ? 
+        `<div style="color: #1890ff; font-weight: bold; margin-top: 8px;">Points: ${displayPoints} (2x Bonus!)</div>` :
+        `<div style="margin-top: 8px;">Points: <strong>${displayPoints}</strong></div>`;
+
+      card.innerHTML = `
+        <div style="display: flex; flex-direction: column; width: 100%; text-align: left; height: 100%;">
+          <h4 style="margin-top: 0; margin-bottom: 8px; font-size: 1rem; color: #222222;">${practice.name}</h4>
+          <p style="margin: 0 0 10px; font-size: 0.9rem; color: #4a4a4a; line-height: 1.4;">${practice.description}</p>
+          <div style="margin-top: auto; display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.05);">
+            ${pointsText}
+            ${practice.allowMultiple ? 
+              '<div style="color: #28a745; font-size: 0.85rem; font-weight: bold; display: flex; align-items: center;"><span style="margin-right: 4px;">⭐</span> Unlimited entries</div>' : ''}
+          </div>
+        </div>
+      `;
+
+      // Add responsive style
+      const smallScreenStyles = document.createElement('style');
+      smallScreenStyles.textContent = `
+        @media (max-width: 768px) {
+          .practice-card {
+            padding: 12px !important;
+            margin-bottom: 10px !important;
+            min-height: 130px !important;
+          }
+          
+          .practice-card h4 {
+            font-size: 0.95rem !important;
+          }
+          
+          .practice-card p {
+            font-size: 0.85rem !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .practice-card {
+            padding: 10px !important;
+            min-height: 120px !important;
+          }
+          
+          .practice-card h4 {
+            font-size: 0.9rem !important;
+          }
+          
+          .practice-card p {
+            font-size: 0.8rem !important;
+          }
+        }
+        
+        /* Add container styling to ensure cards display as rectangles */
+        #practiceList {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+          max-width: 100%;
+        }
+      `;
+      document.head.appendChild(smallScreenStyles);
+
+      card.addEventListener("click", () => {
+        // Check if practice is already selected and doesn't allow multiple entries
+        if (!practice.allowMultiple && selectedPractices.find(p => p.name === practice.name)) {
+          showConfirmation("Practice already selected.", "red");
+          return;
+        }
+        
+        // Add the practice to selected practices list
+        selectedPractices.push({
+          name: practice.name,
+          points: isSpecialPointsDay ? practice.points * 2 : practice.points,
+          category: cat,
+          isDoublePoints: isSpecialPointsDay
+        });
+
+        // Create a visual confirmation and update selected practices display
+        showConfirmation(`Added: ${practice.name}`, "green");
+        updateSelectedPracticesDisplay();
+
+        // Scroll to the selected practices section
+        const selectedLabel = document.getElementById('selectedLabel');
+        if (selectedLabel) {
+          selectedLabel.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+        
+        // Provide visual feedback on the clicked card
+        card.style.backgroundColor = '#f0f8ff'; // Light blue background
+        setTimeout(() => {
+          card.style.backgroundColor = '#ffffff'; // Reset back to original
+        }, 300);
+      });
+      
+      practiceList.appendChild(card);
+    });
+  });
+}
+
+// Call the function to add styles when the page loads
+document.addEventListener('DOMContentLoaded', function() {
+  addSelectedPracticesStyles();
+  // Initialize the selected practices display
+  updateSelectedPracticesDisplay();
+});
+  
+  // NOTE: Removed the maximum 3 practices check
+  
+  // Add practice with potentially double points
+  const practiceToAdd = {
+    ...practice,
+    originalPoints: practice.points,
+    points: isSpecialPointsDay ? practice.points * 2 : practice.points,
+    isDoublePoints: isSpecialPointsDay
+  };
+  
+  // For multiple allowed practices, add a unique identifier
+  if (practice.allowMultiple) {
+    // Count how many of this practice are already selected
+    const count = selectedPractices.filter(p => p.name === practice.name).length;
+    practiceToAdd.uniqueId = `${practice.name}_${count + 1}`;
+  }
+  
+ selectedPractices.push(practiceToAdd);
+updateSelectedPracticesDisplay();
+
+showConfirmation(`✅ Added "${practice.name}"${practice.allowMultiple ? ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
+});
+
+// ───────────────────────────────────────────────────────────
+// 3) Submit handler - Updated to check tournament days
+// ───────────────────────────────────────────────────────────
+if (submitForm) {
+  console.log("Submit form found, attaching event listener");
+  
+  submitForm.addEventListener("submit", async function(e) {
+    // Prevent default form submission more explicitly
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log("Form submission started");
+    
+    // Check if today is during tournament days
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
     
     if (!areSubmissionsAllowed(today)) {
-      // Disable the form during tournament days
-      if (submitForm) {
-        submitForm.innerHTML = `
-          <div class="tournament-notification" style="background-color: #ffe0e0; padding: 20px; border-radius: 5px; text-align: center;">
-            <h3>⛳ Tournament in Progress!</h3>
-            <p>Task submissions are disabled from September 24-28, 2025 during the tournament.</p>
-            <p>Good luck to all participants!</p>
-          </div>
-        `;
-      }
+      showConfirmation("⛔ Submissions are disabled during tournament days (Sept 24-28, 2025).", "red");
+      return false;
     }
-  }
-  
-  // Run the tournament check on page load
-  checkTournamentDays();
-
-  // ───────────────────────────────────────────────────────────
-  // 1) When category changes, show the scrollable list and special points info
-  // ───────────────────────────────────────────────────────────
-  if (taskCategory) {
-    taskCategory.addEventListener("change", () => {
-      const cat = taskCategory.value;
-      
-      // Check if practiceList exists before manipulating it
-      if (!practiceList) {
-        console.error("Practice list element not found!");
-        return;
-      }
-      
-      practiceList.innerHTML = "";
     
-      if (!practicesData[cat]) {
-        practiceContainer.classList.add("hidden");
-        specialPointsInfo.innerHTML = "";
-        return;
+    const user = firebase.auth().currentUser;
+    if (!user) {
+      showConfirmation("⚠️ You must be logged in to submit.", "red");
+      return false;
+    }
+  
+    const nameElement = document.getElementById("golferName");
+    if (!nameElement) {
+      showConfirmation("⚠️ Golfer name field not found", "red");
+      return false;
+    }
+    
+    const name = nameElement.value.trim();
+    const category = taskCategory ? taskCategory.value : null;
+    const date = today.toISOString().split("T")[0]; // YYYY-MM-DD
+  
+    console.log("Processing submission:", {
+      name,
+      category,
+      date,
+      practicesCount: selectedPractices.length
+    });
+    
+    if (!category || selectedPractices.length === 0) {
+      showConfirmation("⚠️ Select a category and at least one practice.", "red");
+      return false;
+    }
+  
+    const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
+    
+    // Create references once
+    const userSubRef = dbFirestore
+      .collection("users")
+      .doc(user.uid)
+      .collection("task_submissions")
+      .doc(docId);
+  
+    try {
+      const snap = await userSubRef.get();
+      if (snap.exists) {
+        showConfirmation("⛔ You already submitted this category today!", "red");
+        return false;
       }
-      practiceContainer.classList.remove("hidden");
+  
+      const payload = {
+        golferName: name,
+        category,
+        date,
+        practices: selectedPractices,
+        timestamp: Date.now()
+      };
+  
+      // Disable the submit button to prevent multiple submissions
+      if (submitButton) {
+        submitButton.disabled = true;
+      }
       
-      // Update special points info
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
+      showConfirmation("Submitting your task...", "blue");
+      console.log("About to send data to Firebase");
+  
+      // Use the already defined userSubRef
+      const batch = dbFirestore.batch();
+      batch.set(userSubRef, payload);
+  
+      // Commit the batch and update Realtime DB
+      await batch.commit();
+      console.log("Firestore batch committed");
       
-      const isSpecialPointsDay = shouldDoublePoints(cat, today);
-      
-      if (isSpecialPointsDay) {
-        specialPointsInfo.innerHTML = `
-          <div style="background-color: #e6f7ff; padding: 10px; border-radius: 5px; border-left: 4px solid #1890ff;">
-            <h4 style="margin-top: 0;">🎯 DOUBLE POINTS ACTIVE!</h4>
-            <p>All ${cat} practices submitted today will receive DOUBLE POINTS!</p>
-          </div>
-        `;
-        specialPointsInfo.style.display = "block";
-      } else {
+      await dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`).set(payload);
+      console.log("Realtime DB updated");
+  
+      showConfirmation("✅ Task submitted successfully!", "green");
+      selectedPractices = [];
+      updateSelectedPracticesDisplay();
+      submitForm.reset();
+      if (practiceContainer) {
+        practiceContainer.classList.add("hidden");
+      }
+      if (specialPointsInfo) {
         specialPointsInfo.innerHTML = "";
         specialPointsInfo.style.display = "none";
       }
-    
-      practicesData[cat].forEach(practice => {
-        const card = document.createElement("div");
-        card.className = "practice-card";
-        
-        // Calculate points based on special date ranges
-        const displayPoints = isSpecialPointsDay ? practice.points * 2 : practice.points;
-        const pointsText = isSpecialPointsDay ? 
-          `<small>Points: <span style="color: #1890ff; font-weight: bold;">${displayPoints} (2x Bonus!)</span></small>` :
-          `<small>Points: ${displayPoints}</small>`;
-          
-        card.innerHTML = `
-          <h4>${practice.name}</h4>
-          <p>${practice.description}</p>
-          ${pointsText}
-          ${practice.allowMultiple ? '<small style="color: #28a745; display: block; margin-top: 4px;">Can be added multiple times</small>' : ''}
-        `;
-        
-        card.addEventListener("click", () => {
-          // Check if practice is already selected and doesn't allow multiple entries
-          if (!practice.allowMultiple && selectedPractices.find(p => p.name === practice.name)) {
-            showConfirmation("Practice already selected.", "red");
-            return;
-          }
-          
-          // Check if we've reached the maximum of 3 non-multiple practices
-          const nonMultipleCount = selectedPractices.filter(p => !p.allowMultiple).length;
-          if (!practice.allowMultiple && nonMultipleCount >= 3) {
-            showConfirmation("You can only select 3 regular practices.", "red");
-            return;
-          }
-          
-          // Add practice with potentially double points
-          const practiceToAdd = {
-            ...practice,
-            originalPoints: practice.points,
-            points: isSpecialPointsDay ? practice.points * 2 : practice.points,
-            isDoublePoints: isSpecialPointsDay
-          };
-          
-          // For multiple allowed practices, add a unique identifier
-          if (practice.allowMultiple) {
-            // Count how many of this practice are already selected
-            const count = selectedPractices.filter(p => p.name === practice.name).length;
-            practiceToAdd.uniqueId = `${practice.name}_${count + 1}`;
-          }
-          
-          selectedPractices.push(practiceToAdd);
-          renderSelected();
-          showConfirmation(`✅ Added "${practice.name}"${practice.allowMultiple ? ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
-        });
-        practiceList.appendChild(card);
-      });
-    });
-  } else {
-    console.error("Task category element not found!");
-  }
-
-  // ───────────────────────────────────────────────────────────
-  // 2) Render the "Selected Practices" list
-  // ───────────────────────────────────────────────────────────
-  function renderSelected() {
-    if (!selectedList) {
-      console.error("Selected list element not found!");
-      return;
-    }
-    
-    selectedList.innerHTML = "";
-    selectedPractices.forEach((p, i) => {
-      const li = document.createElement("li");
       
-      // Show double points indicator if applicable
-      const pointsText = p.isDoublePoints ? 
-        `${p.points} pts (2x Bonus!)` : 
-        `${p.points} pts`;
-      
-      // For multiple allowed practices, show the count
-      let displayName = p.name;
-      if (p.allowMultiple) {
-        // Find how many of this type exist
-        const practiceCount = selectedPractices.filter(sp => sp.name === p.name).length;
-        const thisIndex = selectedPractices.filter(sp => sp.name === p.name).indexOf(p) + 1;
-        displayName = `${p.name} #${thisIndex}`;
-      }
-      
-      li.innerHTML = `${displayName} <span style="${p.isDoublePoints ? 'color: #1890ff; font-weight: bold;' : ''}">(${pointsText})</span>`;
-      li.style.cursor = "pointer";
-      li.title = "Click to remove";
-      li.addEventListener("click", () => {
-        selectedPractices.splice(i, 1);
-        renderSelected();
-      });
-      selectedList.appendChild(li);
-    });
-    
-    // Count regular practices (non-multiple)
-    const regularPracticesCount = selectedPractices.filter(p => !p.allowMultiple).length;
-    const multiplePracticesCount = selectedPractices.filter(p => p.allowMultiple).length;
-    
-    if (selectedLabel) {
-      selectedLabel.textContent = `Selected Practices (${regularPracticesCount}/3 regular, ${multiplePracticesCount} special)`;
-    }
-  }
-
-  // ───────────────────────────────────────────────────────────
-  // 3) Submit handler - Updated to check tournament days
-  // ───────────────────────────────────────────────────────────
-  if (submitForm) {
-    submitForm.addEventListener("submit", async e => {
-      e.preventDefault();
-      
-      // Check if today is during tournament days
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
-      
-      if (!areSubmissionsAllowed(today)) {
-        showConfirmation("⛔ Submissions are disabled during tournament days (Sept 24-28, 2025).", "red");
-        return;
-      }
-      
-      const user = firebase.auth().currentUser;
-      if (!user) {
-        showConfirmation("⚠️ You must be logged in to submit.", "red");
-        return;
-      }
-    
-      const nameElement = document.getElementById("golferName");
-      if (!nameElement) {
-        showConfirmation("⚠️ Golfer name field not found", "red");
-        return;
-      }
-      
-      const name = nameElement.value.trim();
-      const category = taskCategory ? taskCategory.value : null;
-      const date = today.toISOString().split("T")[0]; // YYYY-MM-DD
-    
-      if (!category || selectedPractices.length === 0) {
-        showConfirmation("⚠️ Select a category and at least one practice.", "red");
-        return;
-      }
-    
-      const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
-      
-      // Create references once
-      const userSubRef = dbFirestore
-        .collection("users")
-        .doc(user.uid)
-        .collection("task_submissions")
-        .doc(docId);
-    
-      try {
-        const snap = await userSubRef.get();
-        if (snap.exists) {
-          showConfirmation("⛔ You already submitted this category today!", "red");
-          return;
-        }
-    
-        const payload = {
-          golferName: name,
-          category,
-          date,
-          practices: selectedPractices,
-          timestamp: Date.now()
-        };
-    
-        // Disable the submit button to prevent multiple submissions
+      return false; // Extra prevention of form submission
+  
+    } catch (err) {
+      console.error("Submission error:", err);
+      showConfirmation(`⚠️ Submission failed: ${err.message || "Unknown error"}`, "red");
+      return false;
+    } finally {
+      // Re-enable the submit button after a delay
+      setTimeout(() => {
         if (submitButton) {
-          submitButton.disabled = true;
+          submitButton.disabled = false;
         }
-        
-        showConfirmation("Submitting your task...", "blue");
+      }, 3000); // Re-enable after 3 seconds
+    }
     
-        // Use the already defined userSubRef
-        const batch = dbFirestore.batch();
-        batch.set(userSubRef, payload);
-    
-        // Commit the batch and update Realtime DB
-        await batch.commit();
-        await dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`).set(payload);
-    
-        showConfirmation("✅ Task submitted successfully!", "green");
-        selectedPractices = [];
-        renderSelected();
-        submitForm.reset();
-        if (practiceContainer) {
-          practiceContainer.classList.add("hidden");
-        }
-        if (specialPointsInfo) {
-          specialPointsInfo.innerHTML = "";
-          specialPointsInfo.style.display = "none";
-        }
-    
-      } catch (err) {
-        console.error("Submission error:", err);
-        showConfirmation(`⚠️ Submission failed: ${err.message || "Unknown error"}`, "red");
-      } finally {
-        // Re-enable the submit button after a delay
-        setTimeout(() => {
-          if (submitButton) {
-            submitButton.disabled = false;
-          }
-        }, 3000); // Re-enable after 3 seconds
-      }
-    });
-  } else {
-    console.error("Submit form element not found!");
-  }
-
+    // Final prevention of form submission
+    return false;
+  });
+} else {
+  console.error("Submit form element not found! Check your HTML for the form with ID 'submitTaskForm'");
+}
   // ───────────────────────────────────────────────────────────
   // Helper to show messages
   // ───────────────────────────────────────────────────────────
@@ -608,7 +899,7 @@ function showConfirmation(message, color) {
     confirmationDiv.classList.add("hidden");
   }, 3000);
 }
-});
+
 // Button click handlers
 function submitTasks() {
   window.location.href = "submit-task.html";
