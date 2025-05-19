@@ -406,6 +406,147 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
+// ───────────────────────────────────────────────────────────
+// Updated Nav Functions
+// ───────────────────────────────────────────────────────────
+
+// Navigation functionality for golf dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    // Get navigation elements
+    const navLinks = document.querySelectorAll('.navbar a');
+    
+    // Handle active link clicks
+    navLinks.forEach(link => {
+        link.addEventListener('click', function(e) {
+            // Set active link
+            navLinks.forEach(l => l.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Toggle mobile navbar visibility
+const navToggleBtn = document.getElementById('navToggle');
+const navbar = document.querySelector('.navbar');
+
+if (navToggleBtn && navbar) {
+    navToggleBtn.addEventListener('click', function () {
+        navbar.classList.toggle('active');
+    });
+  }
+    
+    // Set initial active state based on current page
+    function setInitialActiveLink() {
+        // Get current page URL
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        
+        // Find matching link or default to first
+        let activeLink = null;
+        navLinks.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && href.includes(currentPage)) {
+                activeLink = link;
+            }
+        });
+        
+        // If no matching link found, set first as active
+        if (!activeLink && navLinks.length > 0) {
+            activeLink = navLinks[0];
+        }
+        
+        // Apply active class
+        if (activeLink) {
+            activeLink.classList.add('active');
+        }
+    }
+    
+    setInitialActiveLink();
+    
+    // Add shimmer effect to nav items
+    function addShimmerEffect() {
+        const navItems = document.querySelectorAll('.navbar li a');
+        
+        navItems.forEach(item => {
+            item.addEventListener('mouseenter', function() {
+                // Remove any existing shimmers first
+                const existingShimmers = this.querySelectorAll('.nav-shimmer');
+                existingShimmers.forEach(s => s.remove());
+                
+                const shimmer = document.createElement('div');
+                shimmer.className = 'nav-shimmer';
+                
+                // Ensure item has relative position for absolute positioning of shimmer
+                this.style.position = 'relative';
+                this.style.overflow = 'hidden';
+                this.appendChild(shimmer);
+                
+                setTimeout(() => {
+                    shimmer.remove();
+                }, 1000);
+            });
+        });
+    }
+    
+    addShimmerEffect();
+
+    // Mobile UX: dimmed overlay focus for nav
+    function setupMobileNavOverlay() {
+        const overlay = document.createElement('div');
+        overlay.classList.add('mobile-nav-overlay');
+        document.body.appendChild(overlay);
+
+        const nav = document.querySelector('.navbar');
+        const navLinks = nav.querySelectorAll('a');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                overlay.classList.remove('active');
+            });
+
+            link.addEventListener('touchstart', () => {
+                overlay.classList.add('active');
+                setTimeout(() => overlay.classList.remove('active'), 1000);
+            });
+        });
+
+        overlay.addEventListener('click', () => {
+            overlay.classList.remove('active');
+        });
+    }
+
+    // Handle overflow scrolling for mobile
+    function handleScrolling() {
+        if (window.innerWidth <= 768) {
+            const navbar = document.querySelector('.navbar ul');
+            
+            // Check if there's overflow
+            if (navbar.scrollWidth > navbar.clientWidth) {
+                // Add tactile feedback (subtle scrolling indicators)
+                navbar.style.paddingLeft = '8px';
+                navbar.style.paddingRight = '8px';
+                
+                // Add smooth scrolling behavior
+                navbar.style.scrollBehavior = 'smooth';
+                
+                // Optional: Add scroll snap
+                navbar.style.scrollSnapType = 'x mandatory';
+                
+                // Add snap points to nav items
+                const navItems = navbar.querySelectorAll('li');
+                navItems.forEach(item => {
+                    item.style.scrollSnapAlign = 'center';
+                });
+            }
+        }
+    }
+    
+    // Run on load and resize
+    handleScrolling();
+    window.addEventListener('resize', handleScrolling);
+
+    
+});
+
+
 // Navigation Functions
 function submitTasks() {
   window.location.href = "submit-task.html";
