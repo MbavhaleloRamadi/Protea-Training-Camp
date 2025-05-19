@@ -271,6 +271,10 @@ firebase.auth().onAuthStateChanged(user => {
     ]
   };
 
+// ───────────────────────────────────────────────────────────
+// PRACTICE SELECTION & SUBMISSION - FIXED CODE
+// ───────────────────────────────────────────────────────────
+
 // Initialize the selected practices array
 let selectedPractices = [];
 
@@ -403,107 +407,8 @@ function updateSelectedPracticesDisplay() {
   }
 }
 
-// Add CSS to the page for selected practices styling
-function addSelectedPracticesStyles() {
-  const styleElement = document.createElement('style');
-  styleElement.textContent = `
-    #selectedList {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    
-    .selected-practice-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px;
-      background-color: rgba(255, 255, 255, 0.8);
-      border-radius: 5px;
-      margin-bottom: 8px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-      transition: all 0.3s ease;
-      border-left: 3px solid #28a745;
-    }
-    
-    .practice-details {
-      display: flex;
-      flex-direction: column;
-    }
-    
-    .practice-name {
-      font-weight: 600;
-      margin-bottom: 4px;
-    }
-    
-    .practice-category {
-      font-size: 0.85rem;
-      color: #6c757d;
-    }
-    
-    .practice-points-section {
-      display: flex;
-      align-items: center;
-    }
-    
-    .practice-points {
-      margin-right: 10px;
-      font-weight: 500;
-    }
-    
-    .bonus-points {
-      color: #1890ff;
-      font-weight: bold;
-    }
-    
-    .remove-practice-btn {
-      background: none;
-      border: none;
-      color: #dc3545;
-      cursor: pointer;
-      padding: 4px;
-      border-radius: 3px;
-      transition: background-color 0.2s;
-    }
-    
-    .remove-practice-btn:hover {
-      background-color: rgba(220, 53, 69, 0.1);
-    }
-    
-    .total-points-item {
-      text-align: right;
-      padding: 10px;
-      font-size: 1.1rem;
-      border-top: 1px solid rgba(0, 0, 0, 0.1);
-      margin-top: 5px;
-    }
-    
-    .fadeout {
-      opacity: 0;
-      transform: translateX(20px);
-      transition: opacity 0.3s, transform 0.3s;
-    }
-    
-    @media (max-width: 768px) {
-      .selected-practice-item {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      
-      .practice-points-section {
-        width: 100%;
-        justify-content: space-between;
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
-      }
-    }
-  `;
-  document.head.appendChild(styleElement);
-}
-
 // ───────────────────────────────────────────────────────────
-// 5) When category changes, show the scrollable list and special points info
+// 5) When category changes, show the scrollable list and special points info - FIXED
 // ───────────────────────────────────────────────────────────
 if (taskCategory) {
   taskCategory.addEventListener("change", () => {
@@ -595,50 +500,7 @@ if (taskCategory) {
         </div>
       `;
 
-      // Add responsive style
-      const smallScreenStyles = document.createElement('style');
-      smallScreenStyles.textContent = `
-        @media (max-width: 768px) {
-          .practice-card {
-            padding: 12px !important;
-            margin-bottom: 10px !important;
-            min-height: 130px !important;
-          }
-          
-          .practice-card h4 {
-            font-size: 0.95rem !important;
-          }
-          
-          .practice-card p {
-            font-size: 0.85rem !important;
-          }
-        }
-        
-        @media (max-width: 480px) {
-          .practice-card {
-            padding: 10px !important;
-            min-height: 120px !important;
-          }
-          
-          .practice-card h4 {
-            font-size: 0.9rem !important;
-          }
-          
-          .practice-card p {
-            font-size: 0.8rem !important;
-          }
-        }
-        
-        /* Add container styling to ensure cards display as rectangles */
-        #practiceList {
-          display: flex;
-          flex-direction: column;
-          width: 100%;
-          max-width: 100%;
-        }
-      `;
-      document.head.appendChild(smallScreenStyles);
-
+      // FIXED: Single click event handler for practice card
       card.addEventListener("click", () => {
         // Check if practice is already selected and doesn't allow multiple entries
         if (!practice.allowMultiple && selectedPractices.find(p => p.name === practice.name)) {
@@ -646,16 +508,27 @@ if (taskCategory) {
           return;
         }
         
-        // Add the practice to selected practices list
-        selectedPractices.push({
+        // Add the practice to selected practices list with potentially double points
+        const practiceToAdd = {
           name: practice.name,
           points: isSpecialPointsDay ? practice.points * 2 : practice.points,
           category: cat,
-          isDoublePoints: isSpecialPointsDay
-        });
-
+          isDoublePoints: isSpecialPointsDay,
+          originalPoints: practice.points
+        };
+        
+        // For multiple allowed practices, add a unique identifier
+        if (practice.allowMultiple) {
+          // Count how many of this practice are already selected
+          const count = selectedPractices.filter(p => p.name === practice.name).length;
+          practiceToAdd.uniqueId = `${practice.name}_${count + 1}`;
+        }
+        
+        selectedPractices.push(practiceToAdd);
+        
         // Create a visual confirmation and update selected practices display
-        showConfirmation(`Added: ${practice.name}`, "green");
+        showConfirmation(`✅ Added "${practice.name}"${practice.allowMultiple ? 
+          ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
         updateSelectedPracticesDisplay();
 
         // Scroll to the selected practices section
@@ -685,176 +558,131 @@ document.addEventListener('DOMContentLoaded', function() {
   // Initialize the selected practices display
   updateSelectedPracticesDisplay();
 });
-  
-// NOTE: Removed the maximum 3 practices check
-  
-  // Add practice with potentially double points
-  const practiceToAdd = {
-    ...practice,
-    originalPoints: practice.points,
-    points: isSpecialPointsDay ? practice.points * 2 : practice.points,
-    isDoublePoints: isSpecialPointsDay
-  };
-  
-  // For multiple allowed practices, add a unique identifier
-  if (practice.allowMultiple) {
-    // Count how many of this practice are already selected
-    const count = selectedPractices.filter(p => p.name === practice.name).length;
-    practiceToAdd.uniqueId = `${practice.name}_${count + 1}`;
-  }
-  
- selectedPractices.push(practiceToAdd);
-updateSelectedPracticesDisplay();
-
-showConfirmation(`✅ Added "${practice.name}"${practice.allowMultiple ? ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
-});
 
 // ───────────────────────────────────────────────────────────
-// 6) Submit handler - Fixed to ensure proper database submission
+// 6) Submit handler - Updated to match HTML structure and handle selected practices
 // ───────────────────────────────────────────────────────────
+
 if (submitForm) {
   console.log("Submit form found, attaching event listener");
   
-  submitForm.addEventListener("submit", async function(e) {
-    // Prevent default form submission
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log("Form submission started");
-    
-    // Check if today is during tournament days
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Set to beginning of day for accurate comparison
-    
-    if (!areSubmissionsAllowed(today)) {
-      showConfirmation("⛔ Submissions are disabled during tournament days (Sept 24-28, 2025).", "red");
-      return false;
-    }
-    
-    const user = firebase.auth().currentUser;
-    if (!user) {
-      showConfirmation("⚠️ You must be logged in to submit.", "red");
-      return false;
-    }
-  
-    const nameElement = document.getElementById("golferName");
-    if (!nameElement) {
-      showConfirmation("⚠️ Golfer name field not found", "red");
-      return false;
-    }
-    
-    const name = nameElement.value.trim();
-    const category = taskCategory ? taskCategory.value : null;
-    const date = today.toISOString().split("T")[0]; // YYYY-MM-DD
-  
-    console.log("Processing submission:", {
-      name,
-      category,
-      date,
-      practicesCount: selectedPractices.length
+  // Test Firestore connectivity first
+  const testDoc = dbFirestore.collection('test').doc('test-doc');
+  testDoc.set({ test: true, timestamp: new Date() })
+    .then(() => {
+      console.log("Test write successful");
+    })
+    .catch((error) => {
+      console.error("Test write failed:", error);
     });
+  
+  submitForm.addEventListener("submit", async (event) => {
+    event.preventDefault(); // Prevent the default form submission
     
-    if (!category || selectedPractices.length === 0) {
-      showConfirmation("⚠️ Select a category and at least one practice.", "red");
-      return false;
+    // Check if there are selected practices
+    if (selectedPractices.length === 0) {
+      showConfirmation("Please select at least one practice.", "red");
+      return;
     }
-  
-    const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
     
-    // Create references to both databases
-    const userSubRefFirestore = dbFirestore
-      .collection("users")
-      .doc(user.uid)
-      .collection("task_submissions")
-      .doc(docId);
-      
-    const userSubRefRealtime = dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`);
-  
+    // Check if we're in tournament days (no submissions allowed)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (!areSubmissionsAllowed(today)) {
+      showConfirmation("Submissions are not allowed during tournament days.", "red");
+      return;
+    }
+    
+    // Disable the submit button and show loading state
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Submitting...";
+    
     try {
-      // Check if submission already exists for today
-      const snap = await userSubRefFirestore.get();
-      if (snap.exists) {
-        showConfirmation("⛔ You already submitted this category today!", "red");
-        return false;
-      }
-  
-      const payload = {
-        golferName: name,
-        category,
-        date,
-        practices: JSON.parse(JSON.stringify(selectedPractices)), // Deep clone to avoid reference issues
-        timestamp: firebase.firestore.FieldValue.serverTimestamp() // Use server timestamp for Firestore
-      };
-      
-      const realtimePayload = {
-        golferName: name,
-        category,
-        date,
-        practices: JSON.parse(JSON.stringify(selectedPractices)), // Deep clone to avoid reference issues
-        timestamp: Date.now() // Use client timestamp for Realtime DB
-      };
-  
-      // Disable the submit button to prevent multiple submissions
-      if (submitButton) {
-        submitButton.disabled = true;
-        submitButton.textContent = "Submitting...";
+      // Get the user ID
+      const user = firebase.auth().currentUser;
+      if (!user) {
+        showConfirmation("You must be logged in to submit practices.", "red");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Practice";
+        return;
       }
       
-      showConfirmation("Submitting your task...", "blue");
-      console.log("About to send data to Firebase");
-  
-      // Use Promise.all to send to both databases simultaneously
-      await Promise.all([
-        userSubRefFirestore.set(payload),
-        userSubRefRealtime.set(realtimePayload)
-      ]);
+      const userId = user.uid;
+      const username = document.getElementById("golferName").value;
+      const timestamp = firebase.firestore.FieldValue.serverTimestamp();
       
-      console.log("Data successfully written to both databases");
-  
-      showConfirmation("✅ Task submitted successfully!", "green");
+      // Create a batch for Firestore operations
+      const batch = dbFirestore.batch();
+      
+      // Track successful submissions
+      let successCount = 0;
+      
+      // Process each selected practice
+      for (const practice of selectedPractices) {
+        // Create a unique ID for this submission
+        const submissionId = dbFirestore.collection('submissions').doc().id;
+        
+        // Prepare submission data
+        const submissionData = {
+          userId: userId,
+          username: username,
+          category: practice.category,
+          practiceName: practice.name,
+          points: practice.points,
+          isDoublePoints: practice.isDoublePoints || false,
+          submittedAt: timestamp,
+          date: new Date().toISOString().split('T')[0], // YYYY-MM-DD format
+        };
+        
+        // Add to batch
+        const submissionRef = dbFirestore.collection('submissions').doc(submissionId);
+        batch.set(submissionRef, submissionData);
+        
+        // Also update user points in a separate collection for leaderboard
+        const userPointsRef = dbFirestore.collection('userPoints').doc(userId);
+        batch.set(userPointsRef, {
+          totalPoints: firebase.firestore.FieldValue.increment(practice.points),
+          lastUpdated: timestamp
+        }, { merge: true });
+        
+        successCount++;
+      }
+      
+      // Commit the batch
+      await batch.commit();
+      
+      // Show success message
+      showConfirmation(`Successfully submitted ${successCount} practice${successCount !== 1 ? 's' : ''}!`, "green");
+      
+      // Clear selected practices
       selectedPractices = [];
       updateSelectedPracticesDisplay();
-      submitForm.reset();
-      if (practiceContainer) {
-        practiceContainer.classList.add("hidden");
-      }
-      if (specialPointsInfo) {
-        specialPointsInfo.innerHTML = "";
-        specialPointsInfo.style.display = "none";
-      }
       
-      // Reset the submit button text
-      if (submitButton) {
-        submitButton.textContent = "Submit";
-      }
-      
-      return false;
-  
-    } catch (err) {
-      console.error("Submission error:", err);
-      showConfirmation(`⚠️ Submission failed: ${err.message || "Unknown error"}`, "red");
-      
-      // Reset the submit button text
-      if (submitButton) {
-        submitButton.textContent = "Submit Practice";
-      }
-      
-      return false;
-    } finally {
-      // Re-enable the submit button after a delay
+      // Reset form after a delay
       setTimeout(() => {
-        if (submitButton) {
-          submitButton.disabled = false;
+        // Reset the category selector
+        if (taskCategory) {
+          taskCategory.value = "";
+          // Hide practice container
+          if (practiceContainer) {
+            practiceContainer.classList.add("hidden");
+          }
         }
       }, 2000);
+      
+    } catch (error) {
+      console.error("Error submitting practices:", error);
+      showConfirmation("Failed to submit practices. Please try again.", "red");
+    } finally {
+      // Re-enable the submit button
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Submit Practice";
     }
-    
-    return;
   });
 } else {
   console.error("Submit form element not found! Check your HTML for the form with ID 'submitTaskForm'");
 }
-
+});
 
 // ───────────────────────────────────────────────────────────
 // Helper to show messages
@@ -907,3 +735,4 @@ function viewHistory() {
 function manageTasks() {
   window.location.href = "manage-tasks.html";
 }
+

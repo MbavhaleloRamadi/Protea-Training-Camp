@@ -1441,8 +1441,6 @@ button:focus {
   }
 }
 
-/* Add this to your existing CSS file (styles.css) */
-
 .confirmation-message {
     margin-top: 15px;
     padding: 10px;
@@ -2280,28 +2278,7 @@ button:focus {
 }
 
 /* Video Container */
-.video-container {
-  position: relative;
-  margin-bottom: 2rem;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
-  z-index: 1;
-}
 
-.video-container video {
-  width: 100%;
-  display: block;
-  border-radius: 8px;
-}
-
-.video-fallback {
-  padding: 2rem;
-  background-color: rgba(0, 0, 0, 0.3);
-  text-align: center;
-  font-style: italic;
-  border-radius: 8px;
-}
 
 /* Camp Dates */
 .camp-dates {
@@ -2767,14 +2744,11 @@ button:focus {
 
 .tournament-schedule {
   overflow-x: auto;
-  margin-top: 1rem;
+  width: 100%;
 }
 
 .tournament-table {
-  width: 100%;
-  border-collapse: collapse;
-  border-spacing: 0;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  min-width: 650px; /* Ensures table doesn't collapse too much */
 }
 
 .tournament-table th {
