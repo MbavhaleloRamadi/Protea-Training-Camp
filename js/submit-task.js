@@ -91,39 +91,9 @@ firebase.auth().onAuthStateChanged(user => {
     });
 });
 
-  // ───────────────────────────────────────────────────────────
-  // 5) LEADERBOARD FETCH & RENDER
-  // ───────────────────────────────────────────────────────────
-  const leaderboardContainer = document.getElementById("leaderboardData");
-  if (leaderboardContainer) {
-    const db           = firebase.firestore();
-    const leaderboard  = db
-      .collection("leaderboard")
-      .orderBy("score", "desc")
-      .limit(10);
-
-    leaderboard.get()
-      .then(snapshot => {
-        let rank = 1;
-        snapshot.forEach(doc => {
-          const { name, score } = doc.data();
-
-          const row = document.createElement("div");
-          row.classList.add("leaderboard-row");
-
-          row.innerHTML = `
-            <div class="rank">${rank++}</div>
-            <div class="name">${name}</div>
-            <div class="score">${score}</div>
-          `;
-          leaderboardContainer.appendChild(row);
-        });
-      })
-      .catch(err => console.error("Leaderboard error:", err));
-  }
 
   // ───────────────────────────────────────────────────────────
-  // SPECIAL POINTS DATE RANGES & TOURNAMENT DAYS
+  // 3) SPECIAL POINTS DATE RANGES & TOURNAMENT DAYS
   // ───────────────────────────────────────────────────────────
   
   // Helper function to check if a date is within a range
@@ -190,14 +160,14 @@ firebase.auth().onAuthStateChanged(user => {
   const dbRealtime  = firebase.database();
 
   // DOM Elements
-  const submitForm       = document.getElementById("submitTaskForm");
-  const confirmEl        = document.getElementById("confirmationMessage");
-  const taskCategory     = document.getElementById("taskCategory");
+  const submitForm        = document.getElementById("submitTaskForm");
+  const confirmEl         = document.getElementById("confirmationMessage");
+  const taskCategory      = document.getElementById("taskCategory");
   const practiceContainer = document.getElementById("practiceContainer");
-  const practiceList     = document.getElementById("practiceList");
-  const submitButton     = document.getElementById("submitBtn"); // Fixed ID to match HTML
-  const selectedList     = document.getElementById("selectedList");
-  const selectedLabel    = document.getElementById("selectedLabel");
+  const practiceList      = document.getElementById("practiceList");  
+  const selectedList      = document.getElementById("selectedList");
+  const selectedLabel     = document.getElementById("selectedLabel");
+  const submitButton      = document.getElementById("submitBtn");
   
   // Add special points info element
   const specialPointsInfo = document.createElement("div");
@@ -333,8 +303,8 @@ function showConfirmation(message, type = "green") {
     // After the fade out animation completes, hide the element
     setTimeout(() => {
       confirmationMessage.classList.add('hidden');
-    }, 300);
-  }, 3000);
+    }, 200);
+  }, 2000);
 }
 
 // Function to update the selected practices display
@@ -533,7 +503,7 @@ function addSelectedPracticesStyles() {
 }
 
 // ───────────────────────────────────────────────────────────
-// 1) When category changes, show the scrollable list and special points info
+// 5) When category changes, show the scrollable list and special points info
 // ───────────────────────────────────────────────────────────
 if (taskCategory) {
   taskCategory.addEventListener("change", () => {
@@ -716,7 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updateSelectedPracticesDisplay();
 });
   
-  // NOTE: Removed the maximum 3 practices check
+// NOTE: Removed the maximum 3 practices check
   
   // Add practice with potentially double points
   const practiceToAdd = {
@@ -740,13 +710,13 @@ showConfirmation(`✅ Added "${practice.name}"${practice.allowMultiple ? ` (${se
 });
 
 // ───────────────────────────────────────────────────────────
-// 3) Submit handler - Updated to check tournament days
+// 6) Submit handler - Fixed to ensure proper database submission
 // ───────────────────────────────────────────────────────────
 if (submitForm) {
   console.log("Submit form found, attaching event listener");
   
   submitForm.addEventListener("submit", async function(e) {
-    // Prevent default form submission more explicitly
+    // Prevent default form submission
     e.preventDefault();
     e.stopPropagation();
     
@@ -791,15 +761,18 @@ if (submitForm) {
   
     const docId = `${user.uid}_${category}_${date}`.replace(/\s+/g, "_").toLowerCase();
     
-    // Create references once
-    const userSubRef = dbFirestore
+    // Create references to both databases
+    const userSubRefFirestore = dbFirestore
       .collection("users")
       .doc(user.uid)
       .collection("task_submissions")
       .doc(docId);
+      
+    const userSubRefRealtime = dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`);
   
     try {
-      const snap = await userSubRef.get();
+      // Check if submission already exists for today
+      const snap = await userSubRefFirestore.get();
       if (snap.exists) {
         showConfirmation("⛔ You already submitted this category today!", "red");
         return false;
@@ -809,28 +782,34 @@ if (submitForm) {
         golferName: name,
         category,
         date,
-        practices: selectedPractices,
-        timestamp: Date.now()
+        practices: JSON.parse(JSON.stringify(selectedPractices)), // Deep clone to avoid reference issues
+        timestamp: firebase.firestore.FieldValue.serverTimestamp() // Use server timestamp for Firestore
+      };
+      
+      const realtimePayload = {
+        golferName: name,
+        category,
+        date,
+        practices: JSON.parse(JSON.stringify(selectedPractices)), // Deep clone to avoid reference issues
+        timestamp: Date.now() // Use client timestamp for Realtime DB
       };
   
       // Disable the submit button to prevent multiple submissions
       if (submitButton) {
         submitButton.disabled = true;
+        submitButton.textContent = "Submitting...";
       }
       
       showConfirmation("Submitting your task...", "blue");
       console.log("About to send data to Firebase");
   
-      // Use the already defined userSubRef
-      const batch = dbFirestore.batch();
-      batch.set(userSubRef, payload);
-  
-      // Commit the batch and update Realtime DB
-      await batch.commit();
-      console.log("Firestore batch committed");
+      // Use Promise.all to send to both databases simultaneously
+      await Promise.all([
+        userSubRefFirestore.set(payload),
+        userSubRefRealtime.set(realtimePayload)
+      ]);
       
-      await dbRealtime.ref(`users/${user.uid}/task_submissions/${docId}`).set(payload);
-      console.log("Realtime DB updated");
+      console.log("Data successfully written to both databases");
   
       showConfirmation("✅ Task submitted successfully!", "green");
       selectedPractices = [];
@@ -844,11 +823,22 @@ if (submitForm) {
         specialPointsInfo.style.display = "none";
       }
       
-      return false; // Extra prevention of form submission
+      // Reset the submit button text
+      if (submitButton) {
+        submitButton.textContent = "Submit";
+      }
+      
+      return false;
   
     } catch (err) {
       console.error("Submission error:", err);
       showConfirmation(`⚠️ Submission failed: ${err.message || "Unknown error"}`, "red");
+      
+      // Reset the submit button text
+      if (submitButton) {
+        submitButton.textContent = "Submit Practice";
+      }
+      
       return false;
     } finally {
       // Re-enable the submit button after a delay
@@ -856,18 +846,19 @@ if (submitForm) {
         if (submitButton) {
           submitButton.disabled = false;
         }
-      }, 3000); // Re-enable after 3 seconds
+      }, 2000);
     }
     
-    // Final prevention of form submission
-    return false;
+    return;
   });
 } else {
   console.error("Submit form element not found! Check your HTML for the form with ID 'submitTaskForm'");
 }
-  // ───────────────────────────────────────────────────────────
-  // Helper to show messages
-  // ───────────────────────────────────────────────────────────
+
+
+// ───────────────────────────────────────────────────────────
+// Helper to show messages
+// ───────────────────────────────────────────────────────────
 function showConfirmation(message, color) {
   const confirmationDiv = document.getElementById("confirmationMessage");
   
