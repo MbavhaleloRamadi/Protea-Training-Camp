@@ -605,6 +605,14 @@ if (submitForm) {
       
       // Create a batch for Firestore operations
       const batch = dbFirestore.batch();
+      const firestoreBatch = dbFirestore.batch();
+      
+      // Array to store Realtime Database promises
+      const realtimePromises = [];
+
+      // Define timestamps for both databases
+      const firestoreTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+      const realtimeTimestamp = firebase.database.ServerValue.TIMESTAMP;
       
       // Track successful submissions
       let successCount = 0;
@@ -632,16 +640,36 @@ if (submitForm) {
   const realtimeRef = dbRealtime
     .ref(`users/${userId}/task_submissions/${submissionId}`);
     
-  // First check if document already exists in Firestore
-  try {
-    const docSnapshot = await firestoreRef.get();
+ // First check if document already exists in Firestore
+try {
+  const docSnapshot = await firestoreRef.get();
+  
+  if (docSnapshot.exists) {
+    // Document exists, use batch to update the practices array
+    const doc = await firestoreRef.get();
+    const existingData = doc.data();
+    const existingPractices = existingData.practices || [];
     
-    if (docSnapshot.exists) {
-      // Document exists, use transaction to update the practices array
-      const transaction = dbFirestore.runTransaction(async (transaction) => {
-        const doc = await transaction.get(firestoreRef);
-        const existingData = doc.data();
-        const existingPractices = existingData.practices || [];
+    
+    // Add new practice to array
+    const newPracticeEntry = {
+      description: practice.name,
+      points: practice.points,
+      isDoublePoints: practice.isDoublePoints || false,
+      timestamp: Date.now() // Use client timestamp for array elements
+    };
+    
+    // Update the document with the new practice using batch
+    firestoreBatch.update(firestoreRef, {
+      practices: [...existingPractices, newPracticeEntry],
+      lastUpdated: firestoreTimestamp
+    });
+    
+    realtimePromises.push(
+      // For Realtime DB, get the existing practices first
+      realtimeRef.once('value').then(snapshot => {
+        const data = snapshot.val() || {};
+        const existingPractices = data.practices || [];
         
         // Add new practice to array
         const newPracticeEntry = {
@@ -651,76 +679,52 @@ if (submitForm) {
           timestamp: Date.now() // Use client timestamp for array elements
         };
         
-        // Update the document with the new practice
-        transaction.update(firestoreRef, {
+        // Update the practices array
+        return realtimeRef.update({
           practices: [...existingPractices, newPracticeEntry],
-          lastUpdated: firestoreTimestamp
+          lastUpdated: realtimeTimestamp
         });
-        
-        return true;
-      });
-      
-      realtimePromises.push(
-        // For Realtime DB, get the existing practices first
-        realtimeRef.once('value').then(snapshot => {
-          const data = snapshot.val() || {};
-          const existingPractices = data.practices || [];
-          
-          // Add new practice to array
-          const newPracticeEntry = {
-            description: practice.name,
-            points: practice.points,
-            isDoublePoints: practice.isDoublePoints || false,
-            timestamp: Date.now() // Use client timestamp for array elements
-          };
-          
-          // Update the practices array
-          return realtimeRef.update({
-            practices: [...existingPractices, newPracticeEntry],
-            lastUpdated: realtimeTimestamp
-          });
-        })
-      );
-      
-    } else {
-      // Document doesn't exist, create new one
-      const initialPractice = {
-        description: practice.name,
-        points: practice.points,
-        isDoublePoints: practice.isDoublePoints || false,
-        timestamp: Date.now() // Use client timestamp for first entry
-      };
-      
-      // Setup new document data with practice array
-      const newDocData = {
+      })
+    );
+    
+  } else {
+    // Document doesn't exist, create new one
+    const initialPractice = {
+      description: practice.name,
+      points: practice.points,
+      isDoublePoints: practice.isDoublePoints || false,
+      timestamp: Date.now() // Use client timestamp for first entry
+    };
+    
+    // Setup new document data with practice array
+    const newDocData = {
+      ...submissionData,
+      golferName: username, // Include golferName field (seen in your Firestore structure)
+      practices: [initialPractice],
+      createdAt: firestoreTimestamp,
+      lastUpdated: firestoreTimestamp,
+      timestamp: Date.now() // Numeric timestamp (also seen in your structure)
+    };
+    
+    // Add to Firestore batch
+    firestoreBatch.set(firestoreRef, newDocData);
+    
+    // Add to Realtime Database promises
+    realtimePromises.push(
+      realtimeRef.set({
         ...submissionData,
-        golferName: username, // Include golferName field (seen in your Firestore structure)
+        golferName: username,
         practices: [initialPractice],
-        createdAt: firestoreTimestamp,
-        lastUpdated: firestoreTimestamp,
-        timestamp: Date.now() // Numeric timestamp (also seen in your structure)
-      };
-      
-      // Add to Firestore batch
-      firestoreBatch.set(firestoreRef, newDocData);
-      
-      // Add to Realtime Database promises
-      realtimePromises.push(
-        realtimeRef.set({
-          ...submissionData,
-          golferName: username,
-          practices: [initialPractice],
-          createdAt: realtimeTimestamp,
-          lastUpdated: realtimeTimestamp,
-          timestamp: Date.now()
-        })
-      );
-    }
-  } catch (err) {
-    console.error(`Error processing submission ${submissionId}:`, err);
+        createdAt: realtimeTimestamp,
+        lastUpdated: realtimeTimestamp,
+        timestamp: Date.now()
+      })
+    );
   }
+} catch (err) {
+  console.error(`Error processing submission ${submissionId}:`, err);
 }
-
+  } 
 // Execute all database operations
 await Promise.all([
   firestoreBatch.commit(),
