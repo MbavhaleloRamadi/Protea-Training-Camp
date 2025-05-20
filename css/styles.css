@@ -2330,9 +2330,6 @@ button:focus {
   }
 }
 
-/* Video Container */
-
-
 /* Camp Dates */
 .camp-dates {
   display: flex;
@@ -2769,79 +2766,238 @@ button:focus {
 
 /* Tournament Schedule Styling */
 .tournament-schedule-container {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  padding: 1.5rem;
-  margin: 2rem 0;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  animation: fadeIn 0.6s;
-}
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #1e1e1e;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
 
-.tournament-schedule-title {
-  color: #FF9800;
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  text-align: center;
-  position: relative;
-}
+        .tournament-schedule-title {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #fff;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
 
-.tournament-schedule-title::after {
-  content: "";
-  position: absolute;
-  bottom: -10px;
-  left: 25%;
-  width: 50%;
-  height: 3px;
-  background: linear-gradient(90deg, transparent, #FF9800, transparent);
-}
+        .tournament-schedule {
+            overflow-x: auto;
+            border-radius: 6px;
+            background-color: rgba(255, 255, 255, 0.02);
+            padding: 10px;
+        }
 
-.tournament-schedule {
-  overflow-x: auto;
-  width: 100%;
-}
+        .tournament-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
 
-.tournament-table {
-  min-width: 650px; /* Ensures table doesn't collapse too much */
-}
+        .tournament-table thead tr {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 5px;
+        }
 
-.tournament-table th {
-  background-color: rgba(0, 0, 0, 0.3);
-  padding: 12px 15px;
-  text-align: center;
-  font-weight: 600;
-  color: #4CAF50;
-  letter-spacing: 0.5px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
+        .tournament-table th {
+            background-color: rgba(76, 175, 80, 0.2);
+            padding: 0.5rem;
+            font-weight: 600;
+            border-radius: 4px;
+            color: #e0e0e0;
+            text-align: center;
+        }
 
-.tournament-table td {
-  padding: 12px 15px;
-  text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  vertical-align: middle;
-}
+        .tournament-table tbody tr {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr;
+            gap: 5px;
+            margin-bottom: 8px;
+            transition: all 0.2s ease;
+        }
 
-.tournament-table .day-column {
-  text-align: left;
-  min-width: 180px;
-}
+        .tournament-table tbody tr:hover {
+            transform: scale(1.01);
+        }
 
-/* Color coding for tournament days */
-.light-yellow {
-  background-color: rgba(255, 235, 59, 0.15);
-}
+        .tournament-table td {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+            padding: 12px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            position: relative;
+        }
 
-.light-blue {
-  background-color: rgba(33, 150, 243, 0.15);
-}
+        .tournament-table td:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
 
-.light-pink {
-  background-color: rgba(233, 30, 99, 0.15);
-}
+        .day-column {
+            font-weight: bold;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
 
-.light-green {
-  background-color: rgba(76, 175, 80, 0.15);
-}
+        /* Event Types (based on your calendar styling) */
+        .light-yellow td {
+            background-color: rgba(255, 193, 7, 0.2);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+        }
+        
+        .light-blue td {
+            background-color: rgba(33, 150, 243, 0.2);
+            border: 1px solid rgba(33, 150, 243, 0.3);
+        }
+        
+        .light-pink td {
+            background-color: rgba(156, 39, 176, 0.2);
+            border: 1px solid rgba(156, 39, 176, 0.3);
+        }
+        
+        .light-green td {
+            background-color: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        /* Day column styling */
+        .day-column {
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        /* Responsive styles */
+        @media screen and (max-width: 900px) {
+            .tournament-table thead tr,
+            .tournament-table tbody tr {
+                grid-template-columns: 1.2fr 1fr 1fr 1fr;
+            }
+        }
+
+        @media screen and (max-width: 767px) {
+            .tournament-table thead {
+                display: none; /* Hide table headers on mobile */
+            }
+            
+            .tournament-table tbody tr {
+                display: grid;
+                grid-template-columns: 1fr;
+                margin-bottom: 20px;
+                padding: 10px;
+                background-color: rgba(255, 255, 255, 0.03);
+                border-radius: 8px;
+            }
+            
+            .tournament-table td {
+                margin-bottom: 5px;
+                display: grid;
+                grid-template-columns: 1fr 2fr;
+                align-items: center;
+            }
+            
+            .tournament-table td::before {
+                content: attr(data-label);
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.7);
+            }
+
+            .tournament-table td.day-column {
+                grid-template-columns: 1fr;
+                text-align: center;
+                background-color: rgba(76, 175, 80, 0.2);
+                border: 1px solid rgba(76, 175, 80, 0.3);
+                margin-bottom: 12px;
+                padding: 12px;
+                font-size: 1.1em;
+            }
+            
+            .tournament-table td.day-column::before {
+                content: none;
+            }
+
+            /* Reset event type styles for mobile to avoid conflicts */
+            .light-yellow td, .light-blue td, .light-pink td, .light-green td {
+                background-color: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            /* Keep day column styling consistent with event type */
+            .light-yellow td.day-column {
+                background-color: rgba(255, 193, 7, 0.2);
+                border: 1px solid rgba(255, 193, 7, 0.3);
+            }
+            
+            .light-blue td.day-column {
+                background-color: rgba(33, 150, 243, 0.2);
+                border: 1px solid rgba(33, 150, 243, 0.3);
+            }
+            
+            .light-pink td.day-column {
+                background-color: rgba(156, 39, 176, 0.2);
+                border: 1px solid rgba(156, 39, 176, 0.3);
+            }
+            
+            .light-green td.day-column {
+                background-color: rgba(76, 175, 80, 0.2);
+                border: 1px solid rgba(76, 175, 80, 0.3);
+            }
+        }
+
+        /* Focus/active state for keyboard navigation and accessibility */
+        .tournament-table tr:focus-within {
+            outline: none;
+        }
+
+        .tournament-table td:focus {
+            outline: 2px solid #4CAF50;
+            outline-offset: -2px;
+        }
+
+        /* Event indicator similar to calendar */
+        .special-event::after {
+            content: "";
+            position: absolute;
+            bottom: 7px;
+            right: 7px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #FFC107;
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background-color: white;
+                color: black;
+            }
+            
+            .tournament-schedule-container {
+                box-shadow: none;
+                padding: 0;
+                background-color: white;
+            }
+            
+            .tournament-table th,
+            .tournament-table td {
+                padding: 8px;
+                background-color: white !important;
+                color: black !important;
+            }
+            
+            .tournament-table th {
+                border: 1px solid #ddd;
+            }
+            
+            .tournament-table td {
+                border: 1px solid #ddd !important;
+            }
+        }
 
 /* Training Camp Rules */
 .training-rules {

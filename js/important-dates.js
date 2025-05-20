@@ -1,4 +1,4 @@
-// Enhanced calendar functionality with double points highlights
+// Enhanced calendar functionality with clickable double points highlights and animations
 function renderCalendar(containerId, year, month, highlights) {
     const container = document.getElementById(containerId);
     const monthNames = ["January", "February", "March", "April", "May", "June",
@@ -7,15 +7,15 @@ function renderCalendar(containerId, year, month, highlights) {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const prevMonthDays = new Date(year, month, 0).getDate();
     
-    // Create month navigation
+    // Create month navigation with animated transitions
     let html = `
         <div class="month-navigation">
-            <button class="month-nav-btn prev-month">&lt;</button>
-            <span class="current-month">${monthNames[month]} ${year}</span>
-            <button class="month-nav-btn next-month">&gt;</button>
+            <button class="month-nav-btn prev-month animate-pulse">&lt;</button>
+            <span class="current-month animate-fade-in">${monthNames[month]} ${year}</span>
+            <button class="month-nav-btn next-month animate-pulse">&gt;</button>
         </div>
         
-        <div class="calendar-day-names">
+        <div class="calendar-day-names animate-slide-in">
             <div class="day-name">Sun</div>
             <div class="day-name">Mon</div>
             <div class="day-name">Tue</div>
@@ -25,7 +25,7 @@ function renderCalendar(containerId, year, month, highlights) {
             <div class="day-name">Sat</div>
         </div>
         
-        <div class="calendar-grid">`;
+        <div class="calendar-grid animate-fade-in">`;
     
     // Add days from previous month
     for (let i = 0; i < firstDay; i++) {
@@ -84,11 +84,20 @@ function renderCalendar(containerId, year, month, highlights) {
             }
         }
         
-        // NEW: Check for double points periods
+        // Check for double points periods
         let doublePointsCategory = getDoublePointsCategory(currentDate);
+        let clickableClass = '';
+        let clickableAttr = '';
+        let doublePointsMessage = '';
+        
         if (doublePointsCategory) {
             // Add double points class while preserving other event classes
             eventClass += ' double-points-' + doublePointsCategory.toLowerCase().replace(' ', '-');
+            clickableClass = 'clickable-double-points animate-sparkle';
+            
+            // Create clickable attribute and message
+            doublePointsMessage = `If you log a practice under ${doublePointsCategory} category, you'll get DOUBLE POINTS for the entire period!`;
+            clickableAttr = `data-double-points-message="${doublePointsMessage}" data-category="${doublePointsCategory}"`;
             
             // Add or append to tooltip
             if (tooltipText) {
@@ -105,7 +114,7 @@ function renderCalendar(containerId, year, month, highlights) {
         }
         
         // Add the day cell with appropriate classes and tooltip
-        html += `<div class="calendar-day ${eventClass} ${hasEvent || eventClass ? 'has-event' : ''}">
+        html += `<div class="calendar-day ${eventClass} ${hasEvent || eventClass ? 'has-event' : ''} ${clickableClass}" ${clickableAttr}>
             ${day}
             ${tooltipText ? `<span class="event-tooltip">${tooltipText}</span>` : ''}
         </div>`;
@@ -121,26 +130,42 @@ function renderCalendar(containerId, year, month, highlights) {
     
     html += `</div>
     
-    <div class="event-legend">
+    <div class="double-points-popup" id="double-points-popup">
+        <div class="popup-content animate-pop-in">
+            <div class="popup-close">&times;</div>
+            <h3 class="popup-title">Double Points Period!</h3>
+            <div class="popup-category">Category: <span id="popup-category"></span></div>
+            <p id="popup-message"></p>
+            <div class="popup-icon"></div>
+            <button class="popup-close-btn">Close</button>
+        </div>
+    </div>
+    
+    <div class="event-legend animate-slide-in">
+        <h3 class="legend-title">Calendar Legend</h3>
         <div class="legend-item">
-            <span class="legend-color legend-tournament"></span>
+            <span class="legend-color legend-tournament animate-pulse"></span>
             <span>Putting (Double Points)</span>
         </div>
         <div class="legend-item">
-            <span class="legend-color legend-training"></span>
+            <span class="legend-color legend-training animate-pulse"></span>
             <span>Chipping (Double Points)</span>
         </div>
         <div class="legend-item">
-            <span class="legend-color legend-free"></span>
+            <span class="legend-color legend-free animate-pulse"></span>
             <span>Irons (Double Points)</span>
         </div>
         <div class="legend-item">
-            <span class="legend-color legend-special"></span>
+            <span class="legend-color legend-special animate-pulse"></span>
             <span>Mental (Double Points)</span>
         </div>
         <div class="legend-item">
-            <span class="legend-color legend-double-points"></span>
-            <span>Double Points Colours</span>
+            <span class="legend-color legend-tour-prep animate-pulse"></span>
+            <span>Tour Prep (Double Points)</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-color legend-fitness animate-pulse"></span>
+            <span>Fitness (Double Points)</span>
         </div>
     </div>`;
     
@@ -161,8 +186,17 @@ function renderCalendar(containerId, year, month, highlights) {
         
         // Only allow navigation between July-September 2025
         if (newYear === 2025 && newMonth >= 6 && newMonth <= 8) {
-            const newHighlights = getHighlightsForMonth(newMonth);
-            renderCalendar(containerId, newYear, newMonth, newHighlights);
+            // Add exit animation to current month
+            container.classList.add('animate-exit');
+            
+            // After exit animation completes, load new month
+            setTimeout(() => {
+                const newHighlights = getHighlightsForMonth(newMonth);
+                renderCalendar(containerId, newYear, newMonth, newHighlights);
+                container.classList.remove('animate-exit');
+                container.classList.add('animate-enter');
+                setTimeout(() => container.classList.remove('animate-enter'), 500);
+            }, 300);
         }
     });
     
@@ -177,8 +211,75 @@ function renderCalendar(containerId, year, month, highlights) {
         
         // Only allow navigation between July-September 2025
         if (newYear === 2025 && newMonth >= 6 && newMonth <= 8) {
-            const newHighlights = getHighlightsForMonth(newMonth);
-            renderCalendar(containerId, newYear, newMonth, newHighlights);
+            // Add exit animation to current month
+            container.classList.add('animate-exit');
+            
+            // After exit animation completes, load new month
+            setTimeout(() => {
+                const newHighlights = getHighlightsForMonth(newMonth);
+                renderCalendar(containerId, newYear, newMonth, newHighlights);
+                container.classList.remove('animate-exit');
+                container.classList.add('animate-enter');
+                setTimeout(() => container.classList.remove('animate-enter'), 500);
+            }, 300);
+        }
+    });
+    
+    // Add click listeners to ONLY double points days
+    const doublePointsDays = container.querySelectorAll('.clickable-double-points');
+    const popup = document.getElementById('double-points-popup');
+    const popupMessage = document.getElementById('popup-message');
+    const popupCategory = document.getElementById('popup-category');
+    const popupClose = popup.querySelector('.popup-close');
+    const popupCloseBtn = popup.querySelector('.popup-close-btn');
+    
+    doublePointsDays.forEach(day => {
+        day.addEventListener('click', function() {
+            const message = this.getAttribute('data-double-points-message');
+            const category = this.getAttribute('data-category');
+            
+            // Set popup content
+            popupMessage.textContent = message;
+            popupCategory.textContent = category;
+            
+            // Set popup icon class based on category
+            const popupIcon = popup.querySelector('.popup-icon');
+            popupIcon.className = 'popup-icon';
+            popupIcon.classList.add('icon-' + category.toLowerCase().replace(' ', '-'));
+            
+            // Show popup with animation
+            popup.style.display = 'flex'; // Ensure it's displayed as flex first
+            popup.classList.add('show-popup');
+            
+            // Add targeted animation to the clicked day
+            this.classList.add('day-highlight-pulse');
+            setTimeout(() => this.classList.remove('day-highlight-pulse'), 2000);
+        });
+    });
+    
+    // Close popup when clicking the close button (X)
+    popupClose.addEventListener('click', function() {
+        popup.classList.remove('show-popup');
+        setTimeout(() => {
+            popup.style.display = 'none';
+        }, 300); // Wait for animation to complete
+    });
+    
+    // Close popup when clicking the Close button
+    popupCloseBtn.addEventListener('click', function() {
+        popup.classList.remove('show-popup');
+        setTimeout(() => {
+            popup.style.display = 'none';
+        }, 300); // Wait for animation to complete
+    });
+    
+    // Close popup when clicking outside
+    popup.addEventListener('click', function(e) {
+        if (e.target === popup) {
+            popup.classList.remove('show-popup');
+            setTimeout(() => {
+                popup.style.display = 'none';
+            }, 300); // Wait for animation to complete
         }
     });
 }
@@ -266,8 +367,18 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize the calendar with July 2025
     renderCalendar('calendar-container', 2025, 6, getHighlightsForMonth(6));
     
-    // Set up back to dashboard button
-    document.querySelector('.back-button').addEventListener('click', function() {
+    // Set up back to dashboard button with animation
+    const backButton = document.querySelector('.back-button');
+    backButton.classList.add('animate-float');
+    backButton.addEventListener('click', function() {
         window.location.href = "dashboard.html";
     });
+    
+    // Add animated intro effect
+    const calendarContainer = document.getElementById('calendar-container');
+    calendarContainer.classList.add('animate-intro');
+    setTimeout(() => calendarContainer.classList.remove('animate-intro'), 1000);
+    
+    // Add confetti effect for special dates
+    setupConfettiEffect();
 });
