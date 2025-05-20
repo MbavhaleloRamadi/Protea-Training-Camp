@@ -1788,9 +1788,11 @@ button:focus {
 }
 
 .empty-state img {
-  margin-bottom: 20px;
-  opacity: 0.7;
-}
+  width: 80px; /* Default size */
+  height: auto;
+  margin-bottom: 24px;
+  transition: all 0.3s ease;
+ }
 
 .empty-state h3 {
   font-size: 1.5rem;
@@ -1876,6 +1878,57 @@ button:focus {
   }
 }
 
+ /* Responsive styles */
+@media (max-width: 480px) {
+  .empty-state {
+    padding: 30px 15px;
+  }
+            
+            .empty-state img {
+                width: 60px;
+            }
+            
+            .empty-state h3 {
+                font-size: 20px;
+            }
+            
+            .empty-state p {
+                font-size: 14px;
+                margin-bottom: 20px;
+            }
+            
+            .start-btn {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+        }
+        
+        @media (min-width: 768px) {
+            .empty-state img {
+                width: 100px;
+            }
+            
+            .empty-state h3 {
+                font-size: 28px;
+            }
+            
+            .empty-state p {
+                font-size: 18px;
+                max-width: 350px;
+            }
+        }
+        
+        @media (min-width: 1200px) {
+            .empty-state img {
+                width: 120px;
+            }
+        }
+        
+        /* To toggle visibility */
+        .hidden {
+            display: none;
+        }
+
 /* Responsive Adjustments */
 @media screen and (max-width: 768px) {
   .history-container {
@@ -1945,7 +1998,7 @@ button:focus {
 }
 
 /* =========================================
-   LOBBY PAGE STYLES
+   MATCH PLAY RULES STYLES
    ========================================= */
 .lobby-container {
   display: flex;
@@ -2193,7 +2246,7 @@ button:focus {
 }
 
 /* ========================================= 
-   CHAMPIONS TRAINING CAMP STYLES 
+   IMPORTANT DATES STYLES 
    ========================================= */
 
 /* Training Camp Container */

@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.querySelector('.history-container').classList.add('hidden');
         document.getElementById('emptyState').classList.remove('hidden');
         document.getElementById('emptyState').innerHTML = `
-          <img src="/api/placeholder/150/150" alt="Login required">
+          <img src="assets/icon/version-svgrepo-com.svg" alt="Login required">
           <h3>Login Required</h3>
           <p>Please login to view your practice history.</p>
           <a href="login.html" class="start-btn">Login</a>
