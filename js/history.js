@@ -72,97 +72,119 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
     
-    // ───────────────────────────────────────────────────────────
-    // 4) FETCH USER PRACTICE DATA
-    // ───────────────────────────────────────────────────────────
-    function fetchUserPracticeHistory(userId) {
-      const userSubmissionsRef = db.collection("users").doc(userId).collection("task_submissions");
+// ───────────────────────────────────────────────────────────
+// 4) FETCH USER PRACTICE DATA
+// ───────────────────────────────────────────────────────────
+function fetchUserPracticeHistory(userId) {
+  const userSubmissionsRef = db.collection("users").doc(userId).collection("task_submissions");
+  
+  userSubmissionsRef.orderBy("timestamp", "desc").get()
+    .then(snapshot => {
+      if (snapshot.empty) {
+        console.log("No practice history found");
+        document.querySelector('.history-container').classList.add('hidden');
+        document.getElementById('emptyState').classList.remove('hidden');
+        return;
+      }
       
-      userSubmissionsRef.orderBy("timestamp", "desc").get()
-        .then(snapshot => {
-          if (snapshot.empty) {
-            console.log("No practice history found");
-            document.querySelector('.history-container').classList.add('hidden');
-            document.getElementById('emptyState').classList.remove('hidden');
-            return;
-          }
-          
-          const practiceHistory = [];
-          
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            
-            // Format the practice data to match our application structure
-            const formattedPractice = {
-              id: doc.id,
-              date: data.date,
-              type: data.category,
-              details: data.practices.map(p => p.name).join(", "),
-              duration: calculateEstimatedDuration(data.practices),
-              practiceItems: data.practices.map(p => p.name)
-            };
-            
-            practiceHistory.push(formattedPractice);
-          });
-          
-          // Initialize the page with the practice data
-          if (practiceHistory.length === 0) {
-            document.querySelector('.history-container').classList.add('hidden');
-            document.getElementById('emptyState').classList.remove('hidden');
-          } else {
-            initializePage(practiceHistory);
-          }
-        })
-        .catch(error => {
-          console.error("Error fetching practice history:", error);
-          document.querySelector('.history-container').innerHTML = `
-            <div class="error-message">
-              <h2>Error Loading Data</h2>
-              <p>Could not load your practice history. Please try again later.</p>
-              <p>Error: ${error.message}</p>
-              <button class="back-button" onclick="window.location.reload()">
-                <i class="fas fa-sync"></i> Retry
-              </button>
-            </div>
-          `;
-        });
-    }
-    
-    // Helper function to estimate practice duration based on practices
-    function calculateEstimatedDuration(practices) {
-      // Simple estimation: 
-      // - Putting/Chipping: 20 min per practice
-      // - Irons & Tee Shot: 30 min per practice
-      // - On The Course: 45-120 min depending on points
-      // - Others: 30 min per practice
+      const practiceHistory = [];
       
-      let totalMinutes = 0;
-      
-      practices.forEach(practice => {
-        const name = practice.name.toLowerCase();
-        const points = practice.points || 1;
+      snapshot.forEach(doc => {
+        const data = doc.data();
         
-        if (name.includes('putt') || name.includes('chip')) {
-          totalMinutes += 20 * points;
-        } else if (name.includes('iron') || name.includes('driver') || name.includes('fairway')) {
-          totalMinutes += 30 * points;
-        } else if (name.includes('otc')) {
-          // On the course practices
-          if (name.includes('full18')) {
-            totalMinutes += 240; // 4 hours for full 18
-          } else if (name.includes('quick9')) {
-            totalMinutes += 120; // 2 hours for 9 holes
-          } else {
-            totalMinutes += 45 * points;
-          }
-        } else {
-          totalMinutes += 30 * points;
-        }
+        // Debug log to help identify data issues
+        console.log("Processing doc:", doc.id, data);
+        
+        // Ensure practices array exists
+        const practices = data.practices || [];
+        
+        // Format the practice data to match our application structure
+        const formattedPractice = {
+          id: doc.id,
+          date: data.date || new Date().toISOString().split('T')[0], // Fallback to today if no date
+          type: data.category || "Unknown",
+          details: practices.map(p => p.name || p.description || "Unnamed practice").join(", "),
+          duration: calculateEstimatedDuration(practices),
+          practiceItems: practices.map(p => p.name || p.description || "Unnamed practice")
+        };
+        
+        practiceHistory.push(formattedPractice);
       });
       
-      // Ensure minimum duration of 15 minutes
-      return Math.max(15, totalMinutes);
+      // Initialize the page with the practice data
+      if (practiceHistory.length === 0) {
+        document.querySelector('.history-container').classList.add('hidden');
+        document.getElementById('emptyState').classList.remove('hidden');
+      } else {
+        initializePage(practiceHistory);
+      }
+    })
+    .catch(error => {
+      console.error("Error fetching practice history:", error);
+      document.querySelector('.history-container').innerHTML = `
+        <div class="error-message">
+          <h2>Error Loading Data</h2>
+          <p>Could not load your practice history. Please try again later.</p>
+          <p>Error: ${error.message}</p>
+          <button class="back-button" onclick="window.location.reload()">
+            <i class="fas fa-sync"></i> Retry
+          </button>
+        </div>
+      `;
+    });
+}
+    
+    // Helper function to estimate practice duration based on practices
+    // Fix for calculateEstimatedDuration function in history.js
+
+// Helper function to estimate practice duration based on practices
+function calculateEstimatedDuration(practices) {
+  // Simple estimation: 
+  // - Putting/Chipping: 20 min per practice
+  // - Irons & Tee Shot: 30 min per practice
+  // - On The Course: 45-120 min depending on points
+  // - Others: 30 min per practice
+  
+  let totalMinutes = 0;
+  
+  if (!practices || !Array.isArray(practices)) {
+    console.warn("Invalid practices data:", practices);
+    return 30; // Default duration if practices data is invalid
+  }
+  
+  practices.forEach(practice => {
+    // Skip invalid practice items
+    if (!practice || !practice.name && !practice.description) {
+      console.warn("Invalid practice item:", practice);
+      totalMinutes += 30; // Default duration for invalid items
+      return;
     }
+    
+    // Use either name or description field, whichever is available
+    const name = (practice.name || practice.description || "").toLowerCase();
+    const points = practice.points || 1;
+    
+    if (name.includes('putt') || name.includes('chip')) {
+      totalMinutes += 20 * points;
+    } else if (name.includes('iron') || name.includes('driver') || name.includes('fairway')) {
+      totalMinutes += 30 * points;
+    } else if (name.includes('otc')) {
+      // On the course practices
+      if (name.includes('full18')) {
+        totalMinutes += 240; // 4 hours for full 18
+      } else if (name.includes('quick9')) {
+        totalMinutes += 120; // 2 hours for 9 holes
+      } else {
+        totalMinutes += 45 * points;
+      }
+    } else {
+      totalMinutes += 30 * points;
+    }
+  });
+  
+  // Ensure minimum duration of 15 minutes
+  return Math.max(15, totalMinutes);
+}
     
     // ───────────────────────────────────────────────────────────
     // 5) INITIALIZE PAGE FUNCTIONS
