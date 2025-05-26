@@ -441,13 +441,6 @@ header p {
     z-index: 1000;
 }
 
-.navbar ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-}
-
 /* Common navbar styling for both desktop and mobile */
 .navbar {
     position: fixed;
@@ -459,15 +452,22 @@ header p {
     padding: 0;
     border-top-left-radius: 18px;
     border-top-right-radius: 18px;
+
+    -webkit-backdrop-filter: blur(3px);
+    backdrop-filter: blur(3px);
+    will-change: transform;
+    transform: translateZ(0); /* Safari GPU fix */
 }
 
 /* Navigation bar layout */
 .navbar ul {
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 1rem;
     display: flex;
     flex-direction: row;
     justify-content: center;
     align-items: center;
-    padding: 0.5rem 1rem;
     max-width: 1200px;
     margin: 0 auto;
 }
@@ -489,6 +489,8 @@ header p {
     text-align: center;
     border-radius: 14px;
     transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    overflow: hidden;
 }
 
 /* Icon styling */
@@ -535,6 +537,29 @@ header p {
     border-radius: 50%;
 }
 
+/* Shimmer effect for navbar items */
+.nav-shimmer {
+    position: absolute;
+    top: 0;
+    left: -150%;
+    width: 150%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    z-index: 1;
+    animation: shimmer 1s forwards;
+}
+
+@keyframes shimmer {
+    0% { left: -150%; }
+    100% { left: 150%; }
+}
+
+/* Bounce animation */
+@keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+}
+
 /* Mobile navbar and toggle */
 @media (max-width: 768px) {
     .nav-toggle-btn {
@@ -552,31 +577,34 @@ header p {
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }
 
+    /* Safari-compatible navbar visibility toggle */
     .navbar {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
-    height: 100vh;
-    background: rgba(16, 107, 55, 0.65); /* Transparent green */
-    backdrop-filter: blur(3px);
-    -webkit-backdrop-filter: blur(3px); /* Safari support */
-    z-index: 1100;
-    padding-top: 80px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    border-top-left-radius: 18px;
-    border-top-right-radius: 18px;
-}
-
+        opacity: 0;
+        pointer-events: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100vh;
+        background: rgba(16, 107, 55, 0.65);
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+        z-index: 1100;
+        padding-top: 80px;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        border-top-left-radius: 18px;
+        border-top-right-radius: 18px;
+        transition: opacity 0.3s ease;
+    }
 
     .navbar.active {
-        display: flex !important;
+        opacity: 1;
+        pointer-events: auto;
     }
 
     .navbar ul {
@@ -604,40 +632,12 @@ header p {
     }
 }
 
-/* Animation keyframes */
-@keyframes bounce {
-    0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-5px); }
-}
-
-/* Shimmer effect for navbar items */
-.navbar li a {
-    position: relative;
-    overflow: hidden;
-}
-
-.nav-shimmer {
-    position: absolute;
-    top: 0;
-    left: -150%;
-    width: 150%;
-    height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-    z-index: 1;
-    animation: shimmer 1s forwards;
-}
-
-@keyframes shimmer {
-    0% { left: -150%; }
-    100% { left: 150%; }
-}
-
 /* Additional UX overlay for mobile nav focus */
 .mobile-nav-overlay {
     display: none;
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background-color: rgba(0, 0, 0, 0.35);
     z-index: 999;
     -webkit-backdrop-filter: blur(3px);
     backdrop-filter: blur(3px);
@@ -648,6 +648,7 @@ header p {
     display: block;
     opacity: 1;
 }
+
 
 /* =========================================
    CONFIRMATION MESSAGE

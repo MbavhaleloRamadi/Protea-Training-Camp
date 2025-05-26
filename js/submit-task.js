@@ -735,7 +735,7 @@ await Promise.all([
         
       
       // Show success message
-      showConfirmation(`Successfully submitted ${successCount} practice${successCount !== 1 ? 's' : ''}!`, "green");
+      showConfirmation(`Successfully submitted!`, "green");
       
       // Clear selected practices
       selectedPractices = [];
