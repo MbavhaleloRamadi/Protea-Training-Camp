@@ -78,7 +78,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     } else {
       console.error("Firebase SDK not found.");
-      showMessage("Firebase SDK not found.", "red");
       return;
     }
   } catch (error) {
