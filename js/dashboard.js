@@ -135,6 +135,12 @@ document.addEventListener("DOMContentLoaded", () => {
           
           // Set up real-time listeners for score updates
           setupRealtimeListeners(user.uid);
+
+          // Initialize double points banner
+          updateDoublePointsBanner();
+ 
+          // Update banner every hour in case date changes
+          setInterval(updateDoublePointsBanner, 3600000); // 1 hour
         } else {
           console.error("User document not found");
           showMessage("User profile not found. Please contact support.", "red");
@@ -361,6 +367,106 @@ document.addEventListener("DOMContentLoaded", () => {
   // Helper Functions
   // ───────────────────────────────────────────────────────────
   
+  // ───────────────────────────────────────────────────────────
+// DOUBLE POINTS SYSTEM
+// ───────────────────────────────────────────────────────────
+
+// Helper function to create dates (months are 0-indexed in JS)
+function createDate(year, month, day) {
+  return new Date(year, month - 1, day); // Subtract 1 from month
+}
+
+// Helper function to check if date is in range
+function isDateInRange(date, start, end) {
+  return date >= start && date <= end;
+}
+
+// Special points periods for each category
+const specialPointsPeriods = {
+  "Putting": [
+    { start: createDate(2025, 7, 1), end: createDate(2025, 7, 6) },
+    { start: createDate(2025, 8, 11), end: createDate(2025, 8, 17) }
+  ],
+  "Chipping": [
+    { start: createDate(2025, 7, 7), end: createDate(2025, 7, 13) },
+    { start: createDate(2025, 8, 18), end: createDate(2025, 8, 24) }
+  ],
+  "Irons & Tee Shot": [
+    { start: createDate(2025, 7, 14), end: createDate(2025, 7, 20) },
+    { start: createDate(2025, 8, 4), end: createDate(2025, 8, 10) }
+  ],
+  "Tournament Prep": [
+    { start: createDate(2025, 7, 21), end: createDate(2025, 7, 27) },
+    { start: createDate(2025, 9, 15), end: createDate(2025, 9, 23) }
+  ],
+  "Mental": [
+    { start: createDate(2025, 7, 28), end: createDate(2025, 8, 3) },
+    { start: createDate(2025, 9, 8), end: createDate(2025, 9, 14) }
+  ],
+  "Fitness": [
+    { start: createDate(2025, 8, 25), end: createDate(2025, 8, 31) }
+  ]
+};
+
+// Tournament days (no submissions allowed)
+const tournamentStart = createDate(2025, 9, 24);
+const tournamentEnd = createDate(2025, 9, 28);
+
+// Function to check if double points apply for a category on a specific date
+function shouldDoublePoints(category, date) {
+  if (!specialPointsPeriods[category]) return false;
+  
+  return specialPointsPeriods[category].some(period => 
+    isDateInRange(date, period.start, period.end)
+  );
+}
+
+// Function to check if submissions are allowed (not tournament days)
+function areSubmissionsAllowed(date) {
+  return !(isDateInRange(date, tournamentStart, tournamentEnd));
+}
+
+// Function to get active double points categories for today
+function getActiveDoublePointsCategories() {
+  const today = new Date();
+  const activeCategories = [];
+  
+  Object.keys(specialPointsPeriods).forEach(category => {
+    if (shouldDoublePoints(category, today)) {
+      activeCategories.push(category);
+    }
+  });
+  
+  return activeCategories;
+}
+
+// Function to show/hide double points banner
+function updateDoublePointsBanner() {
+  const banner = document.getElementById('doublePointsBanner');
+  const flagMainText = document.getElementById('flagMainText');
+  const flagCategory = document.getElementById('flagCategory');
+  
+  if (!banner || !flagMainText || !flagCategory) return;
+  
+  const activeCategories = getActiveDoublePointsCategories();
+  
+  if (activeCategories.length > 0) {
+    // Show banner with active categories
+    const categoryText = activeCategories.length === 1 
+      ? activeCategories[0]
+      : `${activeCategories.length} Categories`;
+    
+    flagMainText.textContent = '2X POINTS!';
+    flagCategory.textContent = categoryText;
+    banner.classList.add('active');
+    
+    console.log('Double points active for:', activeCategories);
+  } else {
+    // Hide banner
+    banner.classList.remove('active');
+  }
+}
+
   // Show confirmation/alert messages
   function showMessage(message, color) {
     if (!elements.confirmEl) return;

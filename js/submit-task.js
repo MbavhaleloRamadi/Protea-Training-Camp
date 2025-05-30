@@ -532,14 +532,16 @@ if (taskCategory) {
           ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
         updateSelectedPracticesDisplay();
 
-        // Scroll to the selected practices section
-        const selectedLabel = document.getElementById('selectedLabel');
-        if (selectedLabel) {
-          selectedLabel.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-          });
-        }
+        // Only scroll to selected practices if we have 1 or fewer items
+if (selectedPractices.length <= 1) {
+  const selectedLabel = document.getElementById('selectedLabel');
+  if (selectedLabel) {
+    selectedLabel.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+}
         
         // Provide visual feedback on the clicked card
         card.style.backgroundColor = '#f0f8ff'; // Light blue background
