@@ -1835,6 +1835,8 @@ button:focus {
   animation: fadeInLeft 0.5s ease forwards;
   animation-delay: calc(0.05s * var(--i, 1));
   opacity: 0;
+  position: relative;
+  padding-right: 120px;
 }
 
 .timeline-entry:hover {
@@ -1864,12 +1866,547 @@ button:focus {
 }
 
 .timeline-score {
-  width: 80px;
-  flex-shrink: 0;
-  text-align: right;
+  font-size: 1.1rem;
+  color: var(--primary-color);
   font-weight: bold;
-  font-size: 1.3rem;
+  margin-right: 10px;
+}
+
+.edit-btn, .delete-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  font-size: 14px;
+}
+
+.edit-btn {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: var(--primary-color);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.edit-btn:hover {
+  background-color: var(--primary-color);
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.delete-btn {
+  background-color: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.delete-btn:hover {
+  background-color: #f44336;
+  color: white;
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+}
+
+
+.timeline-actions {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.timeline-stats {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  color: #a0a0a0;
+  font-style: italic;
+}
+
+/* Add these modal styles */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-container {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 15px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  transform: scale(0.7) translateY(-50px);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.modal-overlay.show .modal-container {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 25px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(76, 175, 80, 0.1);
+  border-radius: 15px 15px 0 0;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.5rem;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #666;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.modal-close:hover {
+  background-color: rgba(244, 67, 54, 0.1);
+  color: #f44336;
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: 25px;
+}
+
+/* ===== 3. FORM STYLES FOR MODAL ===== */
+
+.form-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  flex: 1;
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px 15px;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  color: #333;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+  background-color: white;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+}
+
+.form-group input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.form-group input[type="number"]::-webkit-outer-spin-button,
+.form-group input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* ===== 4. MODAL ACTION BUTTONS ===== */
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary, .btn-secondary {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+}
+
+.btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+  box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+}
+
+.btn-primary:hover {
+  background-color: var(--secondary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(76, 175, 80, 0.4);
+}
+
+.btn-secondary {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: #666;
+  border: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+  color: #333;
+  transform: translateY(-1px);
+}
+
+/* ===== 5. NOTIFICATION SYSTEM ===== */
+
+.notification-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notification {
+  min-width: 300px;
+  padding: 15px 20px;
+  border-radius: 10px;
+  color: white;
+  font-weight: 500;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+  transform: translateX(400px);
+  opacity: 0;
+  transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  position: relative;
+  overflow: hidden;
+}
+
+.notification.show {
+  transform: translateX(0);
+  opacity: 1;
+}
+
+.notification.success {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border-left: 4px solid #2e7d32;
+}
+
+.notification.error {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  border-left: 4px solid #c62828;
+}
+
+.notification.warning {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  border-left: 4px solid #ef6c00;
+}
+
+.notification.info {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  border-left: 4px solid #1565C0;
+}
+
+.notification::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  animation: notification-progress 3s linear forwards;
+}
+
+@keyframes notification-progress {
+  from { height: 100%; }
+  to { height: 0%; }
+}
+
+/* ===== 6. ENHANCED EMPTY STATE ===== */
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.empty-icon {
+  filter: brightness(0.8);
+  transition: transform 0.3s ease;
+}
+
+.empty-state:hover .empty-icon {
+  transform: scale(1.1);
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.refresh-btn {
+  padding: 12px 20px;
+  background-color: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+}
+
+.refresh-btn:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* ===== 7. LOADING STATES ===== */
+
+.no-data {
+  text-align: center;
+  padding: 40px 20px;
+  color: #bdbdbd;
+  font-style: italic;
+  font-size: 1.1rem;
+}
+
+/* Enhanced loading for timeline container */
+.timeline-container:empty::before {
+  content: 'Loading practice history...';
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 200px;
+  color: #bdbdbd;
+  font-style: italic;
+}
+
+/* ===== 8. RESPONSIVE MODAL STYLES ===== */
+
+@media screen and (max-width: 768px) {
+  .modal-container {
+    width: 95%;
+    margin: 10px;
+    max-height: 95vh;
+  }
+  
+  .modal-header {
+    padding: 15px 20px;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+  
+  .btn-primary, .btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .timeline-entry {
+    padding-right: 15px;
+    padding-bottom: 50px;
+  }
+  
+  .timeline-actions {
+    position: absolute;
+    bottom: 10px;
+    left: 15px;
+    right: 15px;
+    top: auto;
+    transform: none;
+    justify-content: space-between;
+  }
+  
+  .timeline-score {
+    margin-right: 0;
+    order: -1;
+  }
+  
+  .notification {
+    min-width: 280px;
+    margin: 0 10px;
+  }
+  
+  .notification-container {
+    right: 10px;
+    left: 10px;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .edit-btn, .delete-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+  
+  .modal-header h3 {
+    font-size: 1.3rem;
+  }
+  
+  .form-group input,
+  .form-group textarea {
+    padding: 10px 12px;
+  }
+  
+  .btn-primary, .btn-secondary {
+    padding: 10px 20px;
+    font-size: 0.9rem;
+  }
+}
+
+/* ===== 9. SAFARI-SPECIFIC FIXES ===== */
+
+@supports (-webkit-backdrop-filter: blur(10px)) {
+  .modal-container {
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+  }
+  
+  .modal-overlay {
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+  }
+}
+
+/* Fix for Safari date input styling */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .form-group input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M10 1h1a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1H1a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h1V0h2v1h4V0h2v1zM2 3v8h8V3H2z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+  }
+}
+
+/* ===== 10. ACCESSIBILITY IMPROVEMENTS ===== */
+
+.edit-btn:focus, .delete-btn:focus,
+.btn-primary:focus, .btn-secondary:focus,
+.modal-close:focus {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.form-group input:focus,
+.form-group textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .timeline-entry {
+    border: 2px solid #000;
+  }
+  
+  .modal-container {
+    border: 3px solid #000;
+  }
+  
+  .edit-btn, .delete-btn {
+    border: 2px solid currentColor;
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .modal-overlay,
+  .modal-container,
+  .notification,
+  .edit-btn,
+  .delete-btn {
+    transition: none;
+    animation: none;
+  }
 }
 
 /* Export Controls */

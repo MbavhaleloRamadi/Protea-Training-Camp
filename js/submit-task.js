@@ -153,7 +153,7 @@ firebase.auth().onAuthStateChanged(user => {
   }
 
   // ───────────────────────────────────────────────────────────
-  // PRACTICE SELECTION & SUBMISSION - UPDATED CODE WITH SPECIAL POINTS
+  // 4. PRACTICE SELECTION & SUBMISSION - UPDATED CODE WITH SPECIAL POINTS
   // ───────────────────────────────────────────────────────────
 
   const dbFirestore = firebase.firestore();
@@ -273,7 +273,7 @@ const practicesData = {
 };
 
 // ───────────────────────────────────────────────────────────
-// PRACTICE SELECTION & SUBMISSION - FIXED CODE
+// 5. PRACTICE SELECTION & SUBMISSION - FIXED CODE
 // ───────────────────────────────────────────────────────────
 
 // Initialize the selected practices array
@@ -409,7 +409,7 @@ function updateSelectedPracticesDisplay() {
 }
 
 // ───────────────────────────────────────────────────────────
-// 5) When category changes, show the scrollable list and special points info - FIXED
+// 6) When category changes, show the scrollable list and special points info - FIXED
 // ───────────────────────────────────────────────────────────
 if (taskCategory) {
   taskCategory.addEventListener("change", () => {
@@ -563,7 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ───────────────────────────────────────────────────────────
-// 6) Submit handler - Updated to match HTML structure and handle selected practices
+// 7) Submit handler
 // ───────────────────────────────────────────────────────────
 
 if (submitForm) {
@@ -602,12 +602,10 @@ if (submitForm) {
       
       const userId = user.uid;
       const username = document.getElementById("golferName").value;
-      const timestamp = firebase.firestore.FieldValue.serverTimestamp();
       // Define the current date in YYYY-MM-DD format
       const currentDate = new Date().toISOString().split('T')[0];
       
       // Create a batch for Firestore operations
-      const batch = dbFirestore.batch();
       const firestoreBatch = dbFirestore.batch();
       
       // Array to store Realtime Database promises
@@ -617,132 +615,121 @@ if (submitForm) {
       const firestoreTimestamp = firebase.firestore.FieldValue.serverTimestamp();
       const realtimeTimestamp = firebase.database.ServerValue.TIMESTAMP;
       
-      // Track successful submissions
-      let successCount = 0;
-      
-      // Process each selected practice
-      for (const practice of selectedPractices) {
-        // Create a unique ID for this submission
-        const submissionId = `${userId}_${practice.category.toLowerCase()}_${currentDate}`;
-        
-        // Format for submission data (common fields)
-  const submissionData = {
-    username: username,
-    category: practice.category,
-    date: currentDate,
-    practices: []
-  };
-  
-  // Reference to the task_submissions collection/path in both databases
-  const firestoreRef = dbFirestore
-    .collection('users')
-    .doc(userId)
-    .collection('task_submissions')
-    .doc(submissionId);
-  
-  const realtimeRef = dbRealtime
-    .ref(`users/${userId}/task_submissions/${submissionId}`);
-    
- // First check if document already exists in Firestore
-try {
-  const docSnapshot = await firestoreRef.get();
-  
-  if (docSnapshot.exists) {
-    // Document exists, use batch to update the practices array
-    const doc = await firestoreRef.get();
-    const existingData = doc.data();
-    const existingPractices = existingData.practices || [];
-    
-    
-    // Add new practice to array
-    const newPracticeEntry = {
-      description: practice.name,
-      points: practice.points,
-      isDoublePoints: practice.isDoublePoints || false,
-      timestamp: Date.now() // Use client timestamp for array elements
-    };
-    
-    // Update the document with the new practice using batch
-    firestoreBatch.update(firestoreRef, {
-      practices: [...existingPractices, newPracticeEntry],
-      lastUpdated: firestoreTimestamp
-    });
-    
-    realtimePromises.push(
-      // For Realtime DB, get the existing practices first
-      realtimeRef.once('value').then(snapshot => {
-        const data = snapshot.val() || {};
-        const existingPractices = data.practices || [];
-        
-        // Add new practice to array
-        const newPracticeEntry = {
-          description: practice.name,
+      // Group practices by category first
+      const submissionBasketId = `${currentDate}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const dateCollectionName = new Date().toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric'
+      }).replace(/ /g, '_').toUpperCase();
+
+      const practicesByCategory = selectedPractices.reduce((acc, practice, index) => {
+        const categoryKey = practice.category.toLowerCase();
+        if (!acc[categoryKey]) {
+          acc[categoryKey] = {
+            categoryDisplayName: practice.categoryDisplay || practice.category,
+            practices: []
+          };
+        }
+        acc[categoryKey].practices.push({
+          ...practice,
+          originalIndex: index
+        });
+        return acc;
+      }, {});
+
+      // Process each category
+      for (const [categoryKey, categoryData] of Object.entries(practicesByCategory)) {
+        // Create category document ID
+        const categoryDocId = `${submissionBasketId}_${categoryKey}`;
+
+        // Prepare practices array for this category
+        const practicesArray = categoryData.practices.map((practice, index) => ({
+          id: `practice_${index + 1}`, // Unique ID within category for editing/deleting
+          practiceItem: practice.id || practice.name.toLowerCase().replace(/\s+/g, '_'),
+          practiceDescription: practice.name,
           points: practice.points,
           isDoublePoints: practice.isDoublePoints || false,
-          timestamp: Date.now() // Use client timestamp for array elements
+          submissionOrder: practice.originalIndex + 1,
+          addedAt: Date.now(),
+          isEdited: false,
+          editHistory: []
+        }));
+
+        // Category submission data for Firestore
+        const firestoreSubmissionData = {
+          username: username,
+          golferName: username,
+          date: currentDate,
+          category: categoryKey,
+          categoryDisplayName: categoryData.categoryDisplayName,
+          submissionBasketId: submissionBasketId,
+          practices: practicesArray,
+          totalPractices: practicesArray.length,
+          totalPoints: practicesArray.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
+          submittedAt: firestoreTimestamp,
+          lastModified: firestoreTimestamp,
+          timestamp: Date.now(),
+          isDeleted: false,
+          canEdit: true, // Allow editing after submission
+          canDelete: true // Allow deletion after submission
         };
-        
-        // Update the practices array
-        return realtimeRef.update({
-          practices: [...existingPractices, newPracticeEntry],
-          lastUpdated: realtimeTimestamp
-        });
-      })
-    );
-    
-  } else {
-    // Document doesn't exist, create new one
-    const initialPractice = {
-      description: practice.name,
-      points: practice.points,
-      isDoublePoints: practice.isDoublePoints || false,
-      timestamp: Date.now() // Use client timestamp for first entry
-    };
-    
-    // Setup new document data with practice array
-    const newDocData = {
-      ...submissionData,
-      golferName: username, // Include golferName field (seen in your Firestore structure)
-      practices: [initialPractice],
-      createdAt: firestoreTimestamp,
-      lastUpdated: firestoreTimestamp,
-      timestamp: Date.now() // Numeric timestamp (also seen in your structure)
-    };
-    
-    // Add to Firestore batch
-    firestoreBatch.set(firestoreRef, newDocData);
-    
-    // Add to Realtime Database promises
-    realtimePromises.push(
-      realtimeRef.set({
-        ...submissionData,
-        golferName: username,
-        practices: [initialPractice],
-        createdAt: realtimeTimestamp,
-        lastUpdated: realtimeTimestamp,
-        timestamp: Date.now()
-      })
-    );
-  }
-} catch (err) {
-  console.error(`Error processing submission ${submissionId}:`, err);
-}
-  } 
-// Execute all database operations
-await Promise.all([
-  firestoreBatch.commit(),
-  Promise.all(realtimePromises)
-]);
-        
-        
+
+        // Category submission data for Realtime Database
+        const realtimeSubmissionData = {
+          username: username,
+          golferName: username,
+          date: currentDate,
+          category: categoryKey,
+          categoryDisplayName: categoryData.categoryDisplayName,
+          submissionBasketId: submissionBasketId,
+          practices: practicesArray,
+          totalPractices: practicesArray.length,
+          totalPoints: practicesArray.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
+          submittedAt: realtimeTimestamp,
+          lastModified: realtimeTimestamp,
+          timestamp: Date.now(),
+          isDeleted: false,
+          canEdit: true,
+          canDelete: true
+        };
+
+        // Create Firestore document reference
+        const firestoreRef = dbFirestore
+          .collection('users')
+          .doc(userId)
+          .collection('practice_submissions')
+          .doc(dateCollectionName)
+          .collection('categories')
+          .doc(categoryDocId);
+
+        // Create Realtime Database reference
+        const realtimeRef = dbRealtime
+          .ref(`users/${userId}/practice_submissions/${dateCollectionName}/categories/${categoryDocId}`);
+
+        // Add to Firestore batch
+        firestoreBatch.set(firestoreRef, firestoreSubmissionData);
+
+        // Add to Realtime Database promises
+        realtimePromises.push(realtimeRef.set(realtimeSubmissionData));
+      }
+
+      // Execute both database operations
+      console.log("Executing Firestore batch...");
+      await firestoreBatch.commit();
       
+      console.log("Executing Realtime Database operations...");
+      await Promise.all(realtimePromises);
+
+      console.log("All database operations completed successfully");
+
       // Show success message
       showConfirmation(`Successfully submitted!`, "green");
-      
+
       // Clear selected practices
       selectedPractices = [];
       updateSelectedPracticesDisplay();
-      
+
       // Reset form after a delay
       setTimeout(() => {
         // Reset the category selector
@@ -754,7 +741,7 @@ await Promise.all([
           }
         }
       }, 2000);
-      
+
     } catch (error) {
       console.error("Error submitting practices:", error);
       showConfirmation("Failed to submit practices. Please try again.", "red");
@@ -770,7 +757,217 @@ await Promise.all([
 });
 
 // ───────────────────────────────────────────────────────────
-// Helper to show messages
+// 8) Edit Individual Practice Item
+// ───────────────────────────────────────────────────────────
+
+async function editPracticeItem(userId, dateCollection, categoryDocId, practiceId, updatedData) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dateCollection)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Get current document
+    const doc = await categoryRef.get();
+    if (!doc.exists) {
+      throw new Error('Category document not found');
+    }
+    
+    const data = doc.data();
+    const practices = data.practices || [];
+    
+    // Find and update the specific practice
+    const updatedPractices = practices.map(practice => {
+      if (practice.id === practiceId) {
+        // Add to edit history
+        const editEntry = {
+          editedAt: Date.now(),
+          previousData: { ...practice },
+          changes: updatedData
+        };
+        
+        return {
+          ...practice,
+          ...updatedData,
+          isEdited: true,
+          editHistory: [...(practice.editHistory || []), editEntry]
+        };
+      }
+      return practice;
+    });
+    
+    // Recalculate totals
+    const totalPoints = updatedPractices.reduce((sum, p) => 
+      sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+    );
+    
+    // Update document
+    await categoryRef.update({
+      practices: updatedPractices,
+      totalPoints: totalPoints,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice item updated successfully');
+    return true;
+    
+  } catch (error) {
+    console.error('Error editing practice item:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 9) Delete Individual Practice Item
+// ───────────────────────────────────────────────────────────
+
+async function deletePracticeItem(userId, dateCollection, categoryDocId, practiceId) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dateCollection)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Get current document
+    const doc = await categoryRef.get();
+    if (!doc.exists) {
+      throw new Error('Category document not found');
+    }
+    
+    const data = doc.data();
+    const practices = data.practices || [];
+    
+    // Remove the specific practice
+    const updatedPractices = practices.filter(practice => practice.id !== practiceId);
+    
+    // If no practices left, delete entire category document
+    if (updatedPractices.length === 0) {
+      await categoryRef.delete();
+      console.log('Category document deleted (no practices remaining)');
+      return true;
+    }
+    
+    // Recalculate totals
+    const totalPoints = updatedPractices.reduce((sum, p) => 
+      sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+    );
+    
+    // Update document
+    await categoryRef.update({
+      practices: updatedPractices,
+      totalPractices: updatedPractices.length,
+      totalPoints: totalPoints,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice item deleted successfully');
+    return true;
+    
+  } catch (error) {
+    console.error('Error deleting practice item:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 10) Delete Category Practice
+// ───────────────────────────────────────────────────────────
+async function deleteCategorySubmission(userId, dateCollection, categoryDocId) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dateCollection)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Soft delete option (mark as deleted)
+    await categoryRef.update({
+      isDeleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Or hard delete (completely remove)
+    // await categoryRef.delete();
+    
+    console.log('Category submission deleted successfully');
+    return true;
+    
+  } catch (error) {
+    console.error('Error deleting category submission:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 11) Add Individual Practice Item To Category
+// ───────────────────────────────────────────────────────────
+async function addPracticeToCategory(userId, dateCollection, categoryDocId, newPractice) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dateCollection)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Get current document
+    const doc = await categoryRef.get();
+    if (!doc.exists) {
+      throw new Error('Category document not found');
+    }
+    
+    const data = doc.data();
+    const practices = data.practices || [];
+    
+    // Create new practice entry
+    const practiceEntry = {
+      id: `practice_${practices.length + 1}`,
+      practiceItem: newPractice.id || newPractice.name.toLowerCase().replace(/\s+/g, '_'),
+      practiceDescription: newPractice.name,
+      points: newPractice.points,
+      isDoublePoints: newPractice.isDoublePoints || false,
+      submissionOrder: practices.length + 1,
+      addedAt: Date.now(),
+      isEdited: false,
+      editHistory: []
+    };
+    
+    const updatedPractices = [...practices, practiceEntry];
+    
+    // Recalculate totals
+    const totalPoints = updatedPractices.reduce((sum, p) => 
+      sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+    );
+    
+    // Update document
+    await categoryRef.update({
+      practices: updatedPractices,
+      totalPractices: updatedPractices.length,
+      totalPoints: totalPoints,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice added to category successfully');
+    return true;
+    
+  } catch (error) {
+    console.error('Error adding practice to category:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 12) Helper to show messages
 // ───────────────────────────────────────────────────────────
 function showConfirmation(message, color) {
   const confirmationDiv = document.getElementById("confirmationMessage");
