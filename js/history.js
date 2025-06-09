@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', function() {
-    let allPracticeEntries = [];
-    let filteredEntries = [];
-    let currentEditingId = null;
+    let allSubmissions = [];
+    let filteredSubmissions = [];
+    let currentEditingPracticeId = null;
+    let currentEditingSubmissionId = null;
+    let currentEditingCategoryId = null;
+    let currentViewingSubmission = null;
   
     // ───────────────────────────────────────────────────────────
     // 1) PAGE LOADER
@@ -60,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
     auth.onAuthStateChanged(user => {
       if (user) {
         console.log("User logged in:", user.uid);
-        fetchUserPracticeHistory(user.uid);
+        fetchUserSubmissions(user.uid);
       } else {
         console.log("No user logged in");
         document.querySelector('.history-container').classList.add('hidden');
@@ -75,108 +78,79 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ───────────────────────────────────────────────────────────
-    // 4) FETCH USER PRACTICE DATA
+    // 4) FETCH USER SUBMISSIONS DATA
     // ───────────────────────────────────────────────────────────
-    function fetchUserPracticeHistory(userId) {
-      const userSubmissionsRef = db.collection("users").doc(userId).collection("task_submissions");
-      
-      userSubmissionsRef.orderBy("timestamp", "desc").get()
-        .then(snapshot => {
-          if (snapshot.empty) {
-            console.log("No practice history found");
-            document.querySelector('.history-container').classList.add('hidden');
-            document.getElementById('emptyState').classList.remove('hidden');
-            return;
-          }
-          
-          const practiceHistory = [];
-          
-          snapshot.forEach(doc => {
-            const data = doc.data();
-            console.log("Processing doc:", doc.id, data);
-            
-            const practices = data.practices || [];
-            
-            // Format the practice data
-            const formattedPractice = {
-              id: doc.id,
-              date: data.date || new Date().toISOString().split('T')[0],
-              type: data.category || "Unknown",
-              details: practices.map(p => p.name || p.description || "Unnamed practice").join(", "),
-              duration: calculateEstimatedDuration(practices),
-              practiceItems: practices.map(p => p.name || p.description || "Unnamed practice"),
-              // Add additional fields for editing
-              description: data.description || "",
-              notes: data.notes || "",
-              score: data.score || "",
-              location: data.location || "",
-              timestamp: data.timestamp || new Date()
-            };
-            
-            practiceHistory.push(formattedPractice);
-          });
-          
-          if (practiceHistory.length === 0) {
-            document.querySelector('.history-container').classList.add('hidden');
-            document.getElementById('emptyState').classList.remove('hidden');
-          } else {
-            allPracticeEntries = practiceHistory;
-            filteredEntries = [...allPracticeEntries];
-            initializePage(practiceHistory);
-          }
-        })
-        .catch(error => {
-          console.error("Error fetching practice history:", error);
-          document.querySelector('.history-container').innerHTML = `
-            <div class="error-message">
-              <h2>Error Loading Data</h2>
-              <p>Could not load your practice history. Please try again later.</p>
-              <p>Error: ${error.message}</p>
-              <button class="back-button" onclick="window.location.reload()">
-                <i class="fas fa-sync"></i> Retry
-              </button>
-            </div>
-          `;
-        });
-    }
-    
-    // Helper function to estimate practice duration
-    function calculateEstimatedDuration(practices) {
-      let totalMinutes = 0;
-      
-      if (!practices || !Array.isArray(practices)) {
-        console.warn("Invalid practices data:", practices);
-        return 30;
-      }
-      
-      practices.forEach(practice => {
-        if (!practice || !practice.name && !practice.description) {
-          console.warn("Invalid practice item:", practice);
-          totalMinutes += 30;
+    async function fetchUserSubmissions(userId) {
+      try {
+        const userSubmissionsRef = db.collection("users").doc(userId).collection("practice_submissions");
+        const snapshot = await userSubmissionsRef.orderBy("submittedAt", "desc").get();
+        
+        if (snapshot.empty) {
+          console.log("No practice submissions found");
+          document.querySelector('.history-container').classList.add('hidden');
+          document.getElementById('emptyState').classList.remove('hidden');
           return;
         }
         
-        const name = (practice.name || practice.description || "").toLowerCase();
-        const points = practice.points || 1;
+        const submissions = [];
         
-        if (name.includes('putt') || name.includes('chip')) {
-          totalMinutes += 20 * points;
-        } else if (name.includes('iron') || name.includes('driver') || name.includes('fairway')) {
-          totalMinutes += 30 * points;
-        } else if (name.includes('otc')) {
-          if (name.includes('full18')) {
-            totalMinutes += 240;
-          } else if (name.includes('quick9')) {
-            totalMinutes += 120;
-          } else {
-            totalMinutes += 45 * points;
+        for (const doc of snapshot.docs) {
+          const submissionData = doc.data();
+          console.log("Processing submission:", doc.id, submissionData);
+          
+          // Get categories for this submission
+          const categoriesSnapshot = await doc.ref.collection("categories").get();
+          const categories = [];
+          
+          for (const catDoc of categoriesSnapshot.docs) {
+            const categoryData = catDoc.data();
+            const practices = categoryData.practices || [];
+            
+            categories.push({
+              id: catDoc.id,
+              name: categoryData.categoryDisplayName || categoryData.category,
+              practices: practices,
+              totalPoints: categoryData.totalPoints || 0,
+              totalPractices: categoryData.totalPractices || practices.length
+            });
           }
-        } else {
-          totalMinutes += 30 * points;
+          
+          const submission = {
+            id: doc.id,
+            date: submissionData.date,
+            submittedAt: submissionData.submittedAt,
+            totalCategories: submissionData.totalCategories || categories.length,
+            totalPoints: submissionData.totalPoints || 0,
+            totalPractices: submissionData.totalPractices || 0,
+            categories: categories,
+            categorySummary: categories.map(cat => cat.name).join(", ")
+          };
+          
+          submissions.push(submission);
         }
-      });
-      
-      return Math.max(15, totalMinutes);
+        
+        if (submissions.length === 0) {
+          document.querySelector('.history-container').classList.add('hidden');
+          document.getElementById('emptyState').classList.remove('hidden');
+        } else {
+          allSubmissions = submissions;
+          filteredSubmissions = [...allSubmissions];
+          initializePage(submissions);
+        }
+        
+      } catch (error) {
+        console.error("Error fetching submissions:", error);
+        document.querySelector('.history-container').innerHTML = `
+          <div class="error-message">
+            <h2>Error Loading Data</h2>
+            <p>Could not load your practice history. Please try again later.</p>
+            <p>Error: ${error.message}</p>
+            <button class="back-button" onclick="window.location.reload()">
+              <i class="fas fa-sync"></i> Retry
+            </button>
+          </div>
+        `;
+      }
     }
     
     // ───────────────────────────────────────────────────────────
@@ -185,17 +159,26 @@ document.addEventListener('DOMContentLoaded', function() {
     function initializePage(data) {
       updateStats(data);
       populateMostPracticed(data);
-      populateTimelineWithActions(data);
+      populateSubmissionsTimeline(data);
       setupFilters(data);
       setupExportButtons(data);
     }
     
     function updateStats(data) {
-      document.getElementById('totalPractices').textContent = data.length;
+      const totalSubmissions = data.length;
+      const totalPractices = data.reduce((sum, submission) => sum + submission.totalPractices, 0);
+      
+      document.getElementById('totalPractices').textContent = totalPractices;
+      
       let currentStreak = calculateCurrentStreak(data);
       document.getElementById('currentStreak').textContent = currentStreak;
+      
       let longestStreak = calculateLongestStreak(data);
       document.getElementById('longestStreak').textContent = longestStreak;
+      
+      // Update the stat card titles to be more accurate
+      document.querySelector('.stat-card h3').textContent = 'Total Practices';
+      document.querySelector('.stat-card .stat-detail').textContent = 'Individual practices completed';
     }
     
     function calculateCurrentStreak(data) {
@@ -261,48 +244,50 @@ document.addEventListener('DOMContentLoaded', function() {
       const container = document.getElementById('mostPracticedContainer');
       container.innerHTML = '';
       
-      const practiceCount = {};
-      data.forEach(practice => {
-        practiceCount[practice.type] = (practiceCount[practice.type] || 0) + 1;
+      const categoryCount = {};
+      data.forEach(submission => {
+        submission.categories.forEach(category => {
+          categoryCount[category.name] = (categoryCount[category.name] || 0) + 1;
+        });
       });
       
-      const sortedPractices = Object.entries(practiceCount)
+      const sortedCategories = Object.entries(categoryCount)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 3);
       
-      const totalPractices = data.length;
-      const practicesToShow = sortedPractices.filter(p => p[1] >= 2);
+      const totalSubmissions = data.length;
+      const categoriesToShow = sortedCategories.filter(c => c[1] >= 2);
       
-      if (practicesToShow.length === 0) {
+      if (categoriesToShow.length === 0) {
         container.innerHTML = `
           <div class="empty-state" style="padding: 20px;">
-            <p>No practice has been done for more than 2 days yet.</p>
+            <p>No category has been practiced more than 2 times yet.</p>
           </div>
         `;
         return;
       }
       
-      practicesToShow.forEach(([type, count]) => {
-        const percentage = Math.round((count / totalPractices) * 100);
+      categoriesToShow.forEach(([categoryName, count]) => {
+        const percentage = Math.round((count / totalSubmissions) * 100);
         
-        const practiceEl = document.createElement('div');
-        practiceEl.className = 'practice-progress';
-        practiceEl.innerHTML = `
-          <h3>${type}</h3>
+        const categoryEl = document.createElement('div');
+        categoryEl.className = 'practice-progress';
+        categoryEl.innerHTML = `
+          <h3>${categoryName}</h3>
           <div class="progress-bar-container">
             <div class="progress-bar" style="width: ${percentage}%"></div>
-            <span class="progress-text">${count} days (${percentage}%)</span>
+            <span class="progress-text">${count} times (${percentage}%)</span>
           </div>
         `;
         
-        container.appendChild(practiceEl);
+        container.appendChild(categoryEl);
       });
     }
     
     // ───────────────────────────────────────────────────────────
-    // 6) ENHANCED TIMELINE WITH EDIT/DELETE ACTIONS
+    // 6) SUBMISSIONS TIMELINE
     // ───────────────────────────────────────────────────────────
-    function populateTimelineWithActions(data, filterType = 'all', startDate = null, endDate = null) {
+    function populateSubmissionsTimeline(data, filterType = 'all', startDate = null, endDate = null) {
       const container = document.getElementById('timelineContainer');
       container.innerHTML = '';
       
@@ -310,18 +295,20 @@ document.addEventListener('DOMContentLoaded', function() {
       let filteredData = [...data];
       
       if (filterType !== 'all') {
-        filteredData = filteredData.filter(item => item.type === filterType);
+        filteredData = filteredData.filter(submission => 
+          submission.categories.some(cat => cat.name === filterType)
+        );
       }
       
       if (startDate) {
         const start = new Date(startDate);
-        filteredData = filteredData.filter(item => new Date(item.date) >= start);
+        filteredData = filteredData.filter(submission => new Date(submission.date) >= start);
       }
       
       if (endDate) {
         const end = new Date(endDate);
         end.setHours(23, 59, 59);
-        filteredData = filteredData.filter(item => new Date(item.date) <= end);
+        filteredData = filteredData.filter(submission => new Date(submission.date) <= end);
       }
       
       // Sort by date (newest first)
@@ -330,15 +317,15 @@ document.addEventListener('DOMContentLoaded', function() {
       if (filteredData.length === 0) {
         container.innerHTML = `
           <div class="empty-state" style="padding: 20px;">
-            <p>No practice sessions found for the selected filters.</p>
+            <p>No practice submissions found for the selected filters.</p>
           </div>
         `;
         return;
       }
       
-      // Create timeline items with edit/delete buttons
-      filteredData.forEach(practice => {
-        const date = new Date(practice.date);
+      // Create timeline items for submissions
+      filteredData.forEach(submission => {
+        const date = new Date(submission.date);
         const formattedDate = date.toLocaleDateString('en-US', { 
           weekday: 'long', 
           year: 'numeric', 
@@ -347,38 +334,25 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         const timelineItem = document.createElement('div');
-        timelineItem.className = 'timeline-item';
-        timelineItem.setAttribute('data-entry-id', practice.id);
-        
-        // Create practice items tags
-        const practiceItemsHTML = practice.practiceItems.map(item => 
-          `<span class="practice-tag">${item}</span>`
-        ).join('');
+        timelineItem.className = 'timeline-item submission-item';
+        timelineItem.setAttribute('data-submission-id', submission.id);
         
         timelineItem.innerHTML = `
           <div class="timeline-date">${formattedDate}</div>
           <div class="timeline-content">
-            <div class="timeline-header">
-              <h3>${practice.type}</h3>
-              <div class="timeline-actions">
-                <button class="edit-btn" onclick="editEntry('${practice.id}')" title="Edit Entry">
-                  <i class="fas fa-edit"></i>
-                </button>
-                <button class="delete-btn" onclick="deleteEntry('${practice.id}')" title="Delete Entry">
-                  <i class="fas fa-trash"></i>
-                </button>
+            <div class="submission-header">
+              <h3>Practice Session</h3>
+              <button class="view-details-btn" onclick="viewSubmissionDetails('${submission.id}')">
+                <i class="fas fa-eye"></i> View Details
+              </button>
+            </div>
+            <div class="submission-summary">
+              <p><strong>Categories:</strong> ${submission.categorySummary}</p>
+              <div class="submission-stats">
+                <span><i class="fas fa-list"></i> ${submission.totalCategories} Categories</span>
+                <span><i class="fas fa-dumbbell"></i> ${submission.totalPractices} Practices</span>
+                <span><i class="fas fa-star"></i> ${submission.totalPoints} Points</span>
               </div>
-            </div>
-            <p>${practice.details}</p>
-            ${practice.description ? `<p><strong>Description:</strong> ${practice.description}</p>` : ''}
-            ${practice.notes ? `<p><strong>Notes:</strong> ${practice.notes}</p>` : ''}
-            <div class="timeline-stats">
-              <span>Duration: ${practice.duration} minutes</span>
-              ${practice.score ? `<span>Score: ${practice.score}</span>` : ''}
-              ${practice.location ? `<span>Location: ${practice.location}</span>` : ''}
-            </div>
-            <div class="practice-items">
-              ${practiceItemsHTML}
             </div>
           </div>
         `;
@@ -388,135 +362,398 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ───────────────────────────────────────────────────────────
-    // 7) EDIT FUNCTIONALITY
+    // 7) SUBMISSION DETAILS MODAL
     // ───────────────────────────────────────────────────────────
-    window.editEntry = function(entryId) {
-      const entry = allPracticeEntries.find(e => e.id === entryId);
-      if (!entry) {
-        showNotification('Entry not found', 'error');
+    window.viewSubmissionDetails = function(submissionId) {
+      const submission = allSubmissions.find(s => s.id === submissionId);
+      if (!submission) {
+        showNotification('Submission not found', 'error');
         return;
       }
       
-      currentEditingId = entryId;
-      showEditModal(entry);
+      currentViewingSubmission = submission;
+      showSubmissionDetailsModal(submission);
     };
     
-    function showEditModal(entry) {
-      const modal = document.getElementById('editModal');
+    function showSubmissionDetailsModal(submission) {
+      // Create modal if it doesn't exist
+      let modal = document.getElementById('submissionDetailsModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'submissionDetailsModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+      }
       
-      // Populate modal fields
-      document.getElementById('editPracticeType').value = entry.type || '';
-      document.getElementById('editDescription').value = entry.description || '';
-      document.getElementById('editScore').value = entry.score || '';
-      document.getElementById('editDuration').value = entry.duration || '';
-      document.getElementById('editLocation').value = entry.location || '';
-      document.getElementById('editNotes').value = entry.notes || '';
-      document.getElementById('editDate').value = entry.date || '';
+      const date = new Date(submission.date);
+      const formattedDate = date.toLocaleDateString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      });
+      
+      let categoriesHTML = '';
+      submission.categories.forEach(category => {
+        let practicesHTML = '';
+        category.practices.forEach((practice, index) => {
+          practicesHTML += `
+            <div class="practice-item">
+              <div class="practice-info">
+                <h5>${practice.name || 'Unnamed Practice'}</h5>
+                <p>${practice.description || 'No description'}</p>
+                <div class="practice-meta">
+                  <span>Points: ${practice.points || 0}</span>
+                  ${practice.addedAt ? `<span>Added: ${new Date(practice.addedAt).toLocaleTimeString()}</span>` : ''}
+                </div>
+              </div>
+              <div class="practice-actions">
+                <button class="edit-practice-btn" onclick="editPractice('${submission.id}', '${category.id}', ${index})" title="Edit Practice">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-practice-btn" onclick="deletePractice('${submission.id}', '${category.id}', ${index})" title="Delete Practice">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          `;
+        });
+        
+        categoriesHTML += `
+          <div class="category-section">
+            <div class="category-header">
+              <h4>${category.name}</h4>
+              <div class="category-stats">
+                <span>${category.totalPractices} practices</span>
+                <span>${category.totalPoints} points</span>
+              </div>
+            </div>
+            <div class="practices-list">
+              ${practicesHTML}
+            </div>
+          </div>
+        `;
+      });
+      
+      modal.innerHTML = `
+        <div class="modal-container large-modal">
+          <div class="modal-header">
+            <h3>Practice Session - ${formattedDate}</h3>
+            <button class="modal-close" onclick="closeSubmissionDetailsModal()" aria-label="Close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="submission-overview">
+              <div class="overview-stats">
+                <div class="stat-item">
+                  <span class="stat-label">Categories</span>
+                  <span class="stat-value">${submission.totalCategories}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Practices</span>
+                  <span class="stat-value">${submission.totalPractices}</span>
+                </div>
+                <div class="stat-item">
+                  <span class="stat-label">Total Points</span>
+                  <span class="stat-value">${submission.totalPoints}</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="categories-container">
+              ${categoriesHTML}
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeSubmissionDetailsModal()">
+              <i class="fas fa-arrow-left"></i> Back
+            </button>
+          </div>
+        </div>
+      `;
       
       modal.classList.remove('hidden');
       modal.style.display = 'flex';
     }
     
-    window.closeEditModal = function() {
-      const modal = document.getElementById('editModal');
-      modal.classList.add('hidden');
-      modal.style.display = 'none';
-      currentEditingId = null;
+    window.closeSubmissionDetailsModal = function() {
+      const modal = document.getElementById('submissionDetailsModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+      currentViewingSubmission = null;
     };
     
-    window.saveEditedEntry = async function() {
-      if (!currentEditingId) return;
+    // ───────────────────────────────────────────────────────────
+    // 8) EDIT PRACTICE FUNCTIONALITY
+    // ───────────────────────────────────────────────────────────
+    window.editPractice = function(submissionId, categoryId, practiceIndex) {
+      const submission = allSubmissions.find(s => s.id === submissionId);
+      if (!submission) {
+        showNotification('Submission not found', 'error');
+        return;
+      }
+      
+      const category = submission.categories.find(c => c.id === categoryId);
+      if (!category) {
+        showNotification('Category not found', 'error');
+        return;
+      }
+      
+      const practice = category.practices[practiceIndex];
+      if (!practice) {
+        showNotification('Practice not found', 'error');
+        return;
+      }
+      
+      currentEditingSubmissionId = submissionId;
+      currentEditingCategoryId = categoryId;
+      currentEditingPracticeId = practiceIndex;
+      
+      showEditPracticeModal(practice);
+    };
+    
+    function showEditPracticeModal(practice) {
+      // Create or update edit modal
+      let modal = document.getElementById('editPracticeModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'editPracticeModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+      }
+      
+      modal.innerHTML = `
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Edit Practice</h3>
+            <button class="modal-close" onclick="closeEditPracticeModal()" aria-label="Close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <form id="editPracticeForm" onsubmit="event.preventDefault(); saveEditedPractice();">
+              <div class="form-group">
+                <label for="editPracticeName">Practice Name</label>
+                <input type="text" id="editPracticeName" value="${practice.name || ''}" required>
+              </div>
+              
+              <div class="form-group">
+                <label for="editPracticeDescription">Description</label>
+                <textarea id="editPracticeDescription" rows="3">${practice.description || ''}</textarea>
+              </div>
+              
+              <div class="form-group">
+                <label for="editPracticePoints">Points</label>
+                <input type="number" id="editPracticePoints" value="${practice.points || 0}" min="0" required>
+              </div>
+              
+              <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeEditPracticeModal()">
+                  Cancel
+                </button>
+                <button type="submit" class="btn-primary">
+                  <i class="fas fa-save"></i> Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+      
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+    }
+    
+    window.closeEditPracticeModal = function() {
+      const modal = document.getElementById('editPracticeModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+      currentEditingSubmissionId = null;
+      currentEditingCategoryId = null;
+      currentEditingPracticeId = null;
+    };
+    
+    window.saveEditedPractice = async function() {
+      if (currentEditingSubmissionId === null || currentEditingCategoryId === null || currentEditingPracticeId === null) {
+        showNotification('Invalid editing state', 'error');
+        return;
+      }
       
       const user = auth.currentUser;
       if (!user) {
-        showNotification('Please log in to edit entries', 'error');
+        showNotification('Please log in to edit practices', 'error');
         return;
       }
       
       try {
-        const updatedData = {
-          category: document.getElementById('editPracticeType').value,
-          description: document.getElementById('editDescription').value,
-          score: document.getElementById('editScore').value,
-          duration: parseInt(document.getElementById('editDuration').value) || null,
-          location: document.getElementById('editLocation').value,
-          notes: document.getElementById('editNotes').value,
-          date: document.getElementById('editDate').value,
+        const updatedPractice = {
+          name: document.getElementById('editPracticeName').value,
+          description: document.getElementById('editPracticeDescription').value,
+          points: parseInt(document.getElementById('editPracticePoints').value) || 0,
           lastModified: firebase.firestore.Timestamp.now()
         };
         
-        // Update in Firestore
-        await db.collection("users")
+        // Get the current category document
+        const categoryRef = db.collection("users")
           .doc(user.uid)
-          .collection("task_submissions")
-          .doc(currentEditingId)
-          .update(updatedData);
+          .collection("practice_submissions")
+          .doc(currentEditingSubmissionId)
+          .collection("categories")
+          .doc(currentEditingCategoryId);
         
-        showNotification('Entry updated successfully!', 'success');
-        closeEditModal();
+        const categoryDoc = await categoryRef.get();
+        if (!categoryDoc.exists) {
+          throw new Error('Category not found');
+        }
+        
+        const categoryData = categoryDoc.data();
+        const practices = categoryData.practices || [];
+        
+        // Update the specific practice
+        practices[currentEditingPracticeId] = {
+          ...practices[currentEditingPracticeId],
+          ...updatedPractice
+        };
+        
+        // Recalculate totals
+        const totalPoints = practices.reduce((sum, p) => sum + (p.points || 0), 0);
+        
+        // Update the category document
+        await categoryRef.update({
+          practices: practices,
+          totalPoints: totalPoints,
+          lastModified: firebase.firestore.Timestamp.now()
+        });
+        
+        showNotification('Practice updated successfully!', 'success');
+        closeEditPracticeModal();
         
         // Refresh the data
-        fetchUserPracticeHistory(user.uid);
+        await fetchUserSubmissions(user.uid);
+        
+        // Reopen the submission details if it was open
+        if (currentViewingSubmission) {
+          const updatedSubmission = allSubmissions.find(s => s.id === currentEditingSubmissionId);
+          if (updatedSubmission) {
+            showSubmissionDetailsModal(updatedSubmission);
+          }
+        }
         
       } catch (error) {
-        console.error('Error updating entry:', error);
-        showNotification('Error updating entry. Please try again.', 'error');
+        console.error('Error updating practice:', error);
+        showNotification('Error updating practice. Please try again.', 'error');
       }
     };
     
     // ───────────────────────────────────────────────────────────
-    // 8) DELETE FUNCTIONALITY
+    // 9) DELETE PRACTICE FUNCTIONALITY
     // ───────────────────────────────────────────────────────────
-    window.deleteEntry = async function(entryId) {
-      if (!confirm('Are you sure you want to delete this practice entry? This action cannot be undone.')) {
+    window.deletePractice = async function(submissionId, categoryId, practiceIndex) {
+      if (!confirm('Are you sure you want to delete this practice? This action cannot be undone.')) {
         return;
       }
       
       const user = auth.currentUser;
       if (!user) {
-        showNotification('Please log in to delete entries', 'error');
+        showNotification('Please log in to delete practices', 'error');
         return;
       }
       
       try {
-        // Delete from Firestore
-        await db.collection("users")
+        // Get the current category document
+        const categoryRef = db.collection("users")
           .doc(user.uid)
-          .collection("task_submissions")
-          .doc(entryId)
-          .delete();
+          .collection("practice_submissions")
+          .doc(submissionId)
+          .collection("categories")
+          .doc(categoryId);
         
-        showNotification('Entry deleted successfully!', 'success');
+        const categoryDoc = await categoryRef.get();
+        if (!categoryDoc.exists) {
+          throw new Error('Category not found');
+        }
+        
+        const categoryData = categoryDoc.data();
+        const practices = categoryData.practices || [];
+        
+        // Remove the practice
+        practices.splice(practiceIndex, 1);
+        
+        if (practices.length === 0) {
+          // If no practices left, delete the entire category
+          await categoryRef.delete();
+          showNotification('Practice deleted. Category removed as it had no remaining practices.', 'success');
+        } else {
+          // Recalculate totals
+          const totalPoints = practices.reduce((sum, p) => sum + (p.points || 0), 0);
+          
+          // Update the category document
+          await categoryRef.update({
+            practices: practices,
+            totalPoints: totalPoints,
+            totalPractices: practices.length,
+            lastModified: firebase.firestore.Timestamp.now()
+          });
+          
+          showNotification('Practice deleted successfully!', 'success');
+        }
         
         // Refresh the data
-        fetchUserPracticeHistory(user.uid);
+        await fetchUserSubmissions(user.uid);
+        
+        // Reopen the submission details if it was open
+        if (currentViewingSubmission) {
+          const updatedSubmission = allSubmissions.find(s => s.id === submissionId);
+          if (updatedSubmission && updatedSubmission.categories.length > 0) {
+            showSubmissionDetailsModal(updatedSubmission);
+          } else {
+            closeSubmissionDetailsModal();
+          }
+        }
         
       } catch (error) {
-        console.error('Error deleting entry:', error);
-        showNotification('Error deleting entry. Please try again.', 'error');
+        console.error('Error deleting practice:', error);
+        showNotification('Error deleting practice. Please try again.', 'error');
       }
     };
     
     // ───────────────────────────────────────────────────────────
-    // 9) FILTER SETUP
+    // 10) FILTER SETUP
     // ───────────────────────────────────────────────────────────
     function setupFilters(data) {
       const practiceFilter = document.getElementById('practiceFilter');
       const dateRangeStart = document.getElementById('dateRangeStart');
       const dateRangeEnd = document.getElementById('dateRangeEnd');
       
-      // Populate practice types
-      const practiceTypes = [...new Set(data.map(item => item.type))];
-      practiceTypes.forEach(type => {
+      // Clear existing options except "All Practices"
+      practiceFilter.innerHTML = '<option value="all">All Categories</option>';
+      
+      // Populate category types
+      const categoryTypes = new Set();
+      data.forEach(submission => {
+        submission.categories.forEach(category => {
+          categoryTypes.add(category.name);
+        });
+      });
+      
+      Array.from(categoryTypes).sort().forEach(categoryName => {
         const option = document.createElement('option');
-        option.value = type;
-        option.textContent = type;
+        option.value = categoryName;
+        option.textContent = categoryName;
         practiceFilter.appendChild(option);
       });
       
       // Set date range limits
       if (data.length > 0) {
-        const dates = data.map(item => item.date).sort();
+        const dates = data.map(submission => submission.date).sort();
         const oldestDate = dates[0];
         const newestDate = dates[dates.length - 1];
         
@@ -543,7 +780,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const startDate = dateRangeStart.value || null;
         const endDate = dateRangeEnd.value || null;
         
-        populateTimelineWithActions(allPracticeEntries, filterType, startDate, endDate);
+        populateSubmissionsTimeline(allSubmissions, filterType, startDate, endDate);
       }
       
       // Apply initial filters
@@ -551,55 +788,397 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ───────────────────────────────────────────────────────────
-    // 10) EXPORT FUNCTIONALITY
+    // 10) EXPORT FUNCTIONALITY (COMPLETED)
     // ───────────────────────────────────────────────────────────
     function setupExportButtons(data) {
       const exportCsvBtn = document.getElementById('exportCsvBtn');
       const printHistoryBtn = document.getElementById('printHistoryBtn');
       
       exportCsvBtn.addEventListener('click', function() {
-        const csvContent = convertToCSV(data);
-        downloadCSV(csvContent, 'practice-history.csv');
+        showExportModal(data);
       });
       
       printHistoryBtn.addEventListener('click', function() {
-        window.print();
+        showPrintPreview(data);
       });
     }
     
-    function convertToCSV(data) {
-      const header = ['Date', 'Type', 'Details', 'Duration (min)', 'Practice Items', 'Score', 'Location', 'Notes'];
+    // Show Export Modal with options
+    function showExportModal(data) {
+      let modal = document.getElementById('exportModal');
+      if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'exportModal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+      }
       
-      const rows = data.map(item => [
-        item.date,
-        item.type,
-        item.details,
-        item.duration,
-        item.practiceItems.join(', '),
-        item.score || '',
-        item.location || '',
-        item.notes || ''
-      ]);
+      modal.innerHTML = `
+        <div class="modal-container">
+          <div class="modal-header">
+            <h3>Export Practice History</h3>
+            <button class="modal-close" onclick="closeExportModal()" aria-label="Close">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          
+          <div class="modal-body">
+            <div class="export-options">
+              <div class="export-option">
+                <h4>Export Format</h4>
+                <div class="radio-group">
+                  <label>
+                    <input type="radio" name="exportFormat" value="csv" checked>
+                    <span class="radio-custom"></span>
+                    CSV (Excel Compatible)
+                  </label>
+                  <label>
+                    <input type="radio" name="exportFormat" value="json">
+                    <span class="radio-custom"></span>
+                    JSON (Data Format)
+                  </label>
+                </div>
+              </div>
+              
+              <div class="export-option">
+                <h4>Date Range</h4>
+                <div class="date-range-group">
+                  <label>From: <input type="date" id="exportStartDate"></label>
+                  <label>To: <input type="date" id="exportEndDate"></label>
+                </div>
+              </div>
+              
+              <div class="export-option">
+                <h4>Include Details</h4>
+                <div class="checkbox-group">
+                  <label>
+                    <input type="checkbox" id="includeCategories" checked>
+                    <span class="checkbox-custom"></span>
+                    Category Details
+                  </label>
+                  <label>
+                    <input type="checkbox" id="includePractices" checked>
+                    <span class="checkbox-custom"></span>
+                    Individual Practices
+                  </label>
+                  <label>
+                    <input type="checkbox" id="includeStats" checked>
+                    <span class="checkbox-custom"></span>
+                    Statistics
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div class="export-preview">
+              <h4>Export Preview</h4>
+              <div class="preview-stats" id="exportPreviewStats">
+                <span>Total Records: ${data.length}</span>
+                <span>Date Range: All Time</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeExportModal()">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button class="btn-primary" onclick="executeExport()">
+              <i class="fas fa-download"></i> Export Data
+            </button>
+          </div>
+        </div>
+      `;
+      
+      // Set date range defaults
+      if (data.length > 0) {
+        const dates = data.map(s => s.date).sort();
+        document.getElementById('exportStartDate').value = dates[0];
+        document.getElementById('exportEndDate').value = dates[dates.length - 1];
+      }
+      
+      // Add event listeners for preview updates
+      modal.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', () => updateExportPreview(data));
+      });
+      
+      modal.classList.remove('hidden');
+      modal.style.display = 'flex';
+      updateExportPreview(data);
+    }
+    
+    function updateExportPreview(data) {
+      const startDate = document.getElementById('exportStartDate')?.value;
+      const endDate = document.getElementById('exportEndDate')?.value;
+      
+      let filteredData = data;
+      if (startDate) {
+        filteredData = filteredData.filter(s => s.date >= startDate);
+      }
+      if (endDate) {
+        filteredData = filteredData.filter(s => s.date <= endDate);
+      }
+      
+      const previewStats = document.getElementById('exportPreviewStats');
+      if (previewStats) {
+        const dateRangeText = startDate && endDate ? 
+          `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}` : 
+          'All Time';
+        
+        previewStats.innerHTML = `
+          <span>Total Records: ${filteredData.length}</span>
+          <span>Date Range: ${dateRangeText}</span>
+          <span>Total Practices: ${filteredData.reduce((sum, s) => sum + s.totalPractices, 0)}</span>
+        `;
+      }
+    }
+    
+    window.closeExportModal = function() {
+      const modal = document.getElementById('exportModal');
+      if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+      }
+    };
+    
+    window.executeExport = function() {
+      const format = document.querySelector('input[name="exportFormat"]:checked').value;
+      const startDate = document.getElementById('exportStartDate').value;
+      const endDate = document.getElementById('exportEndDate').value;
+      const includeCategories = document.getElementById('includeCategories').checked;
+      const includePractices = document.getElementById('includePractices').checked;
+      const includeStats = document.getElementById('includeStats').checked;
+      
+      // Filter data by date range
+      let exportData = [...allSubmissions];
+      if (startDate) {
+        exportData = exportData.filter(s => s.date >= startDate);
+      }
+      if (endDate) {
+        exportData = exportData.filter(s => s.date <= endDate);
+      }
+      
+      if (format === 'csv') {
+        const csvContent = convertToCSV(exportData, includeCategories, includePractices, includeStats);
+        downloadFile(csvContent, 'practice-history.csv', 'text/csv');
+      } else if (format === 'json') {
+        const jsonContent = convertToJSON(exportData, includeCategories, includePractices, includeStats);
+        downloadFile(jsonContent, 'practice-history.json', 'application/json');
+      }
+      
+      closeExportModal();
+      showNotification('Export completed successfully!', 'success');
+    };
+    
+    function convertToCSV(data, includeCategories, includePractices, includeStats) {
+      const headers = ['Date', 'Total Categories', 'Total Practices', 'Total Points'];
+      
+      if (includeCategories) {
+        headers.push('Categories');
+      }
+      
+      if (includePractices) {
+        headers.push('Practice Details');
+      }
+      
+      if (includeStats) {
+        headers.push('Submission Time');
+      }
+      
+      const rows = data.map(submission => {
+        const row = [
+          submission.date,
+          submission.totalCategories,
+          submission.totalPractices,
+          submission.totalPoints
+        ];
+        
+        if (includeCategories) {
+          row.push(submission.categorySummary);
+        }
+        
+        if (includePractices) {
+          const practiceDetails = submission.categories.map(cat => 
+            `${cat.name}: ${cat.practices.map(p => p.name).join(', ')}`
+          ).join(' | ');
+          row.push(practiceDetails);
+        }
+        
+        if (includeStats) {
+          row.push(new Date(submission.submittedAt.seconds * 1000).toLocaleString());
+        }
+        
+        return row;
+      });
       
       const csvContent = [
-        header.join(','),
-        ...rows.map(row => row.map(field => `"${field}"`).join(','))
+        headers.join(','),
+        ...rows.map(row => row.map(field => `"${String(field).replace(/"/g, '""')}"`).join(','))
       ].join('\n');
       
       return csvContent;
     }
     
-    function downloadCSV(content, filename) {
-      const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    function convertToJSON(data, includeCategories, includePractices, includeStats) {
+      const exportData = data.map(submission => {
+        const item = {
+          date: submission.date,
+          totalCategories: submission.totalCategories,
+          totalPractices: submission.totalPractices,
+          totalPoints: submission.totalPoints
+        };
+        
+        if (includeCategories) {
+          item.categories = submission.categories.map(cat => ({
+            name: cat.name,
+            totalPractices: cat.totalPractices,
+            totalPoints: cat.totalPoints
+          }));
+        }
+        
+        if (includePractices) {
+          item.practiceDetails = submission.categories.map(cat => ({
+            category: cat.name,
+            practices: cat.practices.map(p => ({
+              name: p.name,
+              description: p.description,
+              points: p.points
+            }))
+          }));
+        }
+        
+        if (includeStats) {
+          item.submittedAt = new Date(submission.submittedAt.seconds * 1000).toISOString();
+        }
+        
+        return item;
+      });
+      
+      return JSON.stringify({
+        exportDate: new Date().toISOString(),
+        totalRecords: exportData.length,
+        data: exportData
+      }, null, 2);
+    }
+    
+    function downloadFile(content, filename, mimeType) {
+      const blob = new Blob([content], { type: `${mimeType};charset=utf-8;` });
       const url = URL.createObjectURL(blob);
       
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', filename);
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    }
+    
+    // Print functionality
+    function showPrintPreview(data) {
+      const printWindow = window.open('', '_blank');
+      const printContent = generatePrintContent(data);
+      
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+      
+      printWindow.onload = function() {
+        printWindow.print();
+        printWindow.onafterprint = function() {
+          printWindow.close();
+        };
+      };
+    }
+    
+    function generatePrintContent(data) {
+      const totalPractices = data.reduce((sum, s) => sum + s.totalPractices, 0);
+      const totalPoints = data.reduce((sum, s) => sum + s.totalPoints, 0);
+      
+      const submissionsHTML = data.map(submission => {
+        const date = new Date(submission.date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        
+        const categoriesHTML = submission.categories.map(cat => `
+          <div class="print-category">
+            <strong>${cat.name}</strong> - ${cat.totalPractices} practices, ${cat.totalPoints} points
+            <ul>
+              ${cat.practices.map(p => `<li>${p.name} (${p.points} pts)</li>`).join('')}
+            </ul>
+          </div>
+        `).join('');
+        
+        return `
+          <div class="print-submission">
+            <h3>${date}</h3>
+            <div class="print-stats">
+              <span>${submission.totalCategories} Categories</span>
+              <span>${submission.totalPractices} Practices</span>
+              <span>${submission.totalPoints} Points</span>
+            </div>
+            <div class="print-categories">
+              ${categoriesHTML}
+            </div>
+          </div>
+        `;
+      }).join('');
+      
+      return `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Practice History Report</title>
+          <style>
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            .print-header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 20px; }
+            .print-summary { display: flex; justify-content: space-around; margin-bottom: 30px; }
+            .print-stat { text-align: center; }
+            .print-stat h3 { margin: 0; font-size: 24px; color: #007bff; }
+            .print-stat p { margin: 5px 0 0 0; color: #666; }
+            .print-submission { margin-bottom: 25px; page-break-inside: avoid; }
+            .print-submission h3 { color: #333; margin-bottom: 10px; }
+            .print-stats { display: flex; gap: 20px; margin-bottom: 15px; font-size: 14px; color: #666; }
+            .print-category { margin-bottom: 15px; }
+            .print-category ul { margin: 5px 0 0 20px; }
+            .print-category li { margin-bottom: 3px; }
+            @media print {
+              .print-submission { page-break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-header">
+            <h1>Practice History Report</h1>
+            <p>Generated on ${new Date().toLocaleDateString('en-US', { 
+              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            })}</p>
+          </div>
+          
+          <div class="print-summary">
+            <div class="print-stat">
+              <h3>${data.length}</h3>
+              <p>Total Sessions</p>
+            </div>
+            <div class="print-stat">
+              <h3>${totalPractices}</h3>
+              <p>Total Practices</p>
+            </div>
+            <div class="print-stat">
+              <h3>${totalPoints}</h3>
+              <p>Total Points</p>
+            </div>
+          </div>
+          
+          <div class="print-content">
+            ${submissionsHTML}
+          </div>
+        </body>
+        </html>
+      `;
     }
     
     // ───────────────────────────────────────────────────────────

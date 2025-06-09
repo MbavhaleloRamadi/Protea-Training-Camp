@@ -21,6 +21,9 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
 </head>
 <body>
   <!-- Video Background -->
@@ -92,11 +95,11 @@
       </div>
       
       <div class="timeline-container" id="timelineContainer">
-  <div class="loading-placeholder">
-    <div class="loading-spinner"></div>
-    <p>Loading your practice history...</p>
-  </div>
-</div>
+        <div class="loading-placeholder">
+          <div class="loading-spinner"></div>
+          <p>Loading your practice history...</p>
+        </div>
+      </div>
     </div>
     
     <!-- Export/Print Controls -->
@@ -115,68 +118,88 @@
     </button>
   </div>
 
-  <div class="modal-overlay hidden" id="editModal">
-  <div class="modal-container">
-    <div class="modal-header">
-      <h3>Edit Practice Entry</h3>
-      <button class="modal-close" onclick="closeEditModal()" aria-label="Close">
-        <i class="fas fa-times" aria-hidden="true"></i>
-      </button>
-    </div>
-    
-    <div class="modal-body">
-      <form id="editForm" onsubmit="event.preventDefault(); saveEditedEntry();">
-        <div class="form-row">
+  <!-- Edit Practice Modal -->
+  <div class="modal-overlay" id="editPracticeModal" style="display: none;">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3>Edit Practice</h3>
+        <button class="modal-close" onclick="closeEditPracticeModal()" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <form id="editPracticeForm" onsubmit="event.preventDefault(); saveEditedPractice();">
           <div class="form-group">
-            <label for="editPracticeType">Practice Type</label>
-            <input type="text" id="editPracticeType" placeholder="e.g., Putting, Driving, Chipping" required>
+            <label for="editPracticeName">Practice Name</label>
+            <input type="text" id="editPracticeName" required>
           </div>
           
           <div class="form-group">
-            <label for="editDate">Date</label>
-            <input type="date" id="editDate" required>
-          </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="editDescription">Description</label>
-          <textarea id="editDescription" rows="3" placeholder="Describe your practice session..."></textarea>
-        </div>
-        
-        <div class="form-row">
-          <div class="form-group">
-            <label for="editScore">Score</label>
-            <input type="text" id="editScore" placeholder="e.g., 8/10, 75, Good">
+            <label for="editPracticeDescription">Description</label>
+            <textarea id="editPracticeDescription" rows="3"></textarea>
           </div>
           
           <div class="form-group">
-            <label for="editDuration">Duration (minutes)</label>
-            <input type="number" id="editDuration" min="1" max="480" placeholder="60">
+            <label for="editPracticePoints">Points</label>
+            <input type="number" id="editPracticePoints" min="0" required>
           </div>
-        </div>
-        
-        <div class="form-group">
-          <label for="editLocation">Location</label>
-          <input type="text" id="editLocation" placeholder="e.g., Local Golf Course, Practice Range">
-        </div>
-        
-        <div class="form-group">
-          <label for="editNotes">Additional Notes</label>
-          <textarea id="editNotes" rows="2" placeholder="Any additional observations or notes..."></textarea>
-        </div>
-        
-        <div class="modal-actions">
-          <button type="button" class="btn-secondary" id="cancelEditBtn" onclick="closeEditModal()">
-            Cancel
-          </button>
-          <button type="submit" class="btn-primary" id="saveEditBtn">
-            <i class="fas fa-save"></i> Save Changes
-          </button>
-        </div>
-      </form>
+          
+          <div class="modal-actions">
+            <button type="button" class="btn-secondary" onclick="closeEditPracticeModal()">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="submit" class="btn-primary">
+              <i class="fas fa-save"></i> Save Changes
+            </button>
+            <button type="button" class="btn-danger" onclick="deletePracticeFromModal()">
+              <i class="fas fa-trash"></i> Delete Practice
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
-</div>
+
+  <!-- Submission Details Modal -->
+  <div class="modal-overlay" id="submissionDetailsModal" style="display: none;">
+    <!-- Content will be populated by JavaScript -->
+  </div>
+
+  <!-- Export Modal -->
+  <div class="modal-overlay" id="exportModal" style="display: none;">
+    <!-- Content will be populated by JavaScript -->
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div class="modal-overlay" id="confirmationModal" style="display: none;">
+    <div class="modal-container small-modal">
+      <div class="modal-header">
+        <h3 id="confirmationTitle">Confirm Action</h3>
+        <button class="modal-close" onclick="closeConfirmationModal()" aria-label="Close">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      
+      <div class="modal-body">
+        <div class="confirmation-content">
+          <div class="confirmation-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <p id="confirmationMessage">Are you sure you want to proceed?</p>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeConfirmationModal()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+        <button class="btn-danger" id="confirmActionBtn">
+          <i class="fas fa-check"></i> Confirm
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Empty State (Initially Hidden) -->
   <div class="empty-state hidden" id="emptyState">
@@ -186,12 +209,11 @@
     <a href="submit-task.html" class="start-btn">Begin Practice</a>
   </div>
 
+  <!-- Notification Container -->
+  <div class="notification-container" id="notificationContainer"></div>
+
   <!-- Include the JavaScript for this page -->
   <script src="js/history.js"></script>
-
-  <!-- Notification Container -->
-<div class="notification-container" id="notificationContainer"></div>
-
 
 </body>
 </html>
