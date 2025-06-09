@@ -141,8 +141,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   
-// ───────────────────────────────────────────────────────────
-// 6) DATA PROCESSING - UPDATED FOR POINTS SORTING
+
+   // ───────────────────────────────────────────────────────────
+// 6) DATA PROCESSING - FIXED VERSION FOR NEW PRACTICE SUBMISSIONS STRUCTURE
 // ───────────────────────────────────────────────────────────
 function processLeaderboardData(usersData) {
   // Convert users data to array for sorting
@@ -153,15 +154,81 @@ function processLeaderboardData(usersData) {
     const userData = usersData[userId];
     
     // Skip users without necessary data
-    if (!userData.username) return; // Changed from fullName to username
+    if (!userData.username) return;
     
-    // Calculate total score from task submissions
-    // Higher points are better
+    // Initialize totals
     let totalScore = 0;
     let roundsPlayed = 0;
-    let latestSubmissionTime = 0; // For tiebreaker
+    let latestSubmissionTime = 0;
     
-    if (userData.task_submissions) {
+    // Check the practice_submissions structure
+    if (userData.practice_submissions) {
+      let mostRecentMetadata = null;
+      let mostRecentTimestamp = 0;
+      
+      // Go through each daily submission to find the most recent metadata
+      Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+        const dailySubmission = userData.practice_submissions[dailySubmissionId];
+        
+        // Check for metadata at the correct level
+        if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
+          // Get submission timestamp
+          let submissionTime = 0;
+          if (dailySubmission.metadata.lastSubmissionAt) {
+            submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
+              ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
+              : dailySubmission.metadata.lastSubmissionAt;
+          }
+          
+          // Keep track of the most recent metadata
+          if (submissionTime > mostRecentTimestamp) {
+            mostRecentTimestamp = submissionTime;
+            mostRecentMetadata = dailySubmission.metadata;
+            latestSubmissionTime = submissionTime;
+          }
+        }
+      });
+      
+      // Use the most recent metadata if found
+      if (mostRecentMetadata) {
+        totalScore = mostRecentMetadata.userTotalPoints;
+        roundsPlayed = mostRecentMetadata.userTotalPractices || 0;
+      }
+      
+      // FIXED: Only calculate from categories if no metadata was found at all
+      if (totalScore === 0 && !mostRecentMetadata) {
+        Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+          const dailySubmission = userData.practice_submissions[dailySubmissionId];
+          
+          if (dailySubmission.categories) {
+            Object.keys(dailySubmission.categories).forEach(categoryId => {
+              const category = dailySubmission.categories[categoryId];
+              
+              if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
+                category.practices.forEach(practice => {
+                  if (practice.points !== undefined) {
+                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                    totalScore += parseInt(points) || 0;
+                    roundsPlayed++;
+                    
+                    // Track latest submission time for tiebreaker
+                    if (practice.addedAt) {
+                      const submissionTime = parseInt(practice.addedAt) || 0;
+                      if (submissionTime > latestSubmissionTime) {
+                        latestSubmissionTime = submissionTime;
+                      }
+                    }
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+    }
+    
+    // Fallback: Check old task_submissions structure for backward compatibility
+    if (totalScore === 0 && userData.task_submissions) {
       Object.values(userData.task_submissions).forEach(submission => {
         if (submission.practices && Array.isArray(submission.practices)) {
           submission.practices.forEach(practice => {
@@ -188,7 +255,7 @@ function processLeaderboardData(usersData) {
     // Add to leaderboard entries
     leaderboardEntries.push({
       userId: userId,
-      name: userData.username, // Changed from fullName to username
+      name: userData.username,
       rawScore: totalScore,
       displayScore: formattedScore,
       roundsPlayed: roundsPlayed,

@@ -563,7 +563,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ───────────────────────────────────────────────────────────
-// 7) Submit handler with Daily Submission ID
+// 7) Submit handler with Daily Submission ID - FIXED VERSION
 // ───────────────────────────────────────────────────────────
 
 // Helper function to generate or retrieve daily submission ID
@@ -597,6 +597,86 @@ async function getDailySubmissionId(userId, currentDate) {
     console.error("Error getting daily submission ID:", error);
     // Fallback to generating a simple ID
     return `SUB_${currentDate.replace(/-/g, '')}_${Date.now()}`;
+  }
+}
+
+// Helper function to calculate cumulative totals for all user submissions
+async function calculateUserTotals(userId) {
+  try {
+    const userSubmissionsRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions');
+    
+    const snapshot = await userSubmissionsRef.get();
+    let totalPoints = 0;
+    let totalPractices = 0;
+    
+    for (const doc of snapshot.docs) {
+      // Skip metadata documents, but process actual submission documents
+      if (doc.id === 'metadata') {
+        continue; // Skip metadata docs
+      }
+      
+      // Get all categories for this daily submission
+      const categoriesRef = doc.ref.collection('categories');
+      const categoriesSnapshot = await categoriesRef.get();
+      
+      categoriesSnapshot.forEach(categoryDoc => {
+        const categoryData = categoryDoc.data();
+        if (categoryData.practices && !categoryData.isDeleted) {
+          totalPoints += categoryData.totalPoints || 0;
+          totalPractices += categoryData.totalPractices || 0;
+        }
+      });
+    }
+    
+    return { totalPoints, totalPractices };
+  } catch (error) {
+    console.error("Error calculating user totals:", error);
+    return { totalPoints: 0, totalPractices: 0 };
+  }
+}
+
+// Helper function to calculate daily totals for a specific submission
+async function calculateDailyTotals(userId, dailySubmissionId) {
+  try {
+    const categoriesRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId)
+      .collection('categories');
+    
+    const snapshot = await categoriesRef.get();
+    let dailyTotalPoints = 0;
+    let dailyTotalPractices = 0;
+    let dailyTotalCategories = 0;
+    const uniqueCategories = new Set();
+    
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      if (data.practices && !data.isDeleted) {
+        dailyTotalPoints += data.totalPoints || 0;
+        dailyTotalPractices += data.totalPractices || 0;
+        uniqueCategories.add(data.category);
+      }
+    });
+    
+    dailyTotalCategories = uniqueCategories.size;
+    
+    return { 
+      dailyTotalPoints, 
+      dailyTotalPractices, 
+      dailyTotalCategories 
+    };
+  } catch (error) {
+    console.error("Error calculating daily totals:", error);
+    return { 
+      dailyTotalPoints: 0, 
+      dailyTotalPractices: 0, 
+      dailyTotalCategories: 0 
+    };
   }
 }
 
@@ -672,8 +752,8 @@ if (submitForm) {
 
       // Process each category
       for (const [categoryKey, categoryData] of Object.entries(practicesByCategory)) {
-        // Create category document ID
-        const categoryDocId = `${submissionBasketId}_${categoryKey}`;
+        // Create category document ID with timestamp to avoid overwriting
+        const categoryDocId = `${submissionBasketId}_${categoryKey}_${Date.now()}`;
 
         // Prepare practices array for this category
         const practicesArray = categoryData.practices.map((practice, index) => ({
@@ -780,49 +860,112 @@ if (submitForm) {
         realtimePromises.push(realtimeRef.set(realtimeSubmissionData));
       }
 
-      // Also store daily submission metadata
-      const dailySubmissionMetadata = {
-        dailySubmissionId: dailySubmissionId,
-        date: currentDate,
-        userId: userId,
-        username: username,
-        totalCategories: Object.keys(practicesByCategory).length,
-        totalPractices: selectedPractices.length,
-        totalPoints: selectedPractices.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
-        submittedAt: firestoreTimestamp,
-        lastModified: firestoreTimestamp,
-        isActive: true
-      };
+      // Execute category submissions first
+      console.log("Executing Firestore batch for categories...");
+      await firestoreBatch.commit();
+      
+      console.log("Executing Realtime Database operations for categories...");
+      await Promise.all(realtimePromises);
 
-      // Add metadata to both databases
-      const metadataFirestoreRef = dbFirestore
+      // Now calculate the updated totals after adding new practices
+      console.log("Calculating updated totals...");
+      const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+      const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+
+      // Check if daily submission metadata already exists
+      const metadataRef = dbFirestore
         .collection('users')
         .doc(userId)
         .collection('practice_submissions')
         .doc(dailySubmissionId);
 
-      const metadataRealtimeRef = dbRealtime
-        .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/metadata`);
+      const existingMetadata = await metadataRef.get();
 
-      firestoreBatch.set(metadataFirestoreRef, dailySubmissionMetadata);
-      realtimePromises.push(metadataRealtimeRef.set({
-        ...dailySubmissionMetadata,
-        submittedAt: realtimeTimestamp,
-        lastModified: realtimeTimestamp
-      }));
+      if (existingMetadata.exists) {
+        // UPDATE existing metadata with new totals
+        console.log("Updating existing daily submission metadata...");
+        
+        const updateData = {
+          // Only update cumulative fields
+          totalCategories: dailyTotalCategories,
+          totalPractices: dailyTotalPractices,
+          totalPoints: dailyTotalPoints,
+          
+          // User lifetime totals
+          userTotalPoints: userTotalPoints,
+          userTotalPractices: userTotalPractices,
+          
+          // Update timestamps
+          lastModified: firestoreTimestamp,
+          lastSubmissionAt: firestoreTimestamp
+        };
 
-      // Execute both database operations
-      console.log("Executing Firestore batch...");
-      await firestoreBatch.commit();
-      
-      console.log("Executing Realtime Database operations...");
-      await Promise.all(realtimePromises);
+        await metadataRef.update(updateData);
+
+        // Also update Realtime Database metadata
+        const realtimeMetadataRef = dbRealtime
+          .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/metadata`);
+        
+        await realtimeMetadataRef.update({
+          ...updateData,
+          lastModified: realtimeTimestamp,
+          lastSubmissionAt: realtimeTimestamp
+        });
+
+      } else {
+        // CREATE new metadata document
+        console.log("Creating new daily submission metadata...");
+        
+        const dailySubmissionMetadata = {
+          dailySubmissionId: dailySubmissionId,
+          date: currentDate,
+          userId: userId,
+          username: username,
+          
+          // Daily totals
+          totalCategories: dailyTotalCategories,
+          totalPractices: dailyTotalPractices,
+          totalPoints: dailyTotalPoints,
+          
+          // User lifetime totals
+          userTotalPoints: userTotalPoints,
+          userTotalPractices: userTotalPractices,
+          
+          // Timestamps
+          createdAt: firestoreTimestamp,
+          submittedAt: firestoreTimestamp,
+          lastModified: firestoreTimestamp,
+          lastSubmissionAt: firestoreTimestamp,
+          
+          // Status
+          isActive: true
+        };
+
+        await metadataRef.set(dailySubmissionMetadata);
+
+        // Also create in Realtime Database
+        const realtimeMetadataRef = dbRealtime
+          .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/metadata`);
+
+        await realtimeMetadataRef.set({
+          ...dailySubmissionMetadata,
+          createdAt: realtimeTimestamp,
+          submittedAt: realtimeTimestamp,
+          lastModified: realtimeTimestamp,
+          lastSubmissionAt: realtimeTimestamp
+        });
+      }
 
       console.log("All database operations completed successfully");
       console.log("Daily Submission ID:", dailySubmissionId);
+      console.log("Daily Totals:", { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories });
+      console.log("User Lifetime Totals:", { userTotalPoints, userTotalPractices });
 
-      // Show success message with submission ID
-      showConfirmation(`Successfully submitted! Submission ID: ${dailySubmissionId}`, "green");
+      // Show success message with submission details
+      showConfirmation(
+        `Successfully submitted! `, 
+        "green"
+      );
 
       // Clear selected practices
       selectedPractices = [];
@@ -850,20 +993,21 @@ if (submitForm) {
     }
   });
 } else {
-  console.error("Submit form element not found! Check your HTML for the form with ID 'submitTaskForm'");
-}});
+  console.error("Submit form element not found!");
+}
+});
 
 // ───────────────────────────────────────────────────────────
-// 8) Edit Individual Practice Item
+// 8) Edit Individual Practice Item - Updated to recalculate totals
 // ───────────────────────────────────────────────────────────
 
-async function editPracticeItem(userId, dateCollection, categoryDocId, practiceId, updatedData) {
+async function editPracticeItem(userId, dailySubmissionId, categoryDocId, practiceId, updatedData) {
   try {
     const categoryRef = dbFirestore
       .collection('users')
       .doc(userId)
       .collection('practice_submissions')
-      .doc(dateCollection)
+      .doc(dailySubmissionId)
       .collection('categories')
       .doc(categoryDocId);
     
@@ -896,19 +1040,39 @@ async function editPracticeItem(userId, dateCollection, categoryDocId, practiceI
       return practice;
     });
     
-    // Recalculate totals
-    const totalPoints = updatedPractices.reduce((sum, p) => 
+    // Recalculate category totals
+    const categoryTotalPoints = updatedPractices.reduce((sum, p) => 
       sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
     );
     
-    // Update document
+    // Update category document
     await categoryRef.update({
       practices: updatedPractices,
-      totalPoints: totalPoints,
+      totalPoints: categoryTotalPoints,
+      totalPractices: updatedPractices.length,
       lastModified: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log('Practice item updated successfully');
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice item updated successfully and totals recalculated');
     return true;
     
   } catch (error) {
@@ -918,16 +1082,16 @@ async function editPracticeItem(userId, dateCollection, categoryDocId, practiceI
 }
 
 // ───────────────────────────────────────────────────────────
-// 9) Delete Individual Practice Item
+// 9) Delete Individual Practice Item - Updated to recalculate totals
 // ───────────────────────────────────────────────────────────
 
-async function deletePracticeItem(userId, dateCollection, categoryDocId, practiceId) {
+async function deletePracticeItem(userId, dailySubmissionId, categoryDocId, practiceId) {
   try {
     const categoryRef = dbFirestore
       .collection('users')
       .doc(userId)
       .collection('practice_submissions')
-      .doc(dateCollection)
+      .doc(dailySubmissionId)
       .collection('categories')
       .doc(categoryDocId);
     
@@ -947,23 +1111,41 @@ async function deletePracticeItem(userId, dateCollection, categoryDocId, practic
     if (updatedPractices.length === 0) {
       await categoryRef.delete();
       console.log('Category document deleted (no practices remaining)');
-      return true;
+    } else {
+      // Recalculate category totals
+      const categoryTotalPoints = updatedPractices.reduce((sum, p) => 
+        sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+      );
+      
+      // Update category document
+      await categoryRef.update({
+        practices: updatedPractices,
+        totalPractices: updatedPractices.length,
+        totalPoints: categoryTotalPoints,
+        lastModified: firebase.firestore.FieldValue.serverTimestamp()
+      });
     }
     
-    // Recalculate totals
-    const totalPoints = updatedPractices.reduce((sum, p) => 
-      sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
-    );
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
     
-    // Update document
-    await categoryRef.update({
-      practices: updatedPractices,
-      totalPractices: updatedPractices.length,
-      totalPoints: totalPoints,
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
       lastModified: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log('Practice item deleted successfully');
+    console.log('Practice item deleted successfully and totals recalculated');
     return true;
     
   } catch (error) {
@@ -973,15 +1155,15 @@ async function deletePracticeItem(userId, dateCollection, categoryDocId, practic
 }
 
 // ───────────────────────────────────────────────────────────
-// 10) Delete Category Practice
+// 10) Delete Category Practice - Updated to recalculate totals
 // ───────────────────────────────────────────────────────────
-async function deleteCategorySubmission(userId, dateCollection, categoryDocId) {
+async function deleteCategorySubmission(userId, dailySubmissionId, categoryDocId) {
   try {
     const categoryRef = dbFirestore
       .collection('users')
       .doc(userId)
       .collection('practice_submissions')
-      .doc(dateCollection)
+      .doc(dailySubmissionId)
       .collection('categories')
       .doc(categoryDocId);
     
@@ -995,7 +1177,26 @@ async function deleteCategorySubmission(userId, dateCollection, categoryDocId) {
     // Or hard delete (completely remove)
     // await categoryRef.delete();
     
-    console.log('Category submission deleted successfully');
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Category submission deleted successfully and totals recalculated');
     return true;
     
   } catch (error) {
@@ -1005,15 +1206,15 @@ async function deleteCategorySubmission(userId, dateCollection, categoryDocId) {
 }
 
 // ───────────────────────────────────────────────────────────
-// 11) Add Individual Practice Item To Category
+// 11) Add Individual Practice Item To Category - Updated to recalculate totals
 // ───────────────────────────────────────────────────────────
-async function addPracticeToCategory(userId, dateCollection, categoryDocId, newPractice) {
+async function addPracticeToCategory(userId, dailySubmissionId, categoryDocId, newPractice) {
   try {
     const categoryRef = dbFirestore
       .collection('users')
       .doc(userId)
       .collection('practice_submissions')
-      .doc(dateCollection)
+      .doc(dailySubmissionId)
       .collection('categories')
       .doc(categoryDocId);
     
@@ -1041,20 +1242,39 @@ async function addPracticeToCategory(userId, dateCollection, categoryDocId, newP
     
     const updatedPractices = [...practices, practiceEntry];
     
-    // Recalculate totals
-    const totalPoints = updatedPractices.reduce((sum, p) => 
+    // Recalculate category totals
+    const categoryTotalPoints = updatedPractices.reduce((sum, p) => 
       sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
     );
     
-    // Update document
+    // Update category document
     await categoryRef.update({
       practices: updatedPractices,
       totalPractices: updatedPractices.length,
-      totalPoints: totalPoints,
+      totalPoints: categoryTotalPoints,
       lastModified: firebase.firestore.FieldValue.serverTimestamp()
     });
     
-    console.log('Practice added to category successfully');
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice added to category successfully and totals recalculated');
     return true;
     
   } catch (error) {
@@ -1114,4 +1334,3 @@ function viewHistory() {
 function manageTasks() {
   window.location.href = "manage-tasks.html";
 }
-

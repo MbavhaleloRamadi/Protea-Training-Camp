@@ -388,98 +388,153 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   // ───────────────────────────────────────────────────────────
-  // 9) FETCH LEADERBOARD POSITION
-  // ───────────────────────────────────────────────────────────
-  async function fetchLeaderboardPosition(userId) {
-    try {
-      console.log("Fetching leaderboard positions...");
+// 9) FETCH LEADERBOARD POSITION - FIXED VERSION
+// ───────────────────────────────────────────────────────────
+async function fetchLeaderboardPosition(userId) {
+  try {
+    console.log("Fetching leaderboard positions for userId:", userId);
+    
+    // Get all users
+    const usersSnapshot = await dbFirestore.collection("users").get();
+    const userScores = [];
+    
+    // Process each user
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const uid = userDoc.id;
       
-      // Get all users
-      const usersSnapshot = await dbFirestore.collection("users").get();
-      const userScores = [];
+      // Skip users without necessary data or deleted users
+      if (!userData.username && !userData.fullName) {
+        console.log(`Skipping user ${uid} - no username or fullName`);
+        continue;
+      }
       
-      // Process each user
-      for (const userDoc of usersSnapshot.docs) {
-        const userData = userDoc.data();
-        const uid = userDoc.id;
+      // Skip if user is marked as deleted or inactive
+      if (userData.isDeleted === true || userData.isActive === false) {
+        console.log(`Skipping user ${uid} - marked as deleted or inactive`);
+        continue;
+      }
+      
+      let totalScore = 0;
+      
+      try {
+        // Get user's daily submissions
+        const practiceSubmissionsSnapshot = await dbFirestore
+          .collection("users")
+          .doc(uid)
+          .collection("practice_submissions")
+          .get();
         
-        // Skip users without necessary data
-        if (!userData.username && !userData.fullName) continue;
+        console.log(`User ${uid} has ${practiceSubmissionsSnapshot.docs.length} daily submissions`);
         
-        let totalScore = 0;
-        
-        try {
-          // Get user's daily submissions
-          const practiceSubmissionsSnapshot = await dbFirestore
-            .collection("users")
-            .doc(uid)
-            .collection("practice_submissions")
-            .get();
+        // Calculate total score for this user
+        for (const dailySubmissionDoc of practiceSubmissionsSnapshot.docs) {
+          const dailyData = dailySubmissionDoc.data();
           
-          // Calculate total score for this user
-          for (const dailySubmissionDoc of practiceSubmissionsSnapshot.docs) {
-            const dailyData = dailySubmissionDoc.data();
-            
-            // Skip inactive submissions
-            if (dailyData.isActive === false) continue;
-            
-            if (dailyData.totalPoints && typeof dailyData.totalPoints === 'number') {
-              // Use metadata if available
-              totalScore += dailyData.totalPoints;
-            } else {
-              // Fallback: sum from categories
-              try {
-                const categoriesSnapshot = await dbFirestore
-                  .collection("users")
-                  .doc(uid)
-                  .collection("practice_submissions")
-                  .doc(dailySubmissionDoc.id)
-                  .collection("categories")
-                  .where('isDeleted', '==', false)
-                  .get();
-                
-                categoriesSnapshot.forEach(categoryDoc => {
-                  const submission = categoryDoc.data();
-                  const submissionPoints = submission.totalPoints || 0;
-                  totalScore += submissionPoints;
-                });
-              } catch (categoryError) {
-                console.log(`Error processing categories for user ${uid}:`, categoryError);
-              }
-            }
+          // Skip inactive submissions
+          if (dailyData.isActive === false) {
+            console.log(`Skipping inactive daily submission for user ${uid}`);
+            continue;
           }
           
-        } catch (userError) {
-          console.log(`Error processing user ${uid}:`, userError);
-          continue;
+          if (dailyData.totalPoints && typeof dailyData.totalPoints === 'number') {
+            // Use metadata if available
+            totalScore += dailyData.totalPoints;
+            console.log(`Added ${dailyData.totalPoints} points from metadata for user ${uid}`);
+          } else {
+            // Fallback: sum from categories
+            try {
+              const categoriesSnapshot = await dbFirestore
+                .collection("users")
+                .doc(uid)
+                .collection("practice_submissions")
+                .doc(dailySubmissionDoc.id)
+                .collection("categories")
+                .where('isDeleted', '==', false)
+                .get();
+              
+              let dailyTotal = 0;
+              categoriesSnapshot.forEach(categoryDoc => {
+                const submission = categoryDoc.data();
+                
+                // Make sure this category submission belongs to this user
+                if (submission.userId && submission.userId !== uid) {
+                  console.log(`Skipping category - belongs to different user: ${submission.userId} vs ${uid}`);
+                  return;
+                }
+                
+                const submissionPoints = submission.totalPoints || 0;
+                dailyTotal += submissionPoints;
+              });
+              
+              totalScore += dailyTotal;
+              console.log(`Added ${dailyTotal} points from categories for user ${uid}`);
+              
+            } catch (categoryError) {
+              console.log(`Error processing categories for user ${uid}:`, categoryError);
+            }
+          }
         }
         
-        // Add to scores array
+      } catch (userError) {
+        console.log(`Error processing user ${uid}:`, userError);
+        continue;
+      }
+      
+      // Only add users with valid scores to the leaderboard
+      if (totalScore >= 0) {
         userScores.push({
           uid,
           name: userData.username || userData.fullName,
           score: totalScore
         });
+        
+        console.log(`User ${uid} (${userData.username || userData.fullName}) has total score: ${totalScore}`);
       }
-      
-      // Sort by score (descending)
-      userScores.sort((a, b) => b.score - a.score);
-      
-      console.log("Leaderboard scores:", userScores.slice(0, 10)); // Log top 10 for debugging
-      
-      // Find current user's position
-      const userPosition = userScores.findIndex(user => user.uid === userId) + 1;
-      
-      // Update UI
-      updateLeaderboardPosition(userPosition);
-      
-      console.log("User position:", userPosition);
-      
-    } catch (error) {
-      console.error("Error fetching leaderboard position:", error);
-      updateLeaderboardPosition(0);
     }
+    
+    // Sort by score (descending) - users with same score will maintain their relative order
+    userScores.sort((a, b) => {
+      if (b.score !== a.score) {
+        return b.score - a.score;
+      }
+      // If scores are equal, sort by name for consistency
+      return a.name.localeCompare(b.name);
+    });
+    
+    console.log("Final leaderboard (top 10):", userScores.slice(0, 10));
+    
+    // Find current user's position
+    const userPosition = userScores.findIndex(user => user.uid === userId) + 1;
+    
+    // Double-check: log the current user's score and position
+    const currentUserData = userScores.find(user => user.uid === userId);
+    if (currentUserData) {
+      console.log(`Current user (${currentUserData.name}) score: ${currentUserData.score}, position: ${userPosition}`);
+      
+      // Log users around current user's position for context
+      const start = Math.max(0, userPosition - 3);
+      const end = Math.min(userScores.length, userPosition + 2);
+      console.log("Users around current user's position:", userScores.slice(start, end));
+    } else {
+      console.log("Current user not found in leaderboard");
+    }
+    
+    // Update UI
+    updateLeaderboardPosition(userPosition);
+    
+    console.log("Final user position:", userPosition);
+    
+  } catch (error) {
+    console.error("Error fetching leaderboard position:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    updateLeaderboardPosition(0);
   }
+}
 
   // ───────────────────────────────────────────────────────────
   // 10) UPDATE LEADERBOARD POSITION DISPLAY
