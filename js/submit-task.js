@@ -563,8 +563,42 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ───────────────────────────────────────────────────────────
-// 7) Submit handler
+// 7) Submit handler with Daily Submission ID
 // ───────────────────────────────────────────────────────────
+
+// Helper function to generate or retrieve daily submission ID
+async function getDailySubmissionId(userId, currentDate) {
+  try {
+    // Check if daily submission ID already exists for today
+    const dailySubmissionRef = dbFirestore
+      .collection('daily_submissions')
+      .doc(currentDate);
+    
+    const dailySubmissionDoc = await dailySubmissionRef.get();
+    
+    if (dailySubmissionDoc.exists) {
+      // Return existing submission ID
+      return dailySubmissionDoc.data().submissionId;
+    } else {
+      // Generate new daily submission ID
+      const newSubmissionId = `SUB_${currentDate.replace(/-/g, '')}_${Date.now()}_${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      
+      // Store the daily submission ID
+      await dailySubmissionRef.set({
+        submissionId: newSubmissionId,
+        date: currentDate,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdBy: userId
+      });
+      
+      return newSubmissionId;
+    }
+  } catch (error) {
+    console.error("Error getting daily submission ID:", error);
+    // Fallback to generating a simple ID
+    return `SUB_${currentDate.replace(/-/g, '')}_${Date.now()}`;
+  }
+}
 
 if (submitForm) {
   console.log("Submit form found, attaching event listener");
@@ -605,6 +639,9 @@ if (submitForm) {
       // Define the current date in YYYY-MM-DD format
       const currentDate = new Date().toISOString().split('T')[0];
       
+      // Get or generate daily submission ID
+      const dailySubmissionId = await getDailySubmissionId(userId, currentDate);
+      
       // Create a batch for Firestore operations
       const firestoreBatch = dbFirestore.batch();
       
@@ -617,11 +654,6 @@ if (submitForm) {
       
       // Group practices by category first
       const submissionBasketId = `${currentDate}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const dateCollectionName = new Date().toLocaleDateString('en-GB', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric'
-      }).replace(/ /g, '_').toUpperCase();
 
       const practicesByCategory = selectedPractices.reduce((acc, practice, index) => {
         const categoryKey = practice.category.toLowerCase();
@@ -658,54 +690,88 @@ if (submitForm) {
 
         // Category submission data for Firestore
         const firestoreSubmissionData = {
+          // User Information
           username: username,
           golferName: username,
+          userId: userId,
+          
+          // Date and ID Information
           date: currentDate,
+          dailySubmissionId: dailySubmissionId,
+          submissionBasketId: submissionBasketId,
+          
+          // Category Information
           category: categoryKey,
           categoryDisplayName: categoryData.categoryDisplayName,
-          submissionBasketId: submissionBasketId,
+          
+          // Practice Data
           practices: practicesArray,
           totalPractices: practicesArray.length,
           totalPoints: practicesArray.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
+          
+          // Timestamps
           submittedAt: firestoreTimestamp,
           lastModified: firestoreTimestamp,
           timestamp: Date.now(),
+          
+          // Status Fields
           isDeleted: false,
           canEdit: true, // Allow editing after submission
-          canDelete: true // Allow deletion after submission
+          canDelete: true, // Allow deletion after submission
+          
+          // Metadata
+          submissionType: 'practice',
+          version: '1.0'
         };
 
         // Category submission data for Realtime Database
         const realtimeSubmissionData = {
+          // User Information
           username: username,
           golferName: username,
+          userId: userId,
+          
+          // Date and ID Information
           date: currentDate,
+          dailySubmissionId: dailySubmissionId,
+          submissionBasketId: submissionBasketId,
+          
+          // Category Information
           category: categoryKey,
           categoryDisplayName: categoryData.categoryDisplayName,
-          submissionBasketId: submissionBasketId,
+          
+          // Practice Data
           practices: practicesArray,
           totalPractices: practicesArray.length,
           totalPoints: practicesArray.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
+          
+          // Timestamps
           submittedAt: realtimeTimestamp,
           lastModified: realtimeTimestamp,
           timestamp: Date.now(),
+          
+          // Status Fields
           isDeleted: false,
           canEdit: true,
-          canDelete: true
+          canDelete: true,
+          
+          // Metadata
+          submissionType: 'practice',
+          version: '1.0'
         };
 
-        // Create Firestore document reference
+        // Create Firestore document reference using daily submission ID
         const firestoreRef = dbFirestore
           .collection('users')
           .doc(userId)
           .collection('practice_submissions')
-          .doc(dateCollectionName)
+          .doc(dailySubmissionId)  // Use daily submission ID instead of date format
           .collection('categories')
           .doc(categoryDocId);
 
-        // Create Realtime Database reference
+        // Create Realtime Database reference using daily submission ID  
         const realtimeRef = dbRealtime
-          .ref(`users/${userId}/practice_submissions/${dateCollectionName}/categories/${categoryDocId}`);
+          .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/categories/${categoryDocId}`);
 
         // Add to Firestore batch
         firestoreBatch.set(firestoreRef, firestoreSubmissionData);
@@ -713,6 +779,37 @@ if (submitForm) {
         // Add to Realtime Database promises
         realtimePromises.push(realtimeRef.set(realtimeSubmissionData));
       }
+
+      // Also store daily submission metadata
+      const dailySubmissionMetadata = {
+        dailySubmissionId: dailySubmissionId,
+        date: currentDate,
+        userId: userId,
+        username: username,
+        totalCategories: Object.keys(practicesByCategory).length,
+        totalPractices: selectedPractices.length,
+        totalPoints: selectedPractices.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
+        submittedAt: firestoreTimestamp,
+        lastModified: firestoreTimestamp,
+        isActive: true
+      };
+
+      // Add metadata to both databases
+      const metadataFirestoreRef = dbFirestore
+        .collection('users')
+        .doc(userId)
+        .collection('practice_submissions')
+        .doc(dailySubmissionId);
+
+      const metadataRealtimeRef = dbRealtime
+        .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/metadata`);
+
+      firestoreBatch.set(metadataFirestoreRef, dailySubmissionMetadata);
+      realtimePromises.push(metadataRealtimeRef.set({
+        ...dailySubmissionMetadata,
+        submittedAt: realtimeTimestamp,
+        lastModified: realtimeTimestamp
+      }));
 
       // Execute both database operations
       console.log("Executing Firestore batch...");
@@ -722,9 +819,10 @@ if (submitForm) {
       await Promise.all(realtimePromises);
 
       console.log("All database operations completed successfully");
+      console.log("Daily Submission ID:", dailySubmissionId);
 
-      // Show success message
-      showConfirmation(`Successfully submitted!`, "green");
+      // Show success message with submission ID
+      showConfirmation(`Successfully submitted! Submission ID: ${dailySubmissionId}`, "green");
 
       // Clear selected practices
       selectedPractices = [];
@@ -753,8 +851,7 @@ if (submitForm) {
   });
 } else {
   console.error("Submit form element not found! Check your HTML for the form with ID 'submitTaskForm'");
-}
-});
+}});
 
 // ───────────────────────────────────────────────────────────
 // 8) Edit Individual Practice Item
