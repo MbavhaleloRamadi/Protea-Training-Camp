@@ -751,23 +751,46 @@ if (submitForm) {
       }, {});
 
       // Process each category
-      for (const [categoryKey, categoryData] of Object.entries(practicesByCategory)) {
-        // Create category document ID with timestamp to avoid overwriting
-        const categoryDocId = `${submissionBasketId}_${categoryKey}_${Date.now()}`;
+for (const [categoryKey, categoryData] of Object.entries(practicesByCategory)) {
+  // Create category document ID with timestamp to avoid overwriting
+  const categoryDocId = `${submissionBasketId}_${categoryKey}_${Date.now()}`;
 
-        // Prepare practices array for this category
-        const practicesArray = categoryData.practices.map((practice, index) => ({
-          id: `practice_${index + 1}`, // Unique ID within category for editing/deleting
-          practiceItem: practice.id || practice.name.toLowerCase().replace(/\s+/g, '_'),
-          practiceDescription: practice.name,
-          points: practice.points,
-          isDoublePoints: practice.isDoublePoints || false,
-          submissionOrder: practice.originalIndex + 1,
-          addedAt: Date.now(),
-          isEdited: false,
-          editHistory: []
-        }));
-
+  // Prepare practices array for this category with full details
+  const practicesArray = categoryData.practices.map((practice, index) => {
+    // Look up the full practice details from practicesData
+    let fullPracticeData = null;
+    
+    // Find the practice in practicesData by matching the name
+    if (practicesData[categoryData.categoryDisplayName]) {
+      fullPracticeData = practicesData[categoryData.categoryDisplayName].find(
+        p => p.name === practice.name || p.name === practice.id
+      );
+    }
+    
+    // If not found, try searching all categories (fallback)
+    if (!fullPracticeData) {
+      for (const [catName, practices] of Object.entries(practicesData)) {
+        fullPracticeData = practices.find(p => p.name === practice.name || p.name === practice.id);
+        if (fullPracticeData) break;
+      }
+    }
+    
+    return {
+      id: `practice_${index + 1}`, // Unique ID within category for editing/deleting
+      practiceItem: practice.id || practice.name.toLowerCase().replace(/\s+/g, '_'),
+      name: fullPracticeData?.name || practice.name, // Store the practice name
+      description: fullPracticeData?.description || practice.name, // Store the full description
+      practiceDescription: fullPracticeData?.description || practice.name, // Backward compatibility
+      points: fullPracticeData?.points || practice.points,
+      isDoublePoints: practice.isDoublePoints || false,
+      submissionOrder: practice.originalIndex + 1,
+      addedAt: Date.now(),
+      isEdited: false,
+      editHistory: [],
+      // Store original practice data for reference
+      originalPracticeData: fullPracticeData
+    };
+  });
         // Category submission data for Firestore
         const firestoreSubmissionData = {
           // User Information
