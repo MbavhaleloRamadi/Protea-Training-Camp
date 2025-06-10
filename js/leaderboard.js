@@ -142,8 +142,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   
 
-   // ───────────────────────────────────────────────────────────
-// 6) DATA PROCESSING - FIXED VERSION FOR NEW PRACTICE SUBMISSIONS STRUCTURE
+// ───────────────────────────────────────────────────────────
+// 6) DATA PROCESSING - FIXED VERSION FOR CUMULATIVE ALL-TIME SCORES
 // ───────────────────────────────────────────────────────────
 function processLeaderboardData(usersData) {
   // Convert users data to array for sorting
@@ -163,16 +163,19 @@ function processLeaderboardData(usersData) {
     
     // Check the practice_submissions structure
     if (userData.practice_submissions) {
+      let hasMetadata = false;
       let mostRecentMetadata = null;
       let mostRecentTimestamp = 0;
       
-      // Go through each daily submission to find the most recent metadata
+      // Find the most recent submission document (it contains the updated cumulative total)
       Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
         const dailySubmission = userData.practice_submissions[dailySubmissionId];
         
         // Check for metadata at the correct level
         if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
-          // Get submission timestamp
+          hasMetadata = true;
+          
+          // Get submission timestamp to find the newest document
           let submissionTime = 0;
           if (dailySubmission.metadata.lastSubmissionAt) {
             submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
@@ -180,7 +183,7 @@ function processLeaderboardData(usersData) {
               : dailySubmission.metadata.lastSubmissionAt;
           }
           
-          // Keep track of the most recent metadata
+          // Keep the most recent submission's metadata (it has the updated cumulative total)
           if (submissionTime > mostRecentTimestamp) {
             mostRecentTimestamp = submissionTime;
             mostRecentMetadata = dailySubmission.metadata;
@@ -189,14 +192,14 @@ function processLeaderboardData(usersData) {
         }
       });
       
-      // Use the most recent metadata if found
+      // Use the most recent submission's cumulative totals
       if (mostRecentMetadata) {
-        totalScore = mostRecentMetadata.userTotalPoints;
+        totalScore = mostRecentMetadata.userTotalPoints || 0;
         roundsPlayed = mostRecentMetadata.userTotalPractices || 0;
       }
       
       // FIXED: Only calculate from categories if no metadata was found at all
-      if (totalScore === 0 && !mostRecentMetadata) {
+      if (!hasMetadata) {
         Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
           const dailySubmission = userData.practice_submissions[dailySubmissionId];
           
@@ -281,7 +284,7 @@ function processLeaderboardData(usersData) {
   // Render sorted leaderboard
   renderLeaderboard(leaderboardEntries);
 }
-  
+
     // ───────────────────────────────────────────────────────────
     // 7) RENDER LEADERBOARD - UPDATED FOR GOLF DISPLAY
     // ───────────────────────────────────────────────────────────
