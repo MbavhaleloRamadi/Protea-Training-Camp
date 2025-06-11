@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
 
 // ───────────────────────────────────────────────────────────
-// 6) DATA PROCESSING - FIXED VERSION FOR CUMULATIVE ALL-TIME SCORES
+// SIMPLIFIED LEADERBOARD PROCESSING - Using totalUserScore field
 // ───────────────────────────────────────────────────────────
 function processLeaderboardData(usersData) {
   // Convert users data to array for sorting
@@ -161,95 +161,146 @@ function processLeaderboardData(usersData) {
     let roundsPlayed = 0;
     let latestSubmissionTime = 0;
     
-    // Check the practice_submissions structure
-    if (userData.practice_submissions) {
-      let hasMetadata = false;
-      let mostRecentMetadata = null;
-      let mostRecentTimestamp = 0;
+    // NEW: Check for totalUserScore field first (this is our primary source)
+    if (userData.practice_submissions && userData.practice_submissions.totalUserScore !== undefined) {
+      totalScore = userData.practice_submissions.totalUserScore || 0;
       
-      // Find the most recent submission document (it contains the updated cumulative total)
+      // Still need to calculate rounds played and latest submission time for sorting
       Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+        // Skip the totalUserScore field itself
+        if (dailySubmissionId === 'totalUserScore') return;
+        
         const dailySubmission = userData.practice_submissions[dailySubmissionId];
         
-        // Check for metadata at the correct level
-        if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
-          hasMetadata = true;
+        // Get rounds played from metadata if available
+        if (dailySubmission.metadata) {
+          roundsPlayed += dailySubmission.metadata.totalPractices || 0;
           
-          // Get submission timestamp to find the newest document
-          let submissionTime = 0;
+          // Track latest submission time for tiebreaker
           if (dailySubmission.metadata.lastSubmissionAt) {
-            submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
+            const submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
               ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
               : dailySubmission.metadata.lastSubmissionAt;
+            
+            if (submissionTime > latestSubmissionTime) {
+              latestSubmissionTime = submissionTime;
+            }
           }
-          
-          // Keep the most recent submission's metadata (it has the updated cumulative total)
-          if (submissionTime > mostRecentTimestamp) {
-            mostRecentTimestamp = submissionTime;
-            mostRecentMetadata = dailySubmission.metadata;
-            latestSubmissionTime = submissionTime;
-          }
-        }
-      });
-      
-      // Use the most recent submission's cumulative totals
-      if (mostRecentMetadata) {
-        totalScore = mostRecentMetadata.userTotalPoints || 0;
-        roundsPlayed = mostRecentMetadata.userTotalPractices || 0;
-      }
-      
-      // FIXED: Only calculate from categories if no metadata was found at all
-      if (!hasMetadata) {
-        Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-          const dailySubmission = userData.practice_submissions[dailySubmissionId];
-          
+        } else {
+          // Fallback: count from categories if no metadata
           if (dailySubmission.categories) {
             Object.keys(dailySubmission.categories).forEach(categoryId => {
               const category = dailySubmission.categories[categoryId];
               
               if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
+                roundsPlayed += category.practices.length;
+                
+                // Track latest submission time
                 category.practices.forEach(practice => {
-                  if (practice.points !== undefined) {
-                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
-                    totalScore += parseInt(points) || 0;
-                    roundsPlayed++;
-                    
-                    // Track latest submission time for tiebreaker
-                    if (practice.addedAt) {
-                      const submissionTime = parseInt(practice.addedAt) || 0;
-                      if (submissionTime > latestSubmissionTime) {
-                        latestSubmissionTime = submissionTime;
-                      }
+                  if (practice.addedAt) {
+                    const submissionTime = parseInt(practice.addedAt) || 0;
+                    if (submissionTime > latestSubmissionTime) {
+                      latestSubmissionTime = submissionTime;
                     }
                   }
                 });
               }
             });
           }
+        }
+      });
+    } else {
+      // FALLBACK: Use the complex calculation if totalUserScore doesn't exist yet
+      console.log(`User ${userData.username} doesn't have totalUserScore, using fallback calculation`);
+      
+      if (userData.practice_submissions) {
+        let hasMetadata = false;
+        let mostRecentMetadata = null;
+        let mostRecentTimestamp = 0;
+        
+        // Find the most recent submission document
+        Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+          const dailySubmission = userData.practice_submissions[dailySubmissionId];
+          
+          // Check for metadata at the correct level
+          if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
+            hasMetadata = true;
+            
+            // Get submission timestamp to find the newest document
+            let submissionTime = 0;
+            if (dailySubmission.metadata.lastSubmissionAt) {
+              submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
+                ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
+                : dailySubmission.metadata.lastSubmissionAt;
+            }
+            
+            // Keep the most recent submission's metadata
+            if (submissionTime > mostRecentTimestamp) {
+              mostRecentTimestamp = submissionTime;
+              mostRecentMetadata = dailySubmission.metadata;
+              latestSubmissionTime = submissionTime;
+            }
+          }
         });
-      }
-    }
-    
-    // Fallback: Check old task_submissions structure for backward compatibility
-    if (totalScore === 0 && userData.task_submissions) {
-      Object.values(userData.task_submissions).forEach(submission => {
-        if (submission.practices && Array.isArray(submission.practices)) {
-          submission.practices.forEach(practice => {
-            if (practice.points !== undefined) {
-              totalScore += parseInt(practice.points) || 0;
-              roundsPlayed++;
-              
-              // Keep track of the latest submission time for tiebreaker
-              if (practice.submissionTime) {
-                const submissionTime = parseInt(practice.submissionTime) || 0;
-                if (submissionTime > latestSubmissionTime) {
-                  latestSubmissionTime = submissionTime;
+        
+        // Use the most recent submission's cumulative totals
+        if (mostRecentMetadata) {
+          totalScore = mostRecentMetadata.userTotalPoints || 0;
+          roundsPlayed = mostRecentMetadata.userTotalPractices || 0;
+        }
+        
+        // Calculate from categories if no metadata was found
+        if (!hasMetadata) {
+          Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+            const dailySubmission = userData.practice_submissions[dailySubmissionId];
+            
+            if (dailySubmission.categories) {
+              Object.keys(dailySubmission.categories).forEach(categoryId => {
+                const category = dailySubmission.categories[categoryId];
+                
+                if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
+                  category.practices.forEach(practice => {
+                    if (practice.points !== undefined) {
+                      const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                      totalScore += parseInt(points) || 0;
+                      roundsPlayed++;
+                      
+                      // Track latest submission time for tiebreaker
+                      if (practice.addedAt) {
+                        const submissionTime = parseInt(practice.addedAt) || 0;
+                        if (submissionTime > latestSubmissionTime) {
+                          latestSubmissionTime = submissionTime;
+                        }
+                      }
+                    }
+                  });
                 }
-              }
+              });
             }
           });
         }
-      });
+      }
+      
+      // Final fallback: Check old task_submissions structure
+      if (totalScore === 0 && userData.task_submissions) {
+        Object.values(userData.task_submissions).forEach(submission => {
+          if (submission.practices && Array.isArray(submission.practices)) {
+            submission.practices.forEach(practice => {
+              if (practice.points !== undefined) {
+                totalScore += parseInt(practice.points) || 0;
+                roundsPlayed++;
+                
+                if (practice.submissionTime) {
+                  const submissionTime = parseInt(practice.submissionTime) || 0;
+                  if (submissionTime > latestSubmissionTime) {
+                    latestSubmissionTime = submissionTime;
+                  }
+                }
+              }
+            });
+          }
+        });
+      }
     }
     
     // Format the score for display
@@ -262,7 +313,8 @@ function processLeaderboardData(usersData) {
       rawScore: totalScore,
       displayScore: formattedScore,
       roundsPlayed: roundsPlayed,
-      latestSubmissionTime: latestSubmissionTime
+      latestSubmissionTime: latestSubmissionTime,
+      hasTotalUserScore: userData.practice_submissions?.totalUserScore !== undefined // For debugging
     });
   });
   
@@ -281,8 +333,130 @@ function processLeaderboardData(usersData) {
     return a.latestSubmissionTime - b.latestSubmissionTime;
   });
   
+  // Log summary for debugging
+  console.log("Leaderboard Summary:");
+  console.log(`Total users: ${leaderboardEntries.length}`);
+  console.log(`Users with totalUserScore: ${leaderboardEntries.filter(u => u.hasTotalUserScore).length}`);
+  console.log(`Users using fallback: ${leaderboardEntries.filter(u => !u.hasTotalUserScore).length}`);
+  
   // Render sorted leaderboard
   renderLeaderboard(leaderboardEntries);
+}
+
+// ───────────────────────────────────────────────────────────
+// HELPER FUNCTION: Initialize totalUserScore for existing users (run once)
+// ───────────────────────────────────────────────────────────
+async function initializeTotalUserScores() {
+  try {
+    console.log("Starting totalUserScore initialization for existing users...");
+    
+    // Get all users from Firestore
+    const usersSnapshot = await dbFirestore.collection('users').get();
+    let processedCount = 0;
+    let skippedCount = 0;
+    
+    for (const userDoc of usersSnapshot.docs) {
+      const userData = userDoc.data();
+      const userId = userDoc.id;
+      
+      // Skip if totalUserScore already exists
+      if (userData.practice_submissions?.totalUserScore !== undefined) {
+        skippedCount++;
+        continue;
+      }
+      
+      let totalScore = 0;
+      
+      // Calculate total from existing practice submissions
+      if (userData.practice_submissions) {
+        Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+          const dailySubmission = userData.practice_submissions[dailySubmissionId];
+          
+          // Check for metadata first (most reliable)
+          if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
+            totalScore = dailySubmission.metadata.userTotalPoints;
+            return; // Use the most recent total
+          }
+          
+          // Fallback to category calculation
+          if (dailySubmission.categories) {
+            Object.keys(dailySubmission.categories).forEach(categoryId => {
+              const category = dailySubmission.categories[categoryId];
+              
+              if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
+                category.practices.forEach(practice => {
+                  if (practice.points !== undefined) {
+                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                    totalScore += parseInt(points) || 0;
+                  }
+                });
+              }
+            });
+          }
+        });
+      }
+      
+      // Update both databases
+      await dbFirestore.collection('users').doc(userId).update({
+        'practice_submissions.totalUserScore': totalScore
+      });
+      
+      await dbRealtime.ref(`users/${userId}/practice_submissions/totalUserScore`).set(totalScore);
+      
+      processedCount++;
+      console.log(`Initialized totalUserScore for ${userData.username || userId}: ${totalScore}`);
+    }
+    
+    console.log(`Initialization complete! Processed: ${processedCount}, Skipped: ${skippedCount}`);
+  } catch (error) {
+    console.error('Error initializing totalUserScores:', error);
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// HELPER FUNCTION: Verify totalUserScore accuracy (for debugging)
+// ───────────────────────────────────────────────────────────
+async function verifyTotalUserScore(userId) {
+  try {
+    const userDoc = await dbFirestore.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    const storedTotal = userData.practice_submissions?.totalUserScore || 0;
+    
+    // Calculate actual total
+    let calculatedTotal = 0;
+    if (userData.practice_submissions) {
+      Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+        if (dailySubmissionId === 'totalUserScore') return;
+        
+        const dailySubmission = userData.practice_submissions[dailySubmissionId];
+        if (dailySubmission.categories) {
+          Object.keys(dailySubmission.categories).forEach(categoryId => {
+            const category = dailySubmission.categories[categoryId];
+            
+            if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
+              category.practices.forEach(practice => {
+                if (practice.points !== undefined) {
+                  const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                  calculatedTotal += parseInt(points) || 0;
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+    
+    console.log(`User ${userData.username || userId}:`);
+    console.log(`  Stored totalUserScore: ${storedTotal}`);
+    console.log(`  Calculated total: ${calculatedTotal}`);
+    console.log(`  Match: ${storedTotal === calculatedTotal ? 'YES' : 'NO'}`);
+    
+    return storedTotal === calculatedTotal;
+  } catch (error) {
+    console.error('Error verifying totalUserScore:', error);
+    return false;
+  }
 }
 
     // ───────────────────────────────────────────────────────────

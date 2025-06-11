@@ -78,288 +78,361 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // ───────────────────────────────────────────────────────────
-    // 4) FETCH USER SUBMISSIONS DATA
-    // ───────────────────────────────────────────────────────────
-    async function fetchUserSubmissions(userId) {
-      try {
-        const userSubmissionsRef = db.collection("users").doc(userId).collection("practice_submissions");
-        const snapshot = await userSubmissionsRef.orderBy("submittedAt", "desc").get();
+// 4) FETCH USER SUBMISSIONS DATA - UPDATED FOR NEW STRUCTURE
+// ───────────────────────────────────────────────────────────
+async function fetchUserSubmissions(userId) {
+  try {
+    const userSubmissionsRef = db.collection("users").doc(userId).collection("practice_submissions");
+    const snapshot = await userSubmissionsRef.orderBy("date", "desc").get();
+    
+    if (snapshot.empty) {
+      console.log("No practice submissions found");
+      document.querySelector('.history-container').classList.add('hidden');
+      document.getElementById('emptyState').classList.remove('hidden');
+      return;
+    }
+    
+    const submissions = [];
+    
+    for (const doc of snapshot.docs) {
+      const submissionData = doc.data();
+      console.log("Processing submission:", doc.id, submissionData);
+      
+      // Check if this is a metadata document (has dailySubmissionId field)
+      if (!submissionData.dailySubmissionId) {
+        console.log("Skipping non-metadata document:", doc.id);
+        continue;
+      }
+      
+      // Get categories for this daily submission
+      const categoriesSnapshot = await doc.ref.collection("categories").get();
+      const categories = [];
+      
+      for (const catDoc of categoriesSnapshot.docs) {
+        const categoryData = catDoc.data();
         
-        if (snapshot.empty) {
-          console.log("No practice submissions found");
-          document.querySelector('.history-container').classList.add('hidden');
-          document.getElementById('emptyState').classList.remove('hidden');
-          return;
+        // Skip deleted categories
+        if (categoryData.isDeleted) {
+          continue;
         }
         
-        const submissions = [];
+        const practices = categoryData.practices || [];
         
-        for (const doc of snapshot.docs) {
-          const submissionData = doc.data();
-          console.log("Processing submission:", doc.id, submissionData);
-          
-          // Get categories for this submission
-          const categoriesSnapshot = await doc.ref.collection("categories").get();
-          const categories = [];
-          
-          for (const catDoc of categoriesSnapshot.docs) {
-            const categoryData = catDoc.data();
-            const practices = categoryData.practices || [];
-            
-            categories.push({
-              id: catDoc.id,
-              name: categoryData.categoryDisplayName || categoryData.category,
-              practices: practices,
-              totalPoints: categoryData.totalPoints || 0,
-              totalPractices: categoryData.totalPractices || practices.length
-            });
-          }
-          
-          const submission = {
-            id: doc.id,
-            date: submissionData.date,
-            submittedAt: submissionData.submittedAt,
-            totalCategories: submissionData.totalCategories || categories.length,
-            totalPoints: submissionData.totalPoints || 0,
-            totalPractices: submissionData.totalPractices || 0,
-            categories: categories,
-            categorySummary: categories.map(cat => cat.name).join(", ")
-          };
-          
-          submissions.push(submission);
-        }
-        
-        if (submissions.length === 0) {
-          document.querySelector('.history-container').classList.add('hidden');
-          document.getElementById('emptyState').classList.remove('hidden');
-        } else {
-          allSubmissions = submissions;
-          filteredSubmissions = [...allSubmissions];
-          initializePage(submissions);
-        }
-        
-      } catch (error) {
-        console.error("Error fetching submissions:", error);
-        document.querySelector('.history-container').innerHTML = `
-          <div class="error-message">
-            <h2>Error Loading Data</h2>
-            <p>Could not load your practice history. Please try again later.</p>
-            <p>Error: ${error.message}</p>
-            <button class="back-button" onclick="window.location.reload()">
-              <i class="fas fa-sync"></i> Retry
+        categories.push({
+          id: catDoc.id,
+          name: categoryData.categoryDisplayName || categoryData.category,
+          categoryKey: categoryData.category,
+          practices: practices,
+          totalPoints: categoryData.totalPoints || 0,
+          totalPractices: categoryData.totalPractices || practices.length,
+          submittedAt: categoryData.submittedAt,
+          lastModified: categoryData.lastModified
+        });
+      }
+      
+      // Create submission object from metadata + categories
+      const submission = {
+        id: doc.id,
+        dailySubmissionId: submissionData.dailySubmissionId,
+        date: submissionData.date,
+        submittedAt: submissionData.submittedAt || submissionData.createdAt,
+        lastModified: submissionData.lastModified,
+        totalCategories: submissionData.totalCategories || categories.length,
+        totalPoints: submissionData.totalPoints || 0,
+        totalPractices: submissionData.totalPractices || 0,
+        userTotalPoints: submissionData.userTotalPoints || 0,
+        userTotalPractices: submissionData.userTotalPractices || 0,
+        categories: categories,
+        categorySummary: categories.map(cat => cat.name).join(", "),
+        isActive: submissionData.isActive !== false // Default to true if not specified
+      };
+      
+      // Only add submissions that have categories or are explicitly marked as active
+      if (categories.length > 0 || submission.isActive) {
+        submissions.push(submission);
+      }
+    }
+    
+    if (submissions.length === 0) {
+      console.log("No valid submissions found after processing");
+      document.querySelector('.history-container').classList.add('hidden');
+      document.getElementById('emptyState').classList.remove('hidden');
+    } else {
+      console.log(`Found ${submissions.length} valid submissions`);
+      allSubmissions = submissions;
+      filteredSubmissions = [...allSubmissions];
+      initializePage(submissions);
+    }
+    
+  } catch (error) {
+    console.error("Error fetching submissions:", error);
+    document.querySelector('.history-container').innerHTML = `
+      <div class="error-message">
+        <h2>Error Loading Data</h2>
+        <p>Could not load your practice history. Please try again later.</p>
+        <p>Error: ${error.message}</p>
+        <button class="back-button" onclick="window.location.reload()">
+          <i class="fas fa-sync"></i> Retry
+        </button>
+      </div>
+    `;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 5) INITIALIZE PAGE FUNCTIONS - UPDATED FOR NEW DATA STRUCTURE
+// ───────────────────────────────────────────────────────────
+function initializePage(data) {
+  updateStats(data);
+  populateMostPracticed(data);
+  populateSubmissionsTimeline(data);
+  setupFilters(data);
+  setupExportButtons(data);
+}
+
+function updateStats(data) {
+  const totalSubmissions = data.length;
+  
+  // Calculate total practices from metadata (more accurate)
+  const totalPractices = data.reduce((sum, submission) => sum + (submission.totalPractices || 0), 0);
+  
+  document.getElementById('totalPractices').textContent = totalPractices;
+  
+  let currentStreak = calculateCurrentStreak(data);
+  document.getElementById('currentStreak').textContent = currentStreak;
+  
+  let longestStreak = calculateLongestStreak(data);
+  document.getElementById('longestStreak').textContent = longestStreak;
+  
+  // Update the stat card titles to be more accurate
+  document.querySelector('.stat-card h3').textContent = 'Total Practices';
+  document.querySelector('.stat-card .stat-detail').textContent = 'Individual practices completed';
+  
+  console.log(`Stats updated: ${totalPractices} practices, ${currentStreak} current streak, ${longestStreak} longest streak`);
+}
+
+function calculateCurrentStreak(data) {
+  if (data.length === 0) return 0;
+  
+  const sortedData = [...data].sort((a, b) => 
+    new Date(b.date) - new Date(a.date)
+  );
+  
+  let streak = 0;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  // Start from the most recent date
+  for (let i = 0; i < sortedData.length; i++) {
+    const submissionDate = new Date(sortedData[i].date);
+    submissionDate.setHours(0, 0, 0, 0);
+    
+    let expectedDate;
+    if (i === 0) {
+      // First submission should be today or yesterday
+      expectedDate = new Date(today);
+      const daysDiff = Math.floor((today - submissionDate) / (1000 * 60 * 60 * 24));
+      if (daysDiff > 1) {
+        break; // Gap too large, no current streak
+      }
+      streak = 1;
+    } else {
+      // Subsequent submissions should be consecutive days
+      const prevDate = new Date(sortedData[i - 1].date);
+      prevDate.setHours(0, 0, 0, 0);
+      expectedDate = new Date(prevDate - 24 * 60 * 60 * 1000); // Previous day
+      
+      if (submissionDate.getTime() === expectedDate.getTime()) {
+        streak++;
+      } else {
+        break; // Streak broken
+      }
+    }
+  }
+  
+  return streak;
+}
+
+function calculateLongestStreak(data) {
+  if (data.length === 0) return 0;
+  
+  const sortedData = [...data].sort((a, b) => 
+    new Date(a.date) - new Date(b.date)
+  );
+  
+  let currentStreak = 1;
+  let maxStreak = 1;
+  
+  for (let i = 0; i < sortedData.length - 1; i++) {
+    const currentDate = new Date(sortedData[i].date);
+    currentDate.setHours(0, 0, 0, 0);
+    const nextDate = new Date(sortedData[i + 1].date);
+    nextDate.setHours(0, 0, 0, 0);
+    
+    const diffDays = Math.floor((nextDate - currentDate) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 1) {
+      currentStreak++;
+      maxStreak = Math.max(maxStreak, currentStreak);
+    } else {
+      currentStreak = 1;
+    }
+  }
+  
+  return maxStreak;
+}
+
+function populateMostPracticed(data) {
+  const container = document.getElementById('mostPracticedContainer');
+  container.innerHTML = '';
+  
+  const categoryCount = {};
+  const categoryPoints = {};
+  
+  // Count category occurrences and total points
+  data.forEach(submission => {
+    submission.categories.forEach(category => {
+      const categoryName = category.name;
+      categoryCount[categoryName] = (categoryCount[categoryName] || 0) + 1;
+      categoryPoints[categoryName] = (categoryPoints[categoryName] || 0) + (category.totalPoints || 0);
+    });
+  });
+  
+  const sortedCategories = Object.entries(categoryCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5); // Show top 5 instead of 3
+  
+  const totalSubmissions = data.length;
+  const categoriesToShow = sortedCategories.filter(c => c[1] >= 1); // Show categories with at least 1 submission
+  
+  if (categoriesToShow.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 20px;">
+        <p>No categories have been practiced yet.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  categoriesToShow.forEach(([categoryName, count]) => {
+    const percentage = Math.round((count / totalSubmissions) * 100);
+    const totalPoints = categoryPoints[categoryName] || 0;
+    
+    const categoryEl = document.createElement('div');
+    categoryEl.className = 'practice-progress';
+    categoryEl.innerHTML = `
+      <h3>${categoryName}</h3>
+      <div class="progress-bar-container">
+        <div class="progress-bar" style="width: ${Math.min(percentage, 100)}%"></div>
+        <span class="progress-text">${count} times (${totalPoints} pts)</span>
+      </div>
+    `;
+    
+    container.appendChild(categoryEl);
+  });
+}
+
+// ───────────────────────────────────────────────────────────
+// 6) SUBMISSIONS TIMELINE - UPDATED FOR NEW STRUCTURE
+// ───────────────────────────────────────────────────────────
+function populateSubmissionsTimeline(data, filterType = 'all', startDate = null, endDate = null) {
+  const container = document.getElementById('timelineContainer');
+  container.innerHTML = '';
+  
+  // Filter data based on parameters
+  let filteredData = [...data];
+  
+  if (filterType !== 'all') {
+    filteredData = filteredData.filter(submission => 
+      submission.categories.some(cat => cat.name === filterType)
+    );
+  }
+  
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    filteredData = filteredData.filter(submission => {
+      const submissionDate = new Date(submission.date);
+      submissionDate.setHours(0, 0, 0, 0);
+      return submissionDate >= start;
+    });
+  }
+  
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    filteredData = filteredData.filter(submission => {
+      const submissionDate = new Date(submission.date);
+      return submissionDate <= end;
+    });
+  }
+  
+  // Sort by date (newest first)
+  filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  if (filteredData.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 20px;">
+        <p>No practice submissions found for the selected filters.</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Create timeline items for submissions
+  filteredData.forEach(submission => {
+    const date = new Date(submission.date);
+    const formattedDate = date.toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    
+    // Format submission time
+    let timeInfo = '';
+    if (submission.submittedAt) {
+      const submittedTime = submission.submittedAt.toDate ? 
+        submission.submittedAt.toDate() : 
+        new Date(submission.submittedAt);
+      timeInfo = ` at ${submittedTime.toLocaleTimeString('en-US', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      })}`;
+    }
+    
+    const timelineItem = document.createElement('div');
+    timelineItem.className = 'timeline-item submission-item';
+    timelineItem.setAttribute('data-submission-id', submission.id);
+    timelineItem.setAttribute('data-daily-submission-id', submission.dailySubmissionId);
+    
+    timelineItem.innerHTML = `
+      <div class="timeline-date">${formattedDate}${timeInfo}</div>
+      <div class="timeline-content">
+        <div class="submission-header">
+          <h3>Practice Session</h3>
+          <div class="submission-actions">
+            <button class="view-details-btn" onclick="viewSubmissionDetails('${submission.id}', '${submission.dailySubmissionId}')">
+              <i class="fas fa-eye"></i> View Details
             </button>
           </div>
-        `;
-      }
-    }
-    
-    // ───────────────────────────────────────────────────────────
-    // 5) INITIALIZE PAGE FUNCTIONS
-    // ───────────────────────────────────────────────────────────
-    function initializePage(data) {
-      updateStats(data);
-      populateMostPracticed(data);
-      populateSubmissionsTimeline(data);
-      setupFilters(data);
-      setupExportButtons(data);
-    }
-    
-    function updateStats(data) {
-      const totalSubmissions = data.length;
-      const totalPractices = data.reduce((sum, submission) => sum + submission.totalPractices, 0);
-      
-      document.getElementById('totalPractices').textContent = totalPractices;
-      
-      let currentStreak = calculateCurrentStreak(data);
-      document.getElementById('currentStreak').textContent = currentStreak;
-      
-      let longestStreak = calculateLongestStreak(data);
-      document.getElementById('longestStreak').textContent = longestStreak;
-      
-      // Update the stat card titles to be more accurate
-      document.querySelector('.stat-card h3').textContent = 'Total Practices';
-      document.querySelector('.stat-card .stat-detail').textContent = 'Individual practices completed';
-    }
-    
-    function calculateCurrentStreak(data) {
-      if (data.length === 0) return 0;
-      
-      const sortedData = [...data].sort((a, b) => 
-        new Date(b.date) - new Date(a.date)
-      );
-      
-      let streak = 1;
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      
-      const mostRecentDate = new Date(sortedData[0].date);
-      const dayDiff = Math.floor((today - mostRecentDate) / (1000 * 60 * 60 * 24));
-      
-      if (dayDiff > 1) {
-        return 0;
-      }
-      
-      for (let i = 0; i < sortedData.length - 1; i++) {
-        const currentDate = new Date(sortedData[i].date);
-        const prevDate = new Date(sortedData[i + 1].date);
-        const diffDays = Math.floor((currentDate - prevDate) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-      
-      return streak;
-    }
-    
-    function calculateLongestStreak(data) {
-      if (data.length === 0) return 0;
-      
-      const sortedData = [...data].sort((a, b) => 
-        new Date(a.date) - new Date(b.date)
-      );
-      
-      let currentStreak = 1;
-      let maxStreak = 1;
-      
-      for (let i = 0; i < sortedData.length - 1; i++) {
-        const currentDate = new Date(sortedData[i].date);
-        const nextDate = new Date(sortedData[i + 1].date);
-        const diffDays = Math.floor((nextDate - currentDate) / (1000 * 60 * 60 * 24));
-        
-        if (diffDays === 1) {
-          currentStreak++;
-          maxStreak = Math.max(maxStreak, currentStreak);
-        } else {
-          currentStreak = 1;
-        }
-      }
-      
-      return maxStreak;
-    }
-    
-    function populateMostPracticed(data) {
-      const container = document.getElementById('mostPracticedContainer');
-      container.innerHTML = '';
-      
-      const categoryCount = {};
-      data.forEach(submission => {
-        submission.categories.forEach(category => {
-          categoryCount[category.name] = (categoryCount[category.name] || 0) + 1;
-        });
-      });
-      
-      const sortedCategories = Object.entries(categoryCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 3);
-      
-      const totalSubmissions = data.length;
-      const categoriesToShow = sortedCategories.filter(c => c[1] >= 2);
-      
-      if (categoriesToShow.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state" style="padding: 20px;">
-            <p>No category has been practiced more than 2 times yet.</p>
+        </div>
+        <div class="submission-summary">
+          <p><strong>Categories:</strong> ${submission.categorySummary || 'No categories'}</p>
+          <div class="submission-stats">
+            <span><i class="fas fa-list"></i> ${submission.totalCategories || 0} Categories</span>
+            <span><i class="fas fa-dumbbell"></i> ${submission.totalPractices || 0} Practices</span>
+            <span><i class="fas fa-star"></i> ${submission.totalPoints || 0} Points</span>
           </div>
-        `;
-        return;
-      }
-      
-      categoriesToShow.forEach(([categoryName, count]) => {
-        const percentage = Math.round((count / totalSubmissions) * 100);
-        
-        const categoryEl = document.createElement('div');
-        categoryEl.className = 'practice-progress';
-        categoryEl.innerHTML = `
-          <h3>${categoryName}</h3>
-          <div class="progress-bar-container">
-            <div class="progress-bar" style="width: ${percentage}%"></div>
-            <span class="progress-text">${count} times (${percentage}%)</span>
-          </div>
-        `;
-        
-        container.appendChild(categoryEl);
-      });
-    }
+        </div>
+      </div>
+    `;
     
-    // ───────────────────────────────────────────────────────────
-    // 6) SUBMISSIONS TIMELINE
-    // ───────────────────────────────────────────────────────────
-    function populateSubmissionsTimeline(data, filterType = 'all', startDate = null, endDate = null) {
-      const container = document.getElementById('timelineContainer');
-      container.innerHTML = '';
-      
-      // Filter data based on parameters
-      let filteredData = [...data];
-      
-      if (filterType !== 'all') {
-        filteredData = filteredData.filter(submission => 
-          submission.categories.some(cat => cat.name === filterType)
-        );
-      }
-      
-      if (startDate) {
-        const start = new Date(startDate);
-        filteredData = filteredData.filter(submission => new Date(submission.date) >= start);
-      }
-      
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59);
-        filteredData = filteredData.filter(submission => new Date(submission.date) <= end);
-      }
-      
-      // Sort by date (newest first)
-      filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
-      
-      if (filteredData.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state" style="padding: 20px;">
-            <p>No practice submissions found for the selected filters.</p>
-          </div>
-        `;
-        return;
-      }
-      
-      // Create timeline items for submissions
-      filteredData.forEach(submission => {
-        const date = new Date(submission.date);
-        const formattedDate = date.toLocaleDateString('en-US', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        });
-        
-        const timelineItem = document.createElement('div');
-        timelineItem.className = 'timeline-item submission-item';
-        timelineItem.setAttribute('data-submission-id', submission.id);
-        
-        timelineItem.innerHTML = `
-          <div class="timeline-date">${formattedDate}</div>
-          <div class="timeline-content">
-            <div class="submission-header">
-              <h3>Practice Session</h3>
-              <button class="view-details-btn" onclick="viewSubmissionDetails('${submission.id}')">
-                <i class="fas fa-eye"></i> View Details
-              </button>
-            </div>
-            <div class="submission-summary">
-              <p><strong>Categories:</strong> ${submission.categorySummary}</p>
-              <div class="submission-stats">
-                <span><i class="fas fa-list"></i> ${submission.totalCategories} Categories</span>
-                <span><i class="fas fa-dumbbell"></i> ${submission.totalPractices} Practices</span>
-                <span><i class="fas fa-star"></i> ${submission.totalPoints} Points</span>
-              </div>
-            </div>
-          </div>
-        `;
-        
-        container.appendChild(timelineItem);
-      });
-    }
+    container.appendChild(timelineItem);
+  });
+  
+  console.log(`Timeline populated with ${filteredData.length} submissions`);
+}
 
     
 // ───────────────────────────────────────────────────────────
