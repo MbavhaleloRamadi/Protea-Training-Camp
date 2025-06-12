@@ -153,7 +153,7 @@ firebase.auth().onAuthStateChanged(user => {
   }
 
   // ───────────────────────────────────────────────────────────
-  // PRACTICE SELECTION & SUBMISSION - UPDATED CODE WITH SPECIAL POINTS
+  // 4. PRACTICE SELECTION & SUBMISSION - UPDATED CODE WITH SPECIAL POINTS
   // ───────────────────────────────────────────────────────────
 
   const dbFirestore = firebase.firestore();
@@ -273,7 +273,7 @@ const practicesData = {
 };
 
 // ───────────────────────────────────────────────────────────
-// PRACTICE SELECTION & SUBMISSION - FIXED CODE
+// 5. PRACTICE SELECTION & SUBMISSION - FIXED CODE
 // ───────────────────────────────────────────────────────────
 
 // Initialize the selected practices array
@@ -409,7 +409,7 @@ function updateSelectedPracticesDisplay() {
 }
 
 // ───────────────────────────────────────────────────────────
-// 5) When category changes, show the scrollable list and special points info - FIXED
+// 6) When category changes, show the scrollable list and special points info - FIXED
 // ───────────────────────────────────────────────────────────
 if (taskCategory) {
   taskCategory.addEventListener("change", () => {
@@ -532,14 +532,16 @@ if (taskCategory) {
           ` (${selectedPractices.filter(p => p.name === practice.name).length})` : ''}`, "green");
         updateSelectedPracticesDisplay();
 
-        // Scroll to the selected practices section
-        const selectedLabel = document.getElementById('selectedLabel');
-        if (selectedLabel) {
-          selectedLabel.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-          });
-        }
+        // Only scroll to selected practices if we have 1 or fewer items
+if (selectedPractices.length <= 1) {
+  const selectedLabel = document.getElementById('selectedLabel');
+  if (selectedLabel) {
+    selectedLabel.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    });
+  }
+}
         
         // Provide visual feedback on the clicked card
         card.style.backgroundColor = '#f0f8ff'; // Light blue background
@@ -561,22 +563,455 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ───────────────────────────────────────────────────────────
-// 6) Submit handler - Updated to match HTML structure and handle selected practices
+// FIXED: Submit handler with totalUserScore update + Selected Practices Display
 // ───────────────────────────────────────────────────────────
+
+// Helper function to update totalUserScore based on points difference
+async function updateTotalUserScore(userId, pointsDifference) {
+  try {
+    if (pointsDifference === 0) {
+      console.log("No points difference, skipping totalUserScore update");
+      return;
+    }
+
+    console.log(`Updating totalUserScore by ${pointsDifference} points for user ${userId}`);
+    
+    // Update Firestore using increment
+    const userDocRef = dbFirestore.collection('users').doc(userId);
+    await userDocRef.update({
+      'practice_submissions.totalUserScore': firebase.firestore.FieldValue.increment(pointsDifference)
+    });
+    
+    // Update Realtime Database
+    const userScoreRef = dbRealtime.ref(`users/${userId}/practice_submissions/totalUserScore`);
+    const currentScoreSnapshot = await userScoreRef.once('value');
+    const currentScore = currentScoreSnapshot.val() || 0;
+    const newScore = currentScore + pointsDifference;
+    await userScoreRef.set(newScore);
+    
+    console.log(`Successfully updated totalUserScore: ${currentScore} + ${pointsDifference} = ${newScore}`);
+  } catch (error) {
+    console.error('Error updating totalUserScore:', error);
+    throw error;
+  }
+}
+
+// Helper function to get current daily submission points
+async function getCurrentDailyPoints(userId, dailySubmissionId) {
+  try {
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    const metadataDoc = await metadataRef.get();
+    
+    if (metadataDoc.exists) {
+      return metadataDoc.data().totalPoints || 0;
+    }
+    
+    return 0; // New submission, no existing points
+  } catch (error) {
+    console.error("Error getting current daily points:", error);
+    return 0;
+  }
+}
+
+// FIXED: Helper function to calculate daily totals
+async function calculateDailyTotals(userId, dailySubmissionId) {
+  try {
+    const categoriesRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId)
+      .collection('categories');
+    
+    const categoriesSnapshot = await categoriesRef.get();
+    
+    let dailyTotalPoints = 0;
+    let dailyTotalPractices = 0;
+    let dailyTotalCategories = 0;
+    
+    categoriesSnapshot.forEach(doc => {
+      const data = doc.data();
+      if (!data.isDeleted) {
+        dailyTotalPoints += data.totalPoints || 0;
+        dailyTotalPractices += data.totalPractices || 0;
+        dailyTotalCategories += 1;
+      }
+    });
+    
+    return {
+      dailyTotalPoints,
+      dailyTotalPractices,
+      dailyTotalCategories
+    };
+  } catch (error) {
+    console.error("Error calculating daily totals:", error);
+    return { dailyTotalPoints: 0, dailyTotalPractices: 0, dailyTotalCategories: 0 };
+  }
+}
+
+// FIXED: Helper function to calculate user lifetime totals
+async function calculateUserTotals(userId) {
+  try {
+    const submissionsRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions');
+    
+    const submissionsSnapshot = await submissionsRef.get();
+    
+    let totalPoints = 0;
+    let totalPractices = 0;
+    
+    // Process each daily submission
+    for (const submissionDoc of submissionsSnapshot.docs) {
+      const submissionData = submissionDoc.data();
+      
+      // Check if this is a metadata document (has dailySubmissionId field)
+      if (submissionData.dailySubmissionId && !submissionData.isDeleted) {
+        totalPoints += submissionData.totalPoints || 0;
+        totalPractices += submissionData.totalPractices || 0;
+      }
+    }
+    
+    return { totalPoints, totalPractices };
+  } catch (error) {
+    console.error("Error calculating user totals:", error);
+    return { totalPoints: 0, totalPractices: 0 };
+  }
+}
+
+// Helper function to generate or get daily submission ID
+async function getDailySubmissionId(userId, date) {
+  try {
+    // Check if there's already a submission for this date
+    const submissionsRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .where('date', '==', date)
+      .limit(1);
+    
+    const existingSubmissions = await submissionsRef.get();
+    
+    if (!existingSubmissions.empty) {
+      // Return existing daily submission ID
+      const existingDoc = existingSubmissions.docs[0];
+      return existingDoc.data().dailySubmissionId;
+    }
+    
+    // Generate new daily submission ID
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 9).toUpperCase();
+    const dateFormatted = date.replace(/-/g, '');
+    
+    return `SUB_${dateFormatted}_${timestamp}_${randomSuffix}`;
+    
+  } catch (error) {
+    console.error("Error getting/generating daily submission ID:", error);
+    // Fallback ID generation
+    const timestamp = Date.now();
+    const randomSuffix = Math.random().toString(36).substr(2, 9).toUpperCase();
+    const dateFormatted = date.replace(/-/g, '');
+    return `SUB_${dateFormatted}_${timestamp}_${randomSuffix}`;
+  }
+}
+
+// Helper function to check if submissions are allowed (tournament days check)
+function areSubmissionsAllowed(date) {
+  try {
+    // Add your tournament days logic here
+    // For now, allow all submissions except specific tournament dates
+    const tournamentDates = [
+      // Add tournament dates that block submissions
+      // '2025-06-15', '2025-06-16' // Example
+    ];
+    
+    const dateString = date.toISOString().split('T')[0];
+    return !tournamentDates.includes(dateString);
+    
+  } catch (error) {
+    console.error("Error checking submission allowance:", error);
+    return true; // Allow by default if check fails
+  }
+}
+
+// Helper function to show confirmation messages
+function showConfirmation(message, type = 'info') {
+  try {
+    // Create or get existing notification element
+    let notification = document.getElementById('practice-notification');
+    
+    if (!notification) {
+      notification = document.createElement('div');
+      notification.id = 'practice-notification';
+      notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 15px 20px;
+        border-radius: 5px;
+        color: white;
+        font-weight: bold;
+        z-index: 10000;
+        max-width: 300px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+      `;
+      document.body.appendChild(notification);
+    }
+    
+    // Set message and color based on type
+    notification.textContent = message;
+    
+    switch(type) {
+      case 'green':
+      case 'success':
+        notification.style.backgroundColor = '#28a745';
+        break;
+      case 'red':
+      case 'error':
+        notification.style.backgroundColor = '#dc3545';
+        break;
+      case 'yellow':
+      case 'warning':
+        notification.style.backgroundColor = '#ffc107';
+        notification.style.color = '#212529';
+        break;
+      default:
+        notification.style.backgroundColor = '#17a2b8';
+    }
+    
+    // Show notification
+    notification.style.display = 'block';
+    notification.style.opacity = '1';
+    
+    // Auto-hide after 4 seconds
+    setTimeout(() => {
+      if (notification) {
+        notification.style.opacity = '0';
+        setTimeout(() => {
+          if (notification && notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 300);
+      }
+    }, 4000);
+    
+  } catch (error) {
+    console.error("Error showing confirmation:", error);
+    // Fallback to alert
+    alert(message);
+  }
+}
+
+// FIXED: Helper function to update selected practices display
+function updateSelectedPracticesDisplay() {
+  try {
+    // Use the actual selectedList element from the HTML
+    const displayContainer = document.getElementById('selectedList');
+    
+    if (!displayContainer) {
+      console.error("selectedList element not found in HTML");
+      return;
+    }
+    
+    updateSelectedPracticesDisplayWithContainer(displayContainer);
+    
+  } catch (error) {
+    console.error("Error updating selected practices display:", error);
+  }
+}
+
+// Helper function to actually update the display container
+function updateSelectedPracticesDisplayWithContainer(displayContainer) {
+  try {
+    // Clear existing content
+    displayContainer.innerHTML = '';
+    
+    if (!selectedPractices || selectedPractices.length === 0) {
+      const emptyMessage = document.createElement('li');
+      emptyMessage.textContent = 'No practices selected';
+      emptyMessage.style.cssText = `
+        color: #000;
+        font-style: italic;
+        list-style: none;
+        padding: 10px;
+        text-align: center;
+      `;
+      displayContainer.appendChild(emptyMessage);
+      return;
+    }
+    
+    selectedPractices.forEach((practice, index) => {
+      const practiceItem = document.createElement('li');
+      practiceItem.className = 'practice-item';
+      practiceItem.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 15px;
+        margin: 5px 0;
+        background: #f8f9fa;
+        border-radius: 5px;
+        border-left: 4px solid #007bff;
+        list-style: none;
+        font-size: 14px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      `;
+      
+      const practiceInfo = document.createElement('span');
+      const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+      const doublePointsText = practice.isDoublePoints ? ' (2x)' : '';
+      practiceInfo.textContent = `${practice.name} - ${points} pts${doublePointsText}`;
+      practiceInfo.style.flex = '1';
+      practiceInfo.style.color = '#000';
+      
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = '×';
+      removeBtn.type = 'button'; // Prevent form submission
+      removeBtn.style.cssText = `
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        cursor: pointer;
+        font-size: 16px;
+        line-height: 1;
+        margin-left: 10px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      `;
+      
+      removeBtn.onclick = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        selectedPractices.splice(index, 1);
+        updateSelectedPracticesDisplay();
+        console.log("Removed practice:", practice.name);
+      };
+      
+      practiceItem.appendChild(practiceInfo);
+      practiceItem.appendChild(removeBtn);
+      displayContainer.appendChild(practiceItem);
+    });
+    
+    // Add total points display as the last list item
+    const totalPoints = selectedPractices.reduce((sum, practice) => {
+      return sum + (practice.isDoublePoints ? practice.points * 2 : practice.points);
+    }, 0);
+    
+    const totalDisplay = document.createElement('li');
+    totalDisplay.style.cssText = `
+      padding: 12px 15px;
+      background: #e9ecef;
+      border-radius: 5px;
+      font-weight: bold;
+      text-align: center;
+      color: #000;
+      border-top: 3px solid #007bff;
+      list-style: none;
+      margin-top: 10px;
+    `;
+    totalDisplay.textContent = `Total Points: ${totalPoints} | Total Practices: ${selectedPractices.length}`;
+    
+    displayContainer.appendChild(totalDisplay);
+    
+    console.log(`Updated display: ${selectedPractices.length} practices, ${totalPoints} total points`);
+    
+  } catch (error) {
+    console.error("Error updating display container:", error);
+  }
+}
+
+// FIXED: Function to add practice to selection (call this when a practice is selected)
+function addPracticeToSelection(practice) {
+  try {
+    // Check if practice already exists
+    const existingIndex = selectedPractices.findIndex(p => 
+      p.name === practice.name || p.id === practice.id
+    );
+    
+    if (existingIndex !== -1) {
+      console.log("Practice already selected:", practice.name);
+      showConfirmation("Practice already selected!", "yellow");
+      return false;
+    }
+    
+    // Add practice to selection
+    selectedPractices.push(practice);
+    console.log("Added practice to selection:", practice.name);
+    
+    // Update display
+    updateSelectedPracticesDisplay();
+    
+    // Show confirmation
+    showConfirmation(`Added: ${practice.name} (${practice.points} pts)`, "success");
+    
+    return true;
+  } catch (error) {
+    console.error("Error adding practice to selection:", error);
+    return false;
+  }
+}
+
+// Initialize display on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Wait a bit for other scripts to load
+  setTimeout(() => {
+    if (window.selectedPractices) {
+      updateSelectedPracticesDisplay();
+    }
+  }, 1000);
+});
+
+// Also update display when selectedPractices changes (if observable)
+if (window.selectedPractices) {
+  // Create a proxy to watch for changes if possible
+  try {
+    const originalPush = Array.prototype.push;
+    const originalSplice = Array.prototype.splice;
+    
+    // Override push method
+    selectedPractices.push = function(...items) {
+      const result = originalPush.apply(this, items);
+      updateSelectedPracticesDisplay();
+      return result;
+    };
+    
+    // Override splice method
+    selectedPractices.splice = function(...args) {
+      const result = originalSplice.apply(this, args);
+      updateSelectedPracticesDisplay();
+      return result;
+    };
+    
+    console.log("Set up selectedPractices array monitoring");
+  } catch (error) {
+    console.warn("Could not set up array monitoring:", error);
+  }
+}
 
 if (submitForm) {
   console.log("Submit form found, attaching event listener");
   
   submitForm.addEventListener("submit", async (event) => {
-    event.preventDefault(); // Prevent the default form submission
+    event.preventDefault();
     
-    // Check if there are selected practices
+    // Validation checks
     if (selectedPractices.length === 0) {
       showConfirmation("Please select at least one practice.", "red");
       return;
     }
     
-    // Check if we're in tournament days (no submissions allowed)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     if (!areSubmissionsAllowed(today)) {
@@ -584,191 +1019,557 @@ if (submitForm) {
       return;
     }
     
-    // Disable the submit button and show loading state
+    // UI state management
     submitBtn.disabled = true;
     submitBtn.textContent = "Submitting...";
     
     try {
-      // Get the user ID
+      // Authentication check
       const user = firebase.auth().currentUser;
       if (!user) {
         showConfirmation("You must be logged in to submit practices.", "red");
-        submitBtn.disabled = false;
-        submitBtn.textContent = "Submit Practice";
         return;
       }
       
       const userId = user.uid;
       const username = document.getElementById("golferName").value;
-      const timestamp = firebase.firestore.FieldValue.serverTimestamp();
-      // Define the current date in YYYY-MM-DD format
       const currentDate = new Date().toISOString().split('T')[0];
       
-      // Create a batch for Firestore operations
-      const batch = dbFirestore.batch();
-      const firestoreBatch = dbFirestore.batch();
+      // Get daily submission ID
+      const dailySubmissionId = await getDailySubmissionId(userId, currentDate);
       
-      // Array to store Realtime Database promises
+      // CRITICAL: Get current daily points BEFORE making changes
+      const previousDailyPoints = await getCurrentDailyPoints(userId, dailySubmissionId);
+      console.log("Previous daily points:", previousDailyPoints);
+      
+      // Create batch operations
+      const firestoreBatch = dbFirestore.batch();
       const realtimePromises = [];
-
-      // Define timestamps for both databases
+      
+      // Timestamps
       const firestoreTimestamp = firebase.firestore.FieldValue.serverTimestamp();
       const realtimeTimestamp = firebase.database.ServerValue.TIMESTAMP;
       
-      // Track successful submissions
-      let successCount = 0;
-      
-      // Process each selected practice
-      for (const practice of selectedPractices) {
-        // Create a unique ID for this submission
-        const submissionId = `${userId}_${practice.category.toLowerCase()}_${currentDate}`;
-        
-        // Format for submission data (common fields)
-  const submissionData = {
-    username: username,
-    category: practice.category,
-    date: currentDate,
-    practices: []
-  };
-  
-  // Reference to the task_submissions collection/path in both databases
-  const firestoreRef = dbFirestore
-    .collection('users')
-    .doc(userId)
-    .collection('task_submissions')
-    .doc(submissionId);
-  
-  const realtimeRef = dbRealtime
-    .ref(`users/${userId}/task_submissions/${submissionId}`);
-    
- // First check if document already exists in Firestore
-try {
-  const docSnapshot = await firestoreRef.get();
-  
-  if (docSnapshot.exists) {
-    // Document exists, use batch to update the practices array
-    const doc = await firestoreRef.get();
-    const existingData = doc.data();
-    const existingPractices = existingData.practices || [];
-    
-    
-    // Add new practice to array
-    const newPracticeEntry = {
-      description: practice.name,
-      points: practice.points,
-      isDoublePoints: practice.isDoublePoints || false,
-      timestamp: Date.now() // Use client timestamp for array elements
-    };
-    
-    // Update the document with the new practice using batch
-    firestoreBatch.update(firestoreRef, {
-      practices: [...existingPractices, newPracticeEntry],
-      lastUpdated: firestoreTimestamp
-    });
-    
-    realtimePromises.push(
-      // For Realtime DB, get the existing practices first
-      realtimeRef.once('value').then(snapshot => {
-        const data = snapshot.val() || {};
-        const existingPractices = data.practices || [];
-        
-        // Add new practice to array
-        const newPracticeEntry = {
-          description: practice.name,
-          points: practice.points,
-          isDoublePoints: practice.isDoublePoints || false,
-          timestamp: Date.now() // Use client timestamp for array elements
-        };
-        
-        // Update the practices array
-        return realtimeRef.update({
-          practices: [...existingPractices, newPracticeEntry],
-          lastUpdated: realtimeTimestamp
+      // Create unique submission basket ID
+      const submissionBasketId = `${currentDate}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Group practices by category
+      const practicesByCategory = selectedPractices.reduce((acc, practice, index) => {
+        const categoryKey = practice.category.toLowerCase();
+        if (!acc[categoryKey]) {
+          acc[categoryKey] = {
+            categoryDisplayName: practice.categoryDisplay || practice.category,
+            practices: []
+          };
+        }
+        acc[categoryKey].practices.push({
+          ...practice,
+          originalIndex: index
         });
-      })
-    );
-    
-  } else {
-    // Document doesn't exist, create new one
-    const initialPractice = {
-      description: practice.name,
-      points: practice.points,
-      isDoublePoints: practice.isDoublePoints || false,
-      timestamp: Date.now() // Use client timestamp for first entry
-    };
-    
-    // Setup new document data with practice array
-    const newDocData = {
-      ...submissionData,
-      golferName: username, // Include golferName field (seen in your Firestore structure)
-      practices: [initialPractice],
-      createdAt: firestoreTimestamp,
-      lastUpdated: firestoreTimestamp,
-      timestamp: Date.now() // Numeric timestamp (also seen in your structure)
-    };
-    
-    // Add to Firestore batch
-    firestoreBatch.set(firestoreRef, newDocData);
-    
-    // Add to Realtime Database promises
-    realtimePromises.push(
-      realtimeRef.set({
-        ...submissionData,
-        golferName: username,
-        practices: [initialPractice],
-        createdAt: realtimeTimestamp,
-        lastUpdated: realtimeTimestamp,
-        timestamp: Date.now()
-      })
-    );
-  }
-} catch (err) {
-  console.error(`Error processing submission ${submissionId}:`, err);
-}
-  } 
-// Execute all database operations
-await Promise.all([
-  firestoreBatch.commit(),
-  Promise.all(realtimePromises)
-]);
+        return acc;
+      }, {});
+
+      // Process each category
+      for (const [categoryKey, categoryData] of Object.entries(practicesByCategory)) {
+        const categoryDocId = `${submissionBasketId}_${categoryKey}_${Date.now()}`;
+
+        // Format practices for storage
+        const practicesArray = categoryData.practices.map((practice, index) => {
+          // Find full practice data
+          let fullPracticeData = null;
+          
+          if (practicesData[categoryData.categoryDisplayName]) {
+            fullPracticeData = practicesData[categoryData.categoryDisplayName].find(
+              p => p.name === practice.name || p.name === practice.id
+            );
+          }
+          
+          if (!fullPracticeData) {
+            for (const [catName, practices] of Object.entries(practicesData)) {
+              fullPracticeData = practices.find(p => p.name === practice.name || p.name === practice.id);
+              if (fullPracticeData) break;
+            }
+          }
+          
+          return {
+            id: `practice_${index + 1}`,
+            practiceItem: practice.id || practice.name.toLowerCase().replace(/\s+/g, '_'),
+            name: fullPracticeData?.name || practice.name,
+            description: fullPracticeData?.description || practice.name,
+            practiceDescription: fullPracticeData?.description || practice.name,
+            points: fullPracticeData?.points || practice.points,
+            isDoublePoints: practice.isDoublePoints || false,
+            submissionOrder: practice.originalIndex + 1,
+            addedAt: Date.now(),
+            isEdited: false,
+            editHistory: [],
+            originalPracticeData: fullPracticeData
+          };
+        });
+
+        // Category submission data
+        const firestoreSubmissionData = {
+          username: username,
+          golferName: username,
+          userId: userId,
+          date: currentDate,
+          dailySubmissionId: dailySubmissionId,
+          submissionBasketId: submissionBasketId,
+          category: categoryKey,
+          categoryDisplayName: categoryData.categoryDisplayName,
+          practices: practicesArray,
+          totalPractices: practicesArray.length,
+          totalPoints: practicesArray.reduce((sum, p) => sum + (p.isDoublePoints ? p.points * 2 : p.points), 0),
+          submittedAt: firestoreTimestamp,
+          lastModified: firestoreTimestamp,
+          timestamp: Date.now(),
+          isDeleted: false,
+          canEdit: true,
+          canDelete: true,
+          submissionType: 'practice',
+          version: '1.0'
+        };
+
+        const realtimeSubmissionData = {
+          ...firestoreSubmissionData,
+          submittedAt: realtimeTimestamp,
+          lastModified: realtimeTimestamp
+        };
+
+        // Add to batch/promises
+        const firestoreRef = dbFirestore
+          .collection('users')
+          .doc(userId)
+          .collection('practice_submissions')
+          .doc(dailySubmissionId)
+          .collection('categories')
+          .doc(categoryDocId);
+
+        const realtimeRef = dbRealtime
+          .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/categories/${categoryDocId}`);
+
+        firestoreBatch.set(firestoreRef, firestoreSubmissionData);
+        realtimePromises.push(realtimeRef.set(realtimeSubmissionData));
+      }
+
+      // Execute category submissions
+      console.log("Executing database operations for categories...");
+      await firestoreBatch.commit();
+      await Promise.all(realtimePromises);
+
+      // Calculate NEW totals AFTER submission
+      console.log("Calculating updated totals...");
+      const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+      const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+
+      // CRITICAL: Calculate points difference
+      const pointsDifference = dailyTotalPoints - previousDailyPoints;
+      console.log(`Points difference: ${dailyTotalPoints} - ${previousDailyPoints} = ${pointsDifference}`);
+
+      // Update or create daily submission metadata
+      const metadataRef = dbFirestore
+        .collection('users')
+        .doc(userId)
+        .collection('practice_submissions')
+        .doc(dailySubmissionId);
+
+      const existingMetadata = await metadataRef.get();
+
+      if (existingMetadata.exists) {
+        // UPDATE existing metadata
+        console.log("Updating existing daily submission metadata...");
         
+        const updateData = {
+          totalCategories: dailyTotalCategories,
+          totalPractices: dailyTotalPractices,
+          totalPoints: dailyTotalPoints,
+          userTotalPoints: userTotalPoints,
+          userTotalPractices: userTotalPractices,
+          lastModified: firestoreTimestamp,
+          lastSubmissionAt: firestoreTimestamp
+        };
+
+        await metadataRef.update(updateData);
+
+        // Update Realtime Database metadata
+        const realtimeMetadataRef = dbRealtime
+          .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/metadata`);
         
-      
+        await realtimeMetadataRef.update({
+          ...updateData,
+          lastModified: realtimeTimestamp,
+          lastSubmissionAt: realtimeTimestamp
+        });
+
+      } else {
+        // CREATE new metadata document
+        console.log("Creating new daily submission metadata...");
+        
+        const dailySubmissionMetadata = {
+          dailySubmissionId: dailySubmissionId,
+          date: currentDate,
+          userId: userId,
+          username: username,
+          totalCategories: dailyTotalCategories,
+          totalPractices: dailyTotalPractices,
+          totalPoints: dailyTotalPoints,
+          userTotalPoints: userTotalPoints,
+          userTotalPractices: userTotalPractices,
+          createdAt: firestoreTimestamp,
+          submittedAt: firestoreTimestamp,
+          lastModified: firestoreTimestamp,
+          lastSubmissionAt: firestoreTimestamp,
+          isActive: true
+        };
+
+        await metadataRef.set(dailySubmissionMetadata);
+
+        // Create Realtime Database metadata
+        const realtimeMetadataRef = dbRealtime
+          .ref(`users/${userId}/practice_submissions/${dailySubmissionId}/metadata`);
+
+        await realtimeMetadataRef.set({
+          ...dailySubmissionMetadata,
+          createdAt: realtimeTimestamp,
+          submittedAt: realtimeTimestamp,
+          lastModified: realtimeTimestamp,
+          lastSubmissionAt: realtimeTimestamp
+        });
+      }
+
+      // CRITICAL: Update totalUserScore based on points difference
+      if (pointsDifference !== 0) {
+        console.log("Updating totalUserScore...");
+        await updateTotalUserScore(userId, pointsDifference);
+      }
+
+      // Success logging
+      console.log("✅ All database operations completed successfully");
+      console.log("📊 Daily Submission ID:", dailySubmissionId);
+      console.log("📈 Daily Totals:", { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories });
+      console.log("🏆 User Lifetime Totals:", { userTotalPoints, userTotalPractices });
+      console.log("⚡ totalUserScore updated by:", pointsDifference);
+
       // Show success message
-      showConfirmation(`Successfully submitted!`, "green");
-      
-      // Clear selected practices
+      showConfirmation(
+        `Successfully submitted! Points added: ${pointsDifference}`, 
+        "green"
+      );
+
+      // Reset UI
       selectedPractices = [];
       updateSelectedPracticesDisplay();
-      
-      // Reset form after a delay
+
       setTimeout(() => {
-        // Reset the category selector
         if (taskCategory) {
           taskCategory.value = "";
-          // Hide practice container
           if (practiceContainer) {
             practiceContainer.classList.add("hidden");
           }
         }
       }, 2000);
-      
+
     } catch (error) {
-      console.error("Error submitting practices:", error);
+      console.error("❌ Error submitting practices:", error);
       showConfirmation("Failed to submit practices. Please try again.", "red");
     } finally {
-      // Re-enable the submit button
+      // Always re-enable the submit button
       submitBtn.disabled = false;
       submitBtn.textContent = "Submit Practice";
     }
   });
 } else {
-  console.error("Submit form element not found! Check your HTML for the form with ID 'submitTaskForm'");
+  console.error("❌ Submit form element not found!");
 }
-});
 
 // ───────────────────────────────────────────────────────────
-// Helper to show messages
+// 8) Edit Individual Practice Item - Updated to recalculate totals
+// ───────────────────────────────────────────────────────────
+
+async function editPracticeItem(userId, dailySubmissionId, categoryDocId, practiceId, updatedData) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Get current document
+    const doc = await categoryRef.get();
+    if (!doc.exists) {
+      throw new Error('Category document not found');
+    }
+    
+    const data = doc.data();
+    const practices = data.practices || [];
+    
+    // Find and update the specific practice
+    const updatedPractices = practices.map(practice => {
+      if (practice.id === practiceId) {
+        // Add to edit history
+        const editEntry = {
+          editedAt: Date.now(),
+          previousData: { ...practice },
+          changes: updatedData
+        };
+        
+        return {
+          ...practice,
+          ...updatedData,
+          isEdited: true,
+          editHistory: [...(practice.editHistory || []), editEntry]
+        };
+      }
+      return practice;
+    });
+    
+    // Recalculate category totals
+    const categoryTotalPoints = updatedPractices.reduce((sum, p) => 
+      sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+    );
+    
+    // Update category document
+    await categoryRef.update({
+      practices: updatedPractices,
+      totalPoints: categoryTotalPoints,
+      totalPractices: updatedPractices.length,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice item updated successfully and totals recalculated');
+    return true;
+    
+  } catch (error) {
+    console.error('Error editing practice item:', error);
+    return false;
+  }
+}
+});
+// ───────────────────────────────────────────────────────────
+// 9) Delete Individual Practice Item - Updated to recalculate totals
+// ───────────────────────────────────────────────────────────
+
+async function deletePracticeItem(userId, dailySubmissionId, categoryDocId, practiceId) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Get current document
+    const doc = await categoryRef.get();
+    if (!doc.exists) {
+      throw new Error('Category document not found');
+    }
+    
+    const data = doc.data();
+    const practices = data.practices || [];
+    
+    // Remove the specific practice
+    const updatedPractices = practices.filter(practice => practice.id !== practiceId);
+    
+    // If no practices left, delete entire category document
+    if (updatedPractices.length === 0) {
+      await categoryRef.delete();
+      console.log('Category document deleted (no practices remaining)');
+    } else {
+      // Recalculate category totals
+      const categoryTotalPoints = updatedPractices.reduce((sum, p) => 
+        sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+      );
+      
+      // Update category document
+      await categoryRef.update({
+        practices: updatedPractices,
+        totalPractices: updatedPractices.length,
+        totalPoints: categoryTotalPoints,
+        lastModified: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice item deleted successfully and totals recalculated');
+    return true;
+    
+  } catch (error) {
+    console.error('Error deleting practice item:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 10) Delete Category Practice - Updated to recalculate totals
+// ───────────────────────────────────────────────────────────
+async function deleteCategorySubmission(userId, dailySubmissionId, categoryDocId) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Soft delete option (mark as deleted)
+    await categoryRef.update({
+      isDeleted: true,
+      deletedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Or hard delete (completely remove)
+    // await categoryRef.delete();
+    
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Category submission deleted successfully and totals recalculated');
+    return true;
+    
+  } catch (error) {
+    console.error('Error deleting category submission:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 11) Add Individual Practice Item To Category - Updated to recalculate totals
+// ───────────────────────────────────────────────────────────
+async function addPracticeToCategory(userId, dailySubmissionId, categoryDocId, newPractice) {
+  try {
+    const categoryRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId)
+      .collection('categories')
+      .doc(categoryDocId);
+    
+    // Get current document
+    const doc = await categoryRef.get();
+    if (!doc.exists) {
+      throw new Error('Category document not found');
+    }
+    
+    const data = doc.data();
+    const practices = data.practices || [];
+    
+    // Create new practice entry
+    const practiceEntry = {
+      id: `practice_${practices.length + 1}`,
+      practiceItem: newPractice.id || newPractice.name.toLowerCase().replace(/\s+/g, '_'),
+      practiceDescription: newPractice.name,
+      points: newPractice.points,
+      isDoublePoints: newPractice.isDoublePoints || false,
+      submissionOrder: practices.length + 1,
+      addedAt: Date.now(),
+      isEdited: false,
+      editHistory: []
+    };
+    
+    const updatedPractices = [...practices, practiceEntry];
+    
+    // Recalculate category totals
+    const categoryTotalPoints = updatedPractices.reduce((sum, p) => 
+      sum + (p.isDoublePoints ? p.points * 2 : p.points), 0
+    );
+    
+    // Update category document
+    await categoryRef.update({
+      practices: updatedPractices,
+      totalPractices: updatedPractices.length,
+      totalPoints: categoryTotalPoints,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Recalculate and update daily submission metadata
+    const { dailyTotalPoints, dailyTotalPractices, dailyTotalCategories } = await calculateDailyTotals(userId, dailySubmissionId);
+    const { totalPoints: userTotalPoints, totalPractices: userTotalPractices } = await calculateUserTotals(userId);
+    
+    const metadataRef = dbFirestore
+      .collection('users')
+      .doc(userId)
+      .collection('practice_submissions')
+      .doc(dailySubmissionId);
+    
+    await metadataRef.update({
+      totalCategories: dailyTotalCategories,
+      totalPractices: dailyTotalPractices,
+      totalPoints: dailyTotalPoints,
+      userTotalPoints: userTotalPoints,
+      userTotalPractices: userTotalPractices,
+      lastModified: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    console.log('Practice added to category successfully and totals recalculated');
+    return true;
+    
+  } catch (error) {
+    console.error('Error adding practice to category:', error);
+    return false;
+  }
+}
+
+// ───────────────────────────────────────────────────────────
+// 12) Helper to show messages
 // ───────────────────────────────────────────────────────────
 function showConfirmation(message, color) {
   const confirmationDiv = document.getElementById("confirmationMessage");
@@ -818,4 +1619,3 @@ function viewHistory() {
 function manageTasks() {
   window.location.href = "manage-tasks.html";
 }
-

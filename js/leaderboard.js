@@ -141,8 +141,9 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   
+
 // ───────────────────────────────────────────────────────────
-// 6) DATA PROCESSING - UPDATED FOR POINTS SORTING
+// SIMPLIFIED LEADERBOARD PROCESSING - Using totalPoints field from categories
 // ───────────────────────────────────────────────────────────
 function processLeaderboardData(usersData) {
   // Convert users data to array for sorting
@@ -153,15 +154,89 @@ function processLeaderboardData(usersData) {
     const userData = usersData[userId];
     
     // Skip users without necessary data
-    if (!userData.username) return; // Changed from fullName to username
+    if (!userData.username) return;
     
-    // Calculate total score from task submissions
-    // Higher points are better
+    // Initialize totals
     let totalScore = 0;
     let roundsPlayed = 0;
-    let latestSubmissionTime = 0; // For tiebreaker
+    let latestSubmissionTime = 0;
     
-    if (userData.task_submissions) {
+    // NEW: Collect totalPoints from each category
+    if (userData.practice_submissions) {
+      Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+        // Skip the totalUserScore field itself if it exists
+        if (dailySubmissionId === 'totalUserScore') return;
+        
+        const dailySubmission = userData.practice_submissions[dailySubmissionId];
+        
+        // Process categories to get totalPoints
+        if (dailySubmission.categories) {
+          Object.keys(dailySubmission.categories).forEach(categoryId => {
+            const category = dailySubmission.categories[categoryId];
+            
+            // Skip deleted categories
+            if (category.isDeleted) return;
+            
+            // Add totalPoints from this category
+            if (category.totalPoints !== undefined) {
+              totalScore += parseInt(category.totalPoints) || 0;
+            }
+            
+            // Count totalPractices from this category
+            if (category.totalPractices !== undefined) {
+              roundsPlayed += parseInt(category.totalPractices) || 0;
+            }
+            
+            // Track latest submission time from this category
+            if (category.submittedAt) {
+              const submissionTime = typeof category.submittedAt === 'object' 
+                ? category.submittedAt.timestamp || Date.now()
+                : parseInt(category.submittedAt) || 0;
+              
+              if (submissionTime > latestSubmissionTime) {
+                latestSubmissionTime = submissionTime;
+              }
+            }
+            
+            // Fallback: if no totalPoints/totalPractices, calculate from practices array
+            if (category.totalPoints === undefined && category.practices && Array.isArray(category.practices)) {
+              category.practices.forEach(practice => {
+                if (practice.points !== undefined) {
+                  const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                  totalScore += parseInt(points) || 0;
+                  roundsPlayed++;
+                  
+                  // Track latest submission time for tiebreaker
+                  if (practice.addedAt) {
+                    const submissionTime = parseInt(practice.addedAt) || 0;
+                    if (submissionTime > latestSubmissionTime) {
+                      latestSubmissionTime = submissionTime;
+                    }
+                  }
+                }
+              });
+            }
+          });
+        }
+        
+        // Also check for metadata-level totals as secondary source
+        if (dailySubmission.metadata) {
+          // Track latest submission time from metadata
+          if (dailySubmission.metadata.lastSubmissionAt) {
+            const submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
+              ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
+              : dailySubmission.metadata.lastSubmissionAt;
+            
+            if (submissionTime > latestSubmissionTime) {
+              latestSubmissionTime = submissionTime;
+            }
+          }
+        }
+      });
+    }
+    
+    // Final fallback: Check old task_submissions structure
+    if (totalScore === 0 && userData.task_submissions) {
       Object.values(userData.task_submissions).forEach(submission => {
         if (submission.practices && Array.isArray(submission.practices)) {
           submission.practices.forEach(practice => {
@@ -169,7 +244,6 @@ function processLeaderboardData(usersData) {
               totalScore += parseInt(practice.points) || 0;
               roundsPlayed++;
               
-              // Keep track of the latest submission time for tiebreaker
               if (practice.submissionTime) {
                 const submissionTime = parseInt(practice.submissionTime) || 0;
                 if (submissionTime > latestSubmissionTime) {
@@ -188,11 +262,12 @@ function processLeaderboardData(usersData) {
     // Add to leaderboard entries
     leaderboardEntries.push({
       userId: userId,
-      name: userData.username, // Changed from fullName to username
+      name: userData.username,
       rawScore: totalScore,
       displayScore: formattedScore,
       roundsPlayed: roundsPlayed,
-      latestSubmissionTime: latestSubmissionTime
+      latestSubmissionTime: latestSubmissionTime,
+      usingTotalPoints: true // For debugging - indicates we're using category totalPoints
     });
   });
   
@@ -211,10 +286,68 @@ function processLeaderboardData(usersData) {
     return a.latestSubmissionTime - b.latestSubmissionTime;
   });
   
+  // Log summary for debugging
+  console.log("Leaderboard Summary:");
+  console.log(`Total users: ${leaderboardEntries.length}`);
+  console.log(`Users processed with totalPoints from categories: ${leaderboardEntries.length}`);
+  
   // Render sorted leaderboard
   renderLeaderboard(leaderboardEntries);
 }
-  
+
+// ───────────────────────────────────────────────────────────
+// HELPER FUNCTION: Verify category totalPoints accuracy (for debugging)
+// ───────────────────────────────────────────────────────────
+async function verifyTotalPointsFromCategories(userId) {
+  try {
+    const userDoc = await dbFirestore.collection('users').doc(userId).get();
+    const userData = userDoc.data();
+    
+    let totalFromCategories = 0;
+    let calculatedFromPractices = 0;
+    
+    if (userData.practice_submissions) {
+      Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
+        if (dailySubmissionId === 'totalUserScore') return;
+        
+        const dailySubmission = userData.practice_submissions[dailySubmissionId];
+        if (dailySubmission.categories) {
+          Object.keys(dailySubmission.categories).forEach(categoryId => {
+            const category = dailySubmission.categories[categoryId];
+            
+            if (!category.isDeleted) {
+              // Add from totalPoints field
+              if (category.totalPoints !== undefined) {
+                totalFromCategories += parseInt(category.totalPoints) || 0;
+              }
+              
+              // Calculate from individual practices for comparison
+              if (category.practices && Array.isArray(category.practices)) {
+                category.practices.forEach(practice => {
+                  if (practice.points !== undefined) {
+                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                    calculatedFromPractices += parseInt(points) || 0;
+                  }
+                });
+              }
+            }
+          });
+        }
+      });
+    }
+    
+    console.log(`User ${userData.username || userId}:`);
+    console.log(`  Total from category totalPoints: ${totalFromCategories}`);
+    console.log(`  Calculated from individual practices: ${calculatedFromPractices}`);
+    console.log(`  Match: ${totalFromCategories === calculatedFromPractices ? 'YES' : 'NO'}`);
+    
+    return { totalFromCategories, calculatedFromPractices };
+  } catch (error) {
+    console.error('Error verifying totalPoints from categories:', error);
+    return { totalFromCategories: 0, calculatedFromPractices: 0 };
+  }
+}
+
     // ───────────────────────────────────────────────────────────
     // 7) RENDER LEADERBOARD - UPDATED FOR GOLF DISPLAY
     // ───────────────────────────────────────────────────────────

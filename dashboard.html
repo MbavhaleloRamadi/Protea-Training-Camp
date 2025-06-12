@@ -40,6 +40,19 @@
 
     <div class="blur-overlay"></div>
 
+    <!-- Double Points Flag Banner -->
+    <div class="double-points-banner" id="doublePointsBanner">
+      <div class="flag-container">
+        <div class="flag-pole"></div>
+        <div class="flag">
+          <div class="flag-text">
+            <span id="flagMainText">2X POINTS!</span>
+            <span class="flag-category" id="flagCategory"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="main-content">
         <div class="user-actions">
                 <button id="logout-button" onclick="logout()" class="logout-btn">
@@ -57,15 +70,24 @@
         <div class="score-cards">
             <div class="card" id="leaderboard-position">
                 <h2>Current Position</h2>
-                <p id="leaderboard-position-value">--</p>
+                <p id="leaderboard-position-value" class="score-value">
+                    <i class="fas fa-spinner fa-spin loading-icon" style="display: none;"></i>
+                    <span class="score-text">--</span>
+                </p>
             </div>
             <div class="card" id="weekly-score">
                 <h2>Weekly Score</h2>
-                <p id="weekly-score-value">0</p>
+                <p id="weekly-score-value" class="score-value">
+                    <i class="fas fa-spinner fa-spin loading-icon" style="display: none;"></i>
+                    <span class="score-text">0</span>
+                </p>
             </div>
             <div class="card" id="all-time-score">
                 <h2>All-Time Score</h2>
-                <p id="all-time-score-value">0</p>
+                <p id="all-time-score-value" class="score-value">
+                    <i class="fas fa-spinner fa-spin loading-icon" style="display: none;"></i>
+                    <span class="score-text">0</span>
+                </p>
             </div>
         </div>
 
