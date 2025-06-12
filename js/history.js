@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Reference to Firestore and Auth
     const db = firebase.firestore();
     const auth = firebase.auth();
+    const database = firebase.database();
+    const realtimeDb = firebase.database();
     
     // ───────────────────────────────────────────────────────────
     // 3) AUTH CHECK
@@ -77,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
     
-    // ───────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────
 // 4) FETCH USER SUBMISSIONS DATA - UPDATED FOR NEW STRUCTURE
 // ───────────────────────────────────────────────────────────
 async function fetchUserSubmissions(userId) {
@@ -186,7 +188,6 @@ function initializePage(data) {
   updateStats(data);
   populateMostPracticed(data);
   populateSubmissionsTimeline(data);
-  setupFilters(data);
   setupExportButtons(data);
 }
 
@@ -332,112 +333,17 @@ function populateMostPracticed(data) {
   });
 }
 
-// ───────────────────────────────────────────────────────────
-// 6) SUBMISSIONS TIMELINE - UPDATED FOR NEW STRUCTURE
-// ───────────────────────────────────────────────────────────
-function populateSubmissionsTimeline(data, filterType = 'all', startDate = null, endDate = null) {
-  const container = document.getElementById('timelineContainer');
-  container.innerHTML = '';
-  
-  // Filter data based on parameters
-  let filteredData = [...data];
-  
-  if (filterType !== 'all') {
-    filteredData = filteredData.filter(submission => 
-      submission.categories.some(cat => cat.name === filterType)
-    );
-  }
-  
-  if (startDate) {
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    filteredData = filteredData.filter(submission => {
-      const submissionDate = new Date(submission.date);
-      submissionDate.setHours(0, 0, 0, 0);
-      return submissionDate >= start;
-    });
-  }
-  
-  if (endDate) {
-    const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999);
-    filteredData = filteredData.filter(submission => {
-      const submissionDate = new Date(submission.date);
-      return submissionDate <= end;
-    });
-  }
-  
-  // Sort by date (newest first)
-  filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
-  
-  if (filteredData.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state" style="padding: 20px;">
-        <p>No practice submissions found for the selected filters.</p>
-      </div>
-    `;
-    return;
-  }
-  
-  // Create timeline items for submissions
-  filteredData.forEach(submission => {
-    const date = new Date(submission.date);
-    const formattedDate = date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    
-    // Format submission time
-    let timeInfo = '';
-    if (submission.submittedAt) {
-      const submittedTime = submission.submittedAt.toDate ? 
-        submission.submittedAt.toDate() : 
-        new Date(submission.submittedAt);
-      timeInfo = ` at ${submittedTime.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-      })}`;
-    }
-    
-    const timelineItem = document.createElement('div');
-    timelineItem.className = 'timeline-item submission-item';
-    timelineItem.setAttribute('data-submission-id', submission.id);
-    timelineItem.setAttribute('data-daily-submission-id', submission.dailySubmissionId);
-    
-    timelineItem.innerHTML = `
-      <div class="timeline-date">${formattedDate}${timeInfo}</div>
-      <div class="timeline-content">
-        <div class="submission-header">
-          <h3>Practice Session</h3>
-          <div class="submission-actions">
-            <button class="view-details-btn" onclick="viewSubmissionDetails('${submission.id}', '${submission.dailySubmissionId}')">
-              <i class="fas fa-eye"></i> View Details
-            </button>
-          </div>
-        </div>
-        <div class="submission-summary">
-          <p><strong>Categories:</strong> ${submission.categorySummary || 'No categories'}</p>
-          <div class="submission-stats">
-            <span><i class="fas fa-list"></i> ${submission.totalCategories || 0} Categories</span>
-            <span><i class="fas fa-dumbbell"></i> ${submission.totalPractices || 0} Practices</span>
-            <span><i class="fas fa-star"></i> ${submission.totalPoints || 0} Points</span>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    container.appendChild(timelineItem);
-  });
-  
-  console.log(`Timeline populated with ${filteredData.length} submissions`);
-}
 
-    
+/// ───────────────────────────────────────────────────────────
+// ENHANCED REAL-TIME PRACTICE EDITING SYSTEM
 // ───────────────────────────────────────────────────────────
-// 8) EDIT PRACTICE FUNCTIONALITY
-// ───────────────────────────────────────────────────────────
+
+// Global variables for tracking current editing state
+// Already declared at the top of the script, just reset values here if needed
+currentEditingSubmissionId = null;
+currentEditingCategoryId = null;
+currentEditingPracticeId = null;
+currentViewingSubmission = null;
 
 const practicesData = {
   "Putting": [
@@ -529,6 +435,189 @@ const practicesData = {
     { name: "Fit-Run10k",            description: "Run 10km or more",                       points: 25 }
   ]
 };
+
+// ───────────────────────────────────────────────────────────
+// UTILITY FUNCTIONS FOR REAL-TIME SYNC
+// ───────────────────────────────────────────────────────────
+
+/**
+ * Updates a specific practice in the allSubmissions array
+ * This ensures all UI components stay in sync
+ */
+function updatePracticeInLocalData(submissionId, categoryId, practiceIndex, updatedPractice) {
+  const submission = allSubmissions.find(s => s.id === submissionId);
+  if (!submission) return false;
+  
+  const category = submission.categories.find(c => c.id === categoryId);
+  if (!category) return false;
+  
+  if (!category.practices[practiceIndex]) return false;
+  
+  // Update the practice
+  category.practices[practiceIndex] = {
+    ...category.practices[practiceIndex],
+    ...updatedPractice
+  };
+  
+  // Recalculate category totals
+  category.totalPoints = category.practices.reduce((sum, p) => sum + (p.points || 0), 0);
+  category.totalPractices = category.practices.length;
+  
+  // Recalculate submission totals
+  submission.totalPoints = submission.categories.reduce((sum, cat) => sum + cat.totalPoints, 0);
+  submission.totalPractices = submission.categories.reduce((sum, cat) => sum + cat.totalPractices, 0);
+  submission.totalCategories = submission.categories.length;
+  
+  // Update category summary for timeline display
+  submission.categorySummary = submission.categories.map(cat => cat.name).join(', ');
+  
+  return true;
+}
+
+/**
+ * Refreshes all UI components that display practice data
+ */
+function refreshAllUIComponents() {
+  // 1. Refresh timeline if it exists
+  const timelineContainer = document.getElementById('timelineContainer');
+  if (timelineContainer && typeof populateSubmissionsTimeline === 'function') {
+    // Get current filter settings if they exist
+    const currentFilter = document.getElementById('categoryFilter')?.value || 'all';
+    const startDate = document.getElementById('startDate')?.value || null;
+    const endDate = document.getElementById('endDate')?.value || null;
+    
+    populateSubmissionsTimeline(allSubmissions, currentFilter, startDate, endDate);
+  }
+  
+  // 2. Refresh submission details modal if it's open
+  if (currentViewingSubmission) {
+    const updatedSubmission = allSubmissions.find(s => s.id === currentViewingSubmission.id);
+    if (updatedSubmission) {
+      currentViewingSubmission = updatedSubmission;
+      showSubmissionDetailsModal(updatedSubmission);
+    }
+  }
+  
+  // 3. Refresh any other dashboard components that might display this data
+  if (typeof refreshDashboardStats === 'function') {
+    refreshDashboardStats();
+  }
+}
+
+/**
+ * Updates a specific timeline item without full refresh
+ * Shows detailed information about categories, practices, and points
+ */
+function updateTimelineItem(submissionId) {
+  const timelineItem = document.querySelector(`[data-submission-id="${submissionId}"]`);
+  if (!timelineItem) return;
+  
+  const submission = allSubmissions.find(s => s.id === submissionId);
+  if (!submission) return;
+  
+  // Format the date
+  const date = new Date(submission.date);
+  const formattedDate = date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+  
+  // Format submission time
+  let timeInfo = '';
+  if (submission.submittedAt) {
+    const submittedTime = submission.submittedAt.toDate ?
+      submission.submittedAt.toDate() :
+      new Date(submission.submittedAt);
+    timeInfo = ` at ${submittedTime.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit'
+    })}`;
+  }
+  
+  // Generate detailed category breakdown
+  let categoryBreakdown = '';
+  submission.categories.forEach((category, index) => {
+    const practices = category.practices || [];
+    const practicesList = practices.map(practice => {
+      const practiceName = practice.name || practice.practiceDescription || 'Unnamed Practice';
+      const practicePoints = practice.points || 0;
+      return `${practiceName} (${practicePoints}pts)`;
+    }).join(', ');
+    
+    categoryBreakdown += `
+      <div class="category-breakdown">
+        <strong>${category.name}:</strong> 
+        <span class="category-stats-inline">${practices.length} practices, ${category.totalPoints || 0} points</span>
+        ${practices.length > 0 ? `<div class="practices-list-inline">${practicesList}</div>` : ''}
+      </div>
+    `;
+  });
+  
+  // Update the entire timeline item content
+  timelineItem.innerHTML = `
+    <div class="timeline-date">${formattedDate}${timeInfo}</div>
+    <div class="timeline-content">
+      <div class="submission-header">
+        <h3>Practice Session</h3>
+        <div class="submission-actions">
+          <button class="view-details-btn" onclick="viewSubmissionDetails('${submission.id}', '${submission.dailySubmissionId || ''}')">
+            <i class="fas fa-eye"></i> View Details
+          </button>
+        </div>
+      </div>
+      <div class="submission-summary">
+        <div class="submission-stats">
+          <span><i class="fas fa-list"></i> ${submission.totalCategories || 0} Categories</span>
+          <span><i class="fas fa-dumbbell"></i> ${submission.totalPractices || 0} Practices</span>
+          <span><i class="fas fa-star"></i> ${submission.totalPoints || 0} Points</span>
+        </div>
+        <div class="detailed-breakdown">
+          ${categoryBreakdown}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Add some inline styles for better presentation if they don't exist in CSS
+  const style = document.createElement('style');
+  if (!document.getElementById('timeline-update-styles')) {
+    style.id = 'timeline-update-styles';
+    style.textContent = `
+      .category-breakdown {
+        margin: 8px 0;
+        padding: 6px;
+        background: rgba(0,0,0,0.05);
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .category-stats-inline {
+        color: #666;
+        font-size: 0.85em;
+      }
+      .practices-list-inline {
+        margin-top: 4px;
+        font-size: 0.8em;
+        color: #888;
+        line-height: 1.3;
+      }
+      .detailed-breakdown {
+        margin-top: 10px;
+      }
+      .submission-stats {
+        margin-bottom: 10px;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+  
+  console.log(`Timeline item updated for submission: ${submissionId}`);
+}
+
+// ───────────────────────────────────────────────────────────
+// EDIT PRACTICE FUNCTIONALITY
+// ───────────────────────────────────────────────────────────
 
 window.editPractice = function(submissionId, categoryId, practiceIndex) {
   const submission = allSubmissions.find(s => s.id === submissionId);
@@ -703,6 +792,10 @@ window.updatePracticeDetails = function() {
   }
 };
 
+// ───────────────────────────────────────────────────────────
+// ENHANCED SAVE FUNCTION WITH REAL-TIME SYNC
+// ───────────────────────────────────────────────────────────
+
 window.saveEditedPractice = async function() {
   if (currentEditingSubmissionId === null || currentEditingCategoryId === null || currentEditingPracticeId === null) {
     showNotification('Invalid editing state', 'error');
@@ -724,6 +817,12 @@ window.saveEditedPractice = async function() {
     showNotification('Please select a practice', 'error');
     return;
   }
+  
+  // Show loading state
+  const saveButton = document.querySelector('#editPracticeForm button[type="submit"]');
+  const originalButtonText = saveButton.innerHTML;
+  saveButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+  saveButton.disabled = true;
   
   try {
     const updatedPractice = {
@@ -758,38 +857,77 @@ window.saveEditedPractice = async function() {
     // Recalculate totals
     const totalPoints = practices.reduce((sum, p) => sum + (p.points || 0), 0);
     
-    // Update the category document
-    await categoryRef.update({
-      practices: practices,
-      totalPoints: totalPoints,
-      lastModified: firebase.firestore.Timestamp.now()
-    });
+    // Update both Firestore and Realtime Database
+await Promise.all([
+  // Update Firestore
+  categoryRef.update({
+    practices: practices,
+    totalPoints: totalPoints,
+    lastModified: firebase.firestore.Timestamp.now()
+  }),
+  
+  // Update Realtime Database
+  realtimeDb.ref(`users/${user.uid}/practice_submissions/${currentEditingSubmissionId}/categories/${currentEditingCategoryId}`).update({
+    practices: practices,
+    totalPoints: totalPoints,
+    lastModified: firebase.database.ServerValue.TIMESTAMP
+  })
+]);
+    
+    // *** REAL-TIME SYNC: Update local data immediately ***
+    const localUpdateSuccess = updatePracticeInLocalData(
+      currentEditingSubmissionId, 
+      currentEditingCategoryId, 
+      currentEditingPracticeId, 
+      updatedPractice
+    );
+    
+    if (localUpdateSuccess) {
+      // Update specific timeline item without full refresh for better performance
+      updateTimelineItem(currentEditingSubmissionId);
+      
+      // If submission details modal is open, refresh it with updated data
+      if (currentViewingSubmission && currentViewingSubmission.id === currentEditingSubmissionId) {
+        const updatedSubmission = allSubmissions.find(s => s.id === currentEditingSubmissionId);
+        if (updatedSubmission) {
+          currentViewingSubmission = updatedSubmission;
+          showSubmissionDetailsModal(updatedSubmission);
+        }
+      }
+    } else {
+      // Fallback: full refresh if local update failed
+      console.warn('Local update failed, performing full refresh');
+      await fetchUserSubmissions(user.uid);
+      refreshAllUIComponents();
+    }
     
     showNotification('Practice updated successfully!', 'success');
     closeEditPracticeModal();
     
-    // Refresh the data
-    await fetchUserSubmissions(user.uid);
-    
-    // Reopen the submission details if it was open
-    if (currentViewingSubmission) {
-      const updatedSubmission = allSubmissions.find(s => s.id === currentEditingSubmissionId);
-      if (updatedSubmission) {
-        showSubmissionDetailsModal(updatedSubmission);
-      }
-    }
-    
   } catch (error) {
     console.error('Error updating practice:', error);
     showNotification('Error updating practice. Please try again.', 'error');
+    
+    // Reset button state on error
+    saveButton.innerHTML = originalButtonText;
+    saveButton.disabled = false;
   }
 };
 
 // ───────────────────────────────────────────────────────────
-// 7) SUBMISSION DETAILS MODAL
+// ENHANCED SUBMISSION DETAILS MODAL
 // ───────────────────────────────────────────────────────────
-window.viewSubmissionDetails = function(submissionId) {
-  const submission = allSubmissions.find(s => s.id === submissionId);
+
+window.viewSubmissionDetails = function(submissionId, dailySubmissionId = null) {
+  let submission;
+  
+  // Handle both old and new function signatures
+  if (dailySubmissionId) {
+    submission = allSubmissions.find(s => s.id === submissionId || s.dailySubmissionId === dailySubmissionId);
+  } else {
+    submission = allSubmissions.find(s => s.id === submissionId);
+  }
+  
   if (!submission) {
     showNotification('Submission not found', 'error');
     return;
@@ -817,53 +955,51 @@ function showSubmissionDetailsModal(submission) {
     day: 'numeric' 
   });
   
-  // Fixed practice display section in showSubmissionDetailsModal function
-let categoriesHTML = '';
-submission.categories.forEach(category => {
-  let practicesHTML = '';
-  category.practices.forEach((practice, index) => {
-    // Handle both old and new data structures
-    const practiceName = practice.name || practice.practiceDescription || 'Unnamed Practice';
-    const practiceDesc = practice.description || practice.practiceDescription || 'No description';
-    const practicePoints = practice.points || 0;
-    
-    practicesHTML += `
-      <div class="practice-item">
-        <div class="practice-info">
-          <h5>${practiceName}</h5>
-          <p>${practiceDesc}</p>
-          <div class="practice-meta">
-            <span>Points: ${practicePoints}${practice.isDoublePoints ? ' (Double Points!)' : ''}</span>
-            ${practice.addedAt ? `<span>Added: ${new Date(practice.addedAt).toLocaleTimeString()}</span>` : ''}
+  // Enhanced practice display with real-time editing capabilities
+  let categoriesHTML = '';
+  submission.categories.forEach(category => {
+    let practicesHTML = '';
+    category.practices.forEach((practice, index) => {
+      // Handle both old and new data structures
+      const practiceName = practice.name || practice.practiceDescription || 'Unnamed Practice';
+      const practiceDesc = practice.description || practice.practiceDescription || 'No description';
+      const practicePoints = practice.points || 0;
+      
+      practicesHTML += `
+        <div class="practice-item" data-practice-index="${index}">
+          <div class="practice-info">
+            <h5>${practiceName}</h5>
+            <p>${practiceDesc}</p>
+            <div class="practice-meta">
+              <span class="points-display">Points: ${practicePoints}${practice.isDoublePoints ? ' (Double Points!)' : ''}</span>
+              ${practice.addedAt ? `<span>Added: ${new Date(practice.addedAt).toLocaleTimeString()}</span>` : ''}
+              ${practice.lastModified ? `<span>Modified: ${new Date(practice.lastModified.toDate()).toLocaleTimeString()}</span>` : ''}
+            </div>
+          </div>
+          <div class="practice-actions">
+            <button class="edit-practice-btn" onclick="editPractice('${submission.id}', '${category.id}', ${index})" title="Edit Practice">
+              <i class="fas fa-edit"></i>
+            </button>
           </div>
         </div>
-        <div class="practice-actions">
-          <button class="edit-practice-btn" onclick="editPractice('${submission.id}', '${category.id}', ${index})" title="Edit Practice">
-            <i class="fas fa-edit"></i>
-          </button>
-          <button class="delete-practice-btn" onclick="deletePractice('${submission.id}', '${category.id}', ${index})" title="Delete Practice">
-            <i class="fas fa-trash"></i>
-          </button>
+      `;
+    });
+    
+    categoriesHTML += `
+      <div class="category-section" data-category-id="${category.id}">
+        <div class="category-header">
+          <h4>${category.name}</h4>
+          <div class="category-stats">
+            <span class="practices-count">${category.totalPractices} practices</span>
+            <span class="points-count">${category.totalPoints} points</span>
+          </div>
+        </div>
+        <div class="practices-list">
+          ${practicesHTML}
         </div>
       </div>
     `;
   });
-  
-  categoriesHTML += `
-    <div class="category-section">
-      <div class="category-header">
-        <h4>${category.name}</h4>
-        <div class="category-stats">
-          <span>${category.totalPractices} practices</span>
-          <span>${category.totalPoints} points</span>
-        </div>
-      </div>
-      <div class="practices-list">
-        ${practicesHTML}
-      </div>
-    </div>
-  `;
-});
   
   modal.innerHTML = `
     <div class="modal-container large-modal">
@@ -879,15 +1015,15 @@ submission.categories.forEach(category => {
           <div class="overview-stats">
             <div class="stat-item">
               <span class="stat-label">Categories</span>
-              <span class="stat-value">${submission.totalCategories}</span>
+              <span class="stat-value categories-total">${submission.totalCategories}</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Practices</span>
-              <span class="stat-value">${submission.totalPractices}</span>
+              <span class="stat-value practices-total">${submission.totalPractices}</span>
             </div>
             <div class="stat-item">
               <span class="stat-label">Total Points</span>
-              <span class="stat-value">${submission.totalPoints}</span>
+              <span class="stat-value points-total">${submission.totalPoints}</span>
             </div>
           </div>
         </div>
@@ -921,755 +1057,133 @@ window.closeSubmissionDetailsModal = function() {
   currentViewingSubmission = null;
 };
 
-
 // ───────────────────────────────────────────────────────────
-// ENHANCED DELETE PRACTICE FUNCTIONALITY - CROSS-BROWSER COMPATIBLE
+// ENHANCED TIMELINE POPULATION WITH SYNC SUPPORT
 // ───────────────────────────────────────────────────────────
 
-// Enhanced confirmation dialog with modern design
-function showDeleteConfirmationDialog(practiceDescription, onConfirm, onCancel) {
-  // Create modal overlay with modern styling
-  const overlay = document.createElement('div');
-  overlay.id = 'delete-confirmation-overlay';
+function populateSubmissionsTimeline(data, filterType = 'all', startDate = null, endDate = null) {
+  const container = document.getElementById('timelineContainer');
+  if (!container) return;
   
-  // Cross-browser compatible styles
-  const overlayStyles = {
-    position: 'fixed',
-    top: '0',
-    left: '0',
-    right: '0',
-    bottom: '0',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: '9999',
-    padding: '16px',
-    boxSizing: 'border-box',
-    animation: 'fadeIn 0.3s ease-out'
-  };
+  container.innerHTML = '';
   
-  Object.assign(overlay.style, overlayStyles);
+  // Filter data based on parameters
+  let filteredData = [...data];
   
-  // Create modal content with glassmorphism effect
-  const modal = document.createElement('div');
-  const modalStyles = {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(20px)',
-    borderRadius: '20px',
-    padding: '32px',
-    maxWidth: '480px',
-    width: '100%',
-    maxHeight: '90vh',
-    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.3)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    textAlign: 'center',
-    boxSizing: 'border-box',
-    transform: 'scale(0.9)',
-    animation: 'modalSlideIn 0.3s ease-out forwards',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-  };
+  if (filterType !== 'all') {
+    filteredData = filteredData.filter(submission =>
+      submission.categories.some(cat => cat.name === filterType)
+    );
+  }
   
-  Object.assign(modal.style, modalStyles);
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    filteredData = filteredData.filter(submission => {
+      const submissionDate = new Date(submission.date);
+      submissionDate.setHours(0, 0, 0, 0);
+      return submissionDate >= start;
+    });
+  }
   
-  // Create warning icon with animated pulse
-  const iconContainer = document.createElement('div');
-  const iconStyles = {
-    width: '64px',
-    height: '64px',
-    margin: '0 auto 24px',
-    backgroundColor: '#fee2e2',
-    borderRadius: '50%',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    animation: 'pulse 2s infinite'
-  };
-  Object.assign(iconContainer.style, iconStyles);
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    filteredData = filteredData.filter(submission => {
+      const submissionDate = new Date(submission.date);
+      return submissionDate <= end;
+    });
+  }
   
-  iconContainer.innerHTML = `
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2.5">
-      <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 16.5c-.77.833.192 2.5 1.732 2.5z" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-  `;
+  // Sort by date (newest first)
+  filteredData.sort((a, b) => new Date(b.date) - new Date(a.date));
   
-  // Create title
-  const title = document.createElement('h3');
-  title.textContent = 'Delete Practice';
-  const titleStyles = {
-    fontSize: '24px',
-    fontWeight: '700',
-    color: '#1f2937',
-    margin: '0 0 16px 0',
-    lineHeight: '1.3'
-  };
-  Object.assign(title.style, titleStyles);
-  
-  // Create description
-  const description = document.createElement('div');
-  description.innerHTML = `
-    <p style="font-size: 16px; color: #6b7280; margin: 0 0 8px 0; line-height: 1.5;">
-      Are you sure you want to delete this practice?
-    </p>
-    <div style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%); padding: 16px; border-radius: 12px; margin: 16px 0 24px 0; border: 1px solid #d1d5db;">
-      <p style="font-size: 15px; font-weight: 600; color: #374151; margin: 0; word-break: break-word;">
-        "${practiceDescription}"
-      </p>
-    </div>
-    <p style="font-size: 14px; color: #ef4444; margin: 0; font-weight: 500;">
-      ⚠️ This action cannot be undone
-    </p>
-  `;
-  
-  // Create button container
-  const buttonContainer = document.createElement('div');
-  const buttonContainerStyles = {
-    display: 'flex',
-    gap: '12px',
-    justifyContent: 'center',
-    marginTop: '32px',
-    flexWrap: 'wrap'
-  };
-  Object.assign(buttonContainer.style, buttonContainerStyles);
-  
-  // Create Cancel button
-  const cancelButton = document.createElement('button');
-  cancelButton.textContent = 'Cancel';
-  cancelButton.id = 'cancel-delete';
-  const cancelButtonStyles = {
-    padding: '12px 24px',
-    backgroundColor: '#f9fafb',
-    color: '#374151',
-    border: '2px solid #d1d5db',
-    borderRadius: '12px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    minWidth: '100px',
-    fontFamily: 'inherit'
-  };
-  Object.assign(cancelButton.style, cancelButtonStyles);
-  
-  // Create Delete button
-  const deleteButton = document.createElement('button');
-  deleteButton.textContent = 'Delete';
-  deleteButton.id = 'confirm-delete';
-  const deleteButtonStyles = {
-    padding: '12px 24px',
-    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s ease',
-    minWidth: '100px',
-    boxShadow: '0 4px 12px rgba(239, 68, 68, 0.4)',
-    fontFamily: 'inherit'
-  };
-  Object.assign(deleteButton.style, deleteButtonStyles);
-  
-  // Add hover effects
-  cancelButton.addEventListener('mouseenter', () => {
-    cancelButton.style.backgroundColor = '#f3f4f6';
-    cancelButton.style.borderColor = '#9ca3af';
-    cancelButton.style.transform = 'translateY(-1px)';
-  });
-  
-  cancelButton.addEventListener('mouseleave', () => {
-    cancelButton.style.backgroundColor = '#f9fafb';
-    cancelButton.style.borderColor = '#d1d5db';
-    cancelButton.style.transform = 'translateY(0)';
-  });
-  
-  deleteButton.addEventListener('mouseenter', () => {
-    deleteButton.style.background = 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)';
-    deleteButton.style.transform = 'translateY(-1px)';
-    deleteButton.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.5)';
-  });
-  
-  deleteButton.addEventListener('mouseleave', () => {
-    deleteButton.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
-    deleteButton.style.transform = 'translateY(0)';
-    deleteButton.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
-  });
-  
-  // Assemble modal
-  buttonContainer.appendChild(cancelButton);
-  buttonContainer.appendChild(deleteButton);
-  
-  modal.appendChild(iconContainer);
-  modal.appendChild(title);
-  modal.appendChild(description);
-  modal.appendChild(buttonContainer);
-  
-  overlay.appendChild(modal);
-  
-  // Add CSS animations
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes fadeIn {
-      from { opacity: 0; }
-      to { opacity: 1; }
-    }
-    
-    @keyframes modalSlideIn {
-      from { 
-        transform: scale(0.9) translateY(20px);
-        opacity: 0;
-      }
-      to { 
-        transform: scale(1) translateY(0);
-        opacity: 1;
-      }
-    }
-    
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }
-    }
-    
-    @media (max-width: 480px) {
-      #delete-confirmation-overlay > div {
-        margin: 16px !important;
-        padding: 24px !important;
-        border-radius: 16px !important;
-      }
-      
-      #delete-confirmation-overlay h3 {
-        font-size: 20px !important;
-      }
-      
-      #delete-confirmation-overlay button {
-        flex: 1 !important;
-        min-width: auto !important;
-      }
-    }
-  `;
-  
-  document.head.appendChild(style);
-  document.body.appendChild(overlay);
-  
-  // Add event listeners
-  cancelButton.addEventListener('click', () => {
-    overlay.style.animation = 'fadeOut 0.2s ease-out';
-    modal.style.animation = 'modalSlideOut 0.2s ease-out';
-    setTimeout(() => {
-      if (overlay.parentElement) {
-        document.body.removeChild(overlay);
-        document.head.removeChild(style);
-      }
-      if (onCancel) onCancel();
-    }, 200);
-  });
-  
-  deleteButton.addEventListener('click', () => {
-    overlay.style.animation = 'fadeOut 0.2s ease-out';
-    modal.style.animation = 'modalSlideOut 0.2s ease-out';
-    setTimeout(() => {
-      if (overlay.parentElement) {
-        document.body.removeChild(overlay);
-        document.head.removeChild(style);
-      }
-      if (onConfirm) onConfirm();
-    }, 200);
-  });
-  
-  // Close on overlay click
-  overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) {
-      overlay.style.animation = 'fadeOut 0.2s ease-out';
-      modal.style.animation = 'modalSlideOut 0.2s ease-out';
-      setTimeout(() => {
-        if (overlay.parentElement) {
-          document.body.removeChild(overlay);
-          document.head.removeChild(style);
-        }
-        if (onCancel) onCancel();
-      }, 200);
-    }
-  });
-  
-  // Add exit animations
-  const exitStyle = document.createElement('style');
-  exitStyle.textContent = `
-    @keyframes fadeOut {
-      from { opacity: 1; }
-      to { opacity: 0; }
-    }
-    
-    @keyframes modalSlideOut {
-      from { 
-        transform: scale(1) translateY(0);
-        opacity: 1;
-      }
-      to { 
-        transform: scale(0.9) translateY(20px);
-        opacity: 0;
-      }
-    }
-  `;
-  document.head.appendChild(exitStyle);
-  
-  // Keyboard support
-  document.addEventListener('keydown', function escapeHandler(e) {
-    if (e.key === 'Escape') {
-      cancelButton.click();
-      document.removeEventListener('keydown', escapeHandler);
-    }
-  });
-}
-
-// Enhanced success/error notification with modern design
-function showDeleteResultNotification(success, message) {
-  const notification = document.createElement('div');
-  notification.id = 'delete-notification-' + Date.now();
-  
-  const baseStyles = {
-    position: 'fixed',
-    top: '24px',
-    right: '24px',
-    padding: '16px 20px',
-    borderRadius: '16px',
-    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-    zIndex: '10000',
-    maxWidth: '400px',
-    minWidth: '300px',
-    backdropFilter: 'blur(12px)',
-    border: '1px solid rgba(255, 255, 255, 0.2)',
-    transform: 'translateX(400px)',
-    transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-  };
-  
-  const successStyles = {
-    backgroundColor: 'rgba(16, 185, 129, 0.95)',
-    color: 'white',
-    border: '1px solid rgba(16, 185, 129, 0.3)'
-  };
-  
-  const errorStyles = {
-    backgroundColor: 'rgba(239, 68, 68, 0.95)',
-    color: 'white',
-    border: '1px solid rgba(239, 68, 68, 0.3)'
-  };
-  
-  Object.assign(notification.style, baseStyles);
-  Object.assign(notification.style, success ? successStyles : errorStyles);
-  
-  const icon = success ? 
-    `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-       <path d="M9 12l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
-       <circle cx="12" cy="12" r="10"/>
-     </svg>` :
-    `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-       <circle cx="12" cy="12" r="10"/>
-       <line x1="15" y1="9" x2="9" y2="15"/>
-       <line x1="9" y1="9" x2="15" y2="15"/>
-     </svg>`;
-  
-  notification.innerHTML = `
-    <div style="display: flex; align-items: flex-start; gap: 12px;">
-      <div style="flex-shrink: 0; margin-top: 2px;">
-        ${icon}
+  if (filteredData.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding: 20px;">
+        <p>No practice submissions found for the selected filters.</p>
       </div>
-      <div style="flex: 1; min-width: 0;">
-        <div style="font-weight: 600; font-size: 15px; margin-bottom: 4px;">
-          ${success ? 'Success!' : 'Error'}
-        </div>
-        <div style="font-size: 14px; opacity: 0.9; line-height: 1.4;">
-          ${message}
-        </div>
-      </div>
-      <button onclick="this.parentElement.parentElement.remove()" 
-              style="background: none; border: none; color: currentColor; cursor: pointer; padding: 4px; border-radius: 6px; opacity: 0.7; transition: opacity 0.2s;"
-              onmouseover="this.style.opacity='1'"
-              onmouseout="this.style.opacity='0.7'">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>
-    </div>
-  `;
-  
-  document.body.appendChild(notification);
-  
-  // Slide in animation
-  setTimeout(() => {
-    notification.style.transform = 'translateX(0)';
-  }, 100);
-  
-  // Auto remove with slide out animation
-  setTimeout(() => {
-    if (notification.parentElement) {
-      notification.style.transform = 'translateX(400px)';
-      notification.style.opacity = '0';
-      setTimeout(() => {
-        if (notification.parentElement) {
-          notification.remove();
-        }
-      }, 400);
-    }
-  }, 5000);
-  
-  // Mobile responsive positioning
-  if (window.innerWidth <= 480) {
-    notification.style.right = '16px';
-    notification.style.left = '16px';
-    notification.style.maxWidth = 'none';
-    notification.style.minWidth = 'auto';
-    notification.style.transform = 'translateY(-100px)';
-    
-    setTimeout(() => {
-      notification.style.transform = 'translateY(0)';
-    }, 100);
-    
-    // Update auto-remove for mobile
-    setTimeout(() => {
-      if (notification.parentElement) {
-        notification.style.transform = 'translateY(-100px)';
-        notification.style.opacity = '0';
-        setTimeout(() => {
-          if (notification.parentElement) {
-            notification.remove();
-          }
-        }, 400);
-      }
-    }, 5000);
-  }
-}
-
-// Function to remove practice from UI with smooth animation
-function removePracticeFromUI(submissionId, categoryId, practiceIndex) {
-  const practiceElement = document.querySelector(`[data-practice-index="${practiceIndex}"][data-category-id="${categoryId}"]`);
-  if (practiceElement) {
-    practiceElement.style.transition = 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
-    practiceElement.style.transform = 'translateX(-100%)';
-    practiceElement.style.opacity = '0';
-    practiceElement.style.maxHeight = practiceElement.offsetHeight + 'px';
-    
-    setTimeout(() => {
-      practiceElement.style.maxHeight = '0';
-      practiceElement.style.paddingTop = '0';
-      practiceElement.style.paddingBottom = '0';
-      practiceElement.style.marginTop = '0';
-      practiceElement.style.marginBottom = '0';
-    }, 200);
-    
-    setTimeout(() => {
-      if (practiceElement.parentElement) {
-        practiceElement.remove();
-      }
-    }, 600);
-  }
-  
-  // Update category header counts
-  const categoryElement = document.querySelector(`[data-category-id="${categoryId}"]`);
-  if (categoryElement) {
-    const practiceCountElement = categoryElement.querySelector('.practice-count');
-    if (practiceCountElement) {
-      const currentCount = parseInt(practiceCountElement.textContent) || 0;
-      const newCount = Math.max(0, currentCount - 1);
-      practiceCountElement.textContent = newCount;
-      
-      // Add a subtle animation to the count change
-      practiceCountElement.style.transform = 'scale(1.2)';
-      practiceCountElement.style.transition = 'transform 0.2s ease';
-      setTimeout(() => {
-        practiceCountElement.style.transform = 'scale(1)';
-      }, 200);
-    }
-  }
-}
-
-// Main delete function with enhanced UX
-window.deletePractice = async function(submissionId, categoryId, practiceIndex, practiceDescription = 'this practice') {
-  const user = auth.currentUser;
-  if (!user) {
-    showDeleteResultNotification(false, 'Please log in to delete practices');
+    `;
     return;
   }
   
-  // Show confirmation dialog
-  showDeleteConfirmationDialog(
-    practiceDescription,
-    async () => {
-      // User confirmed deletion
-      try {
-        // Remove from UI immediately for better UX
-        removePracticeFromUI(submissionId, categoryId, practiceIndex);
-        
-        // Get the current category document from Firestore
-        const categoryRef = db.collection("users")
-          .doc(user.uid)
-          .collection("practice_submissions")
-          .doc(submissionId)
-          .collection("categories")
-          .doc(categoryId);
-          
-        const categoryDoc = await categoryRef.get();
-        if (!categoryDoc.exists) {
-          throw new Error('Category not found');
-        }
-        
-        const categoryData = categoryDoc.data();
-        const practices = categoryData.practices || [];
-        
-        if (practiceIndex < 0 || practiceIndex >= practices.length) {
-          throw new Error('Invalid practice index');
-        }
-        
-        // Store the points of the practice being deleted
-        const deletedPracticePoints = practices[practiceIndex].points || 0;
-        
-        // Remove the practice
-        practices.splice(practiceIndex, 1);
-        
-        let categoryDeleted = false;
-        
-        if (practices.length === 0) {
-          // Delete the entire category
-          await categoryRef.delete();
-          await database.ref(`users/${user.uid}/practice_submissions/${submissionId}/categories/${categoryId}`).remove();
-          categoryDeleted = true;
-        } else {
-          // Update category
-          const totalPoints = practices.reduce((sum, p) => sum + (p.points || 0), 0);
-          
-          const updatedCategoryData = {
-            practices: practices,
-            totalPoints: totalPoints,
-            totalPractices: practices.length,
-            lastModified: firebase.firestore.Timestamp.now()
-          };
-          
-          await categoryRef.update(updatedCategoryData);
-          await database.ref(`users/${user.uid}/practice_submissions/${submissionId}/categories/${categoryId}`).update({
-            practices: practices,
-            totalPoints: totalPoints,
-            totalPractices: practices.length,
-            lastModified: firebase.database.ServerValue.TIMESTAMP
-          });
-        }
-        
-        // Update submission totals and metadata
-        await updateSubmissionAfterDeletion(submissionId, user.uid, deletedPracticePoints, categoryDeleted);
-        
-        // Update user metadata
-        await updateUserMetadataAfterDeletion(user.uid, deletedPracticePoints);
-        
-        // Show success notification
-        showDeleteResultNotification(true, categoryDeleted ? 
-          'Practice deleted successfully! Category removed as it had no remaining practices.' :
-          'Practice deleted successfully!'
-        );
-        
-        // Refresh data and UI
-        if (typeof fetchUserSubmissions === 'function') {
-          await fetchUserSubmissions(user.uid);
-        }
-        
-        // Handle modal refresh
-        if (typeof currentViewingSubmission !== 'undefined' && currentViewingSubmission) {
-          const updatedSubmission = typeof allSubmissions !== 'undefined' ? 
-            allSubmissions.find(s => s.id === submissionId) : null;
-          
-          if (updatedSubmission && updatedSubmission.categories && updatedSubmission.categories.length > 0) {
-            if (typeof showSubmissionDetailsModal === 'function') {
-              showSubmissionDetailsModal(updatedSubmission);
-            }
-          } else {
-            if (typeof closeSubmissionDetailsModal === 'function') {
-              closeSubmissionDetailsModal();
-            }
-          }
-        }
-        
-        // Force UI refresh
-        if (typeof refreshDashboard === 'function') {
-          refreshDashboard();
-        }
-        
-      } catch (error) {
-        console.error('Error deleting practice:', error);
-        showDeleteResultNotification(false, 'Failed to delete practice. Please try again.');
-        
-        // Refresh to restore original state
-        if (typeof fetchUserSubmissions === 'function') {
-          await fetchUserSubmissions(user.uid);
-        }
-      }
-    },
-    () => {
-      // User cancelled
-      console.log('Practice deletion cancelled by user');
-    }
-  );
-};
-
-// Helper function to update submission after deletion
-async function updateSubmissionAfterDeletion(submissionId, userId, deletedPoints, categoryWasDeleted) {
-  try {
-    const submissionRef = db.collection("users")
-      .doc(userId)
-      .collection("practice_submissions")
-      .doc(submissionId);
-      
-    const submissionDoc = await submissionRef.get();
-    if (!submissionDoc.exists) {
-      throw new Error('Submission document not found');
-    }
-    
-    const submissionData = submissionDoc.data();
-    
-    // Get remaining categories
-    const categoriesSnapshot = await db.collection("users")
-      .doc(userId)
-      .collection("practice_submissions")
-      .doc(submissionId)
-      .collection("categories")
-      .get();
-    
-    let newTotalPoints = 0;
-    let newTotalPractices = 0;
-    const newTotalCategories = categoriesSnapshot.size;
-    
-    categoriesSnapshot.forEach(doc => {
-      const catData = doc.data();
-      newTotalPoints += catData.totalPoints || 0;
-      newTotalPractices += catData.totalPractices || 0;
+  // Create timeline items for submissions
+  filteredData.forEach(submission => {
+    const date = new Date(submission.date);
+    const formattedDate = date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
     });
     
-    // Calculate new user totals
-    const currentUserTotalPoints = submissionData.userTotalPoints || 0;
-    const currentUserTotalPractices = submissionData.userTotalPractices || 0;
-    const newUserTotalPoints = Math.max(0, currentUserTotalPoints - deletedPoints);
-    const newUserTotalPractices = Math.max(0, currentUserTotalPractices - 1);
+    // Format submission time
+    let timeInfo = '';
+    if (submission.submittedAt) {
+      const submittedTime = submission.submittedAt.toDate ?
+        submission.submittedAt.toDate() :
+        new Date(submission.submittedAt);
+      timeInfo = ` at ${submittedTime.toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })}`;
+    }
     
-    const updatedSubmissionData = {
-      totalPoints: newTotalPoints,
-      totalPractices: newTotalPractices,
-      totalCategories: newTotalCategories,
-      userTotalPoints: newUserTotalPoints,
-      userTotalPractices: newUserTotalPractices,
-      lastModified: firebase.firestore.Timestamp.now()
-    };
+    const timelineItem = document.createElement('div');
+    timelineItem.className = 'timeline-item submission-item';
+    timelineItem.setAttribute('data-submission-id', submission.id);
+    if (submission.dailySubmissionId) {
+      timelineItem.setAttribute('data-daily-submission-id', submission.dailySubmissionId);
+    }
     
-    // Update both databases
-    await submissionRef.update(updatedSubmissionData);
-    await database.ref(`users/${userId}/practice_submissions/${submissionId}`).update({
-      totalPoints: newTotalPoints,
-      totalPractices: newTotalPractices,
-      totalCategories: newTotalCategories,
-      userTotalPoints: newUserTotalPoints,
-      userTotalPractices: newUserTotalPractices,
-      lastModified: firebase.database.ServerValue.TIMESTAMP
-    });
+    timelineItem.innerHTML = `
+      <div class="timeline-date">${formattedDate}${timeInfo}</div>
+      <div class="timeline-content">
+        <div class="submission-header">
+          <h3>Practice Session</h3>
+          <div class="submission-actions">
+            <button class="view-details-btn" onclick="viewSubmissionDetails('${submission.id}', '${submission.dailySubmissionId || ''}')">
+              <i class="fas fa-eye"></i> View Details
+            </button>
+          </div>
+        </div>
+        <div class="submission-summary">
+          <p><strong>Categories:</strong> ${submission.categorySummary || 'No categories'}</p>
+          <div class="submission-stats">
+            <span><i class="fas fa-list"></i> ${submission.totalCategories || 0} Categories</span>
+            <span><i class="fas fa-dumbbell"></i> ${submission.totalPractices || 0} Practices</span>
+            <span><i class="fas fa-star"></i> ${submission.totalPoints || 0} Points</span>
+          </div>
+        </div>
+      </div>
+    `;
     
-  } catch (error) {
-    console.error('Error updating submission after deletion:', error);
-    throw error;
-  }
+    container.appendChild(timelineItem);
+  });
+  
+  console.log(`Timeline populated with ${filteredData.length} submissions`);
 }
 
-// Helper function to update user metadata after deletion
-async function updateUserMetadataAfterDeletion(userId, deletedPoints) {
-  try {
-    const userRef = db.collection("users").doc(userId);
-    const userDoc = await userRef.get();
-    
-    if (userDoc.exists) {
-      const userData = userDoc.data();
-      const currentTotalPoints = userData.totalPoints || 0;
-      const currentTotalPractices = userData.totalPractices || 0;
-      
-      const newTotalPoints = Math.max(0, currentTotalPoints - deletedPoints);
-      const newTotalPractices = Math.max(0, currentTotalPractices - 1);
-      
-      await userRef.update({
-        totalPoints: newTotalPoints,
-        totalPractices: newTotalPractices,
-        lastModified: firebase.firestore.Timestamp.now()
-      });
-      
-      await database.ref(`users/${userId}`).update({
-        totalPoints: newTotalPoints,
-        totalPractices: newTotalPractices,
-        lastModified: firebase.database.ServerValue.TIMESTAMP
-      });
+
+// ───────────────────────────────────────────────────────────
+// INITIALIZATION AND EVENT LISTENERS
+// ───────────────────────────────────────────────────────────
+
+// Ensure this runs after DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Enhanced Practice Editing System initialized');
+  
+  // Add any additional event listeners here if needed
+  // For example, keyboard shortcuts for editing
+  document.addEventListener('keydown', function(e) {
+    // ESC key to close modals
+    if (e.key === 'Escape') {
+      closeEditPracticeModal();
     }
-    
-  } catch (error) {
-    console.error('Error updating user metadata after deletion:', error);
-    throw error;
-  }
-}  
-    // ───────────────────────────────────────────────────────────
-    // 10) FILTER SETUP
-    // ───────────────────────────────────────────────────────────
-    function setupFilters(data) {
-      const practiceFilter = document.getElementById('practiceFilter');
-      const dateRangeStart = document.getElementById('dateRangeStart');
-      const dateRangeEnd = document.getElementById('dateRangeEnd');
-      
-      // Clear existing options except "All Practices"
-      practiceFilter.innerHTML = '<option value="all">All Categories</option>';
-      
-      // Populate category types
-      const categoryTypes = new Set();
-      data.forEach(submission => {
-        submission.categories.forEach(category => {
-          categoryTypes.add(category.name);
-        });
-      });
-      
-      Array.from(categoryTypes).sort().forEach(categoryName => {
-        const option = document.createElement('option');
-        option.value = categoryName;
-        option.textContent = categoryName;
-        practiceFilter.appendChild(option);
-      });
-      
-      // Set date range limits
-      if (data.length > 0) {
-        const dates = data.map(submission => submission.date).sort();
-        const oldestDate = dates[0];
-        const newestDate = dates[dates.length - 1];
-        
-        dateRangeStart.min = oldestDate;
-        dateRangeStart.max = newestDate;
-        dateRangeEnd.min = oldestDate;
-        dateRangeEnd.max = newestDate;
-        
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-        
-        dateRangeStart.value = thirtyDaysAgoStr > oldestDate ? thirtyDaysAgoStr : oldestDate;
-        dateRangeEnd.value = newestDate;
-      }
-      
-      // Add event listeners
-      practiceFilter.addEventListener('change', applyFilters);
-      dateRangeStart.addEventListener('change', applyFilters);
-      dateRangeEnd.addEventListener('change', applyFilters);
-      
-      function applyFilters() {
-        const filterType = practiceFilter.value;
-        const startDate = dateRangeStart.value || null;
-        const endDate = dateRangeEnd.value || null;
-        
-        populateSubmissionsTimeline(allSubmissions, filterType, startDate, endDate);
-      }
-      
-      // Apply initial filters
-      applyFilters();
-    }
-    
+  });
+});
+
+
     // ───────────────────────────────────────────────────────────
     // 10) EXPORT FUNCTIONALITY (COMPLETED)
     // ───────────────────────────────────────────────────────────

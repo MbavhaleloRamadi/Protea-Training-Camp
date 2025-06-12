@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
   
 
 // ───────────────────────────────────────────────────────────
-// SIMPLIFIED LEADERBOARD PROCESSING - Using totalUserScore field
+// SIMPLIFIED LEADERBOARD PROCESSING - Using totalPoints field from categories
 // ───────────────────────────────────────────────────────────
 function processLeaderboardData(usersData) {
   // Convert users data to array for sorting
@@ -161,22 +161,67 @@ function processLeaderboardData(usersData) {
     let roundsPlayed = 0;
     let latestSubmissionTime = 0;
     
-    // NEW: Check for totalUserScore field first (this is our primary source)
-    if (userData.practice_submissions && userData.practice_submissions.totalUserScore !== undefined) {
-      totalScore = userData.practice_submissions.totalUserScore || 0;
-      
-      // Still need to calculate rounds played and latest submission time for sorting
+    // NEW: Collect totalPoints from each category
+    if (userData.practice_submissions) {
       Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-        // Skip the totalUserScore field itself
+        // Skip the totalUserScore field itself if it exists
         if (dailySubmissionId === 'totalUserScore') return;
         
         const dailySubmission = userData.practice_submissions[dailySubmissionId];
         
-        // Get rounds played from metadata if available
+        // Process categories to get totalPoints
+        if (dailySubmission.categories) {
+          Object.keys(dailySubmission.categories).forEach(categoryId => {
+            const category = dailySubmission.categories[categoryId];
+            
+            // Skip deleted categories
+            if (category.isDeleted) return;
+            
+            // Add totalPoints from this category
+            if (category.totalPoints !== undefined) {
+              totalScore += parseInt(category.totalPoints) || 0;
+            }
+            
+            // Count totalPractices from this category
+            if (category.totalPractices !== undefined) {
+              roundsPlayed += parseInt(category.totalPractices) || 0;
+            }
+            
+            // Track latest submission time from this category
+            if (category.submittedAt) {
+              const submissionTime = typeof category.submittedAt === 'object' 
+                ? category.submittedAt.timestamp || Date.now()
+                : parseInt(category.submittedAt) || 0;
+              
+              if (submissionTime > latestSubmissionTime) {
+                latestSubmissionTime = submissionTime;
+              }
+            }
+            
+            // Fallback: if no totalPoints/totalPractices, calculate from practices array
+            if (category.totalPoints === undefined && category.practices && Array.isArray(category.practices)) {
+              category.practices.forEach(practice => {
+                if (practice.points !== undefined) {
+                  const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                  totalScore += parseInt(points) || 0;
+                  roundsPlayed++;
+                  
+                  // Track latest submission time for tiebreaker
+                  if (practice.addedAt) {
+                    const submissionTime = parseInt(practice.addedAt) || 0;
+                    if (submissionTime > latestSubmissionTime) {
+                      latestSubmissionTime = submissionTime;
+                    }
+                  }
+                }
+              });
+            }
+          });
+        }
+        
+        // Also check for metadata-level totals as secondary source
         if (dailySubmission.metadata) {
-          roundsPlayed += dailySubmission.metadata.totalPractices || 0;
-          
-          // Track latest submission time for tiebreaker
+          // Track latest submission time from metadata
           if (dailySubmission.metadata.lastSubmissionAt) {
             const submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
               ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
@@ -186,121 +231,29 @@ function processLeaderboardData(usersData) {
               latestSubmissionTime = submissionTime;
             }
           }
-        } else {
-          // Fallback: count from categories if no metadata
-          if (dailySubmission.categories) {
-            Object.keys(dailySubmission.categories).forEach(categoryId => {
-              const category = dailySubmission.categories[categoryId];
-              
-              if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
-                roundsPlayed += category.practices.length;
-                
-                // Track latest submission time
-                category.practices.forEach(practice => {
-                  if (practice.addedAt) {
-                    const submissionTime = parseInt(practice.addedAt) || 0;
-                    if (submissionTime > latestSubmissionTime) {
-                      latestSubmissionTime = submissionTime;
-                    }
-                  }
-                });
-              }
-            });
-          }
         }
       });
-    } else {
-      // FALLBACK: Use the complex calculation if totalUserScore doesn't exist yet
-      console.log(`User ${userData.username} doesn't have totalUserScore, using fallback calculation`);
-      
-      if (userData.practice_submissions) {
-        let hasMetadata = false;
-        let mostRecentMetadata = null;
-        let mostRecentTimestamp = 0;
-        
-        // Find the most recent submission document
-        Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-          const dailySubmission = userData.practice_submissions[dailySubmissionId];
-          
-          // Check for metadata at the correct level
-          if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
-            hasMetadata = true;
-            
-            // Get submission timestamp to find the newest document
-            let submissionTime = 0;
-            if (dailySubmission.metadata.lastSubmissionAt) {
-              submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
-                ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
-                : dailySubmission.metadata.lastSubmissionAt;
-            }
-            
-            // Keep the most recent submission's metadata
-            if (submissionTime > mostRecentTimestamp) {
-              mostRecentTimestamp = submissionTime;
-              mostRecentMetadata = dailySubmission.metadata;
-              latestSubmissionTime = submissionTime;
-            }
-          }
-        });
-        
-        // Use the most recent submission's cumulative totals
-        if (mostRecentMetadata) {
-          totalScore = mostRecentMetadata.userTotalPoints || 0;
-          roundsPlayed = mostRecentMetadata.userTotalPractices || 0;
-        }
-        
-        // Calculate from categories if no metadata was found
-        if (!hasMetadata) {
-          Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-            const dailySubmission = userData.practice_submissions[dailySubmissionId];
-            
-            if (dailySubmission.categories) {
-              Object.keys(dailySubmission.categories).forEach(categoryId => {
-                const category = dailySubmission.categories[categoryId];
-                
-                if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
-                  category.practices.forEach(practice => {
-                    if (practice.points !== undefined) {
-                      const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
-                      totalScore += parseInt(points) || 0;
-                      roundsPlayed++;
-                      
-                      // Track latest submission time for tiebreaker
-                      if (practice.addedAt) {
-                        const submissionTime = parseInt(practice.addedAt) || 0;
-                        if (submissionTime > latestSubmissionTime) {
-                          latestSubmissionTime = submissionTime;
-                        }
-                      }
-                    }
-                  });
+    }
+    
+    // Final fallback: Check old task_submissions structure
+    if (totalScore === 0 && userData.task_submissions) {
+      Object.values(userData.task_submissions).forEach(submission => {
+        if (submission.practices && Array.isArray(submission.practices)) {
+          submission.practices.forEach(practice => {
+            if (practice.points !== undefined) {
+              totalScore += parseInt(practice.points) || 0;
+              roundsPlayed++;
+              
+              if (practice.submissionTime) {
+                const submissionTime = parseInt(practice.submissionTime) || 0;
+                if (submissionTime > latestSubmissionTime) {
+                  latestSubmissionTime = submissionTime;
                 }
-              });
+              }
             }
           });
         }
-      }
-      
-      // Final fallback: Check old task_submissions structure
-      if (totalScore === 0 && userData.task_submissions) {
-        Object.values(userData.task_submissions).forEach(submission => {
-          if (submission.practices && Array.isArray(submission.practices)) {
-            submission.practices.forEach(practice => {
-              if (practice.points !== undefined) {
-                totalScore += parseInt(practice.points) || 0;
-                roundsPlayed++;
-                
-                if (practice.submissionTime) {
-                  const submissionTime = parseInt(practice.submissionTime) || 0;
-                  if (submissionTime > latestSubmissionTime) {
-                    latestSubmissionTime = submissionTime;
-                  }
-                }
-              }
-            });
-          }
-        });
-      }
+      });
     }
     
     // Format the score for display
@@ -314,7 +267,7 @@ function processLeaderboardData(usersData) {
       displayScore: formattedScore,
       roundsPlayed: roundsPlayed,
       latestSubmissionTime: latestSubmissionTime,
-      hasTotalUserScore: userData.practice_submissions?.totalUserScore !== undefined // For debugging
+      usingTotalPoints: true // For debugging - indicates we're using category totalPoints
     });
   });
   
@@ -336,95 +289,23 @@ function processLeaderboardData(usersData) {
   // Log summary for debugging
   console.log("Leaderboard Summary:");
   console.log(`Total users: ${leaderboardEntries.length}`);
-  console.log(`Users with totalUserScore: ${leaderboardEntries.filter(u => u.hasTotalUserScore).length}`);
-  console.log(`Users using fallback: ${leaderboardEntries.filter(u => !u.hasTotalUserScore).length}`);
+  console.log(`Users processed with totalPoints from categories: ${leaderboardEntries.length}`);
   
   // Render sorted leaderboard
   renderLeaderboard(leaderboardEntries);
 }
 
 // ───────────────────────────────────────────────────────────
-// HELPER FUNCTION: Initialize totalUserScore for existing users (run once)
+// HELPER FUNCTION: Verify category totalPoints accuracy (for debugging)
 // ───────────────────────────────────────────────────────────
-async function initializeTotalUserScores() {
-  try {
-    console.log("Starting totalUserScore initialization for existing users...");
-    
-    // Get all users from Firestore
-    const usersSnapshot = await dbFirestore.collection('users').get();
-    let processedCount = 0;
-    let skippedCount = 0;
-    
-    for (const userDoc of usersSnapshot.docs) {
-      const userData = userDoc.data();
-      const userId = userDoc.id;
-      
-      // Skip if totalUserScore already exists
-      if (userData.practice_submissions?.totalUserScore !== undefined) {
-        skippedCount++;
-        continue;
-      }
-      
-      let totalScore = 0;
-      
-      // Calculate total from existing practice submissions
-      if (userData.practice_submissions) {
-        Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-          const dailySubmission = userData.practice_submissions[dailySubmissionId];
-          
-          // Check for metadata first (most reliable)
-          if (dailySubmission.metadata && dailySubmission.metadata.userTotalPoints !== undefined) {
-            totalScore = dailySubmission.metadata.userTotalPoints;
-            return; // Use the most recent total
-          }
-          
-          // Fallback to category calculation
-          if (dailySubmission.categories) {
-            Object.keys(dailySubmission.categories).forEach(categoryId => {
-              const category = dailySubmission.categories[categoryId];
-              
-              if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
-                category.practices.forEach(practice => {
-                  if (practice.points !== undefined) {
-                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
-                    totalScore += parseInt(points) || 0;
-                  }
-                });
-              }
-            });
-          }
-        });
-      }
-      
-      // Update both databases
-      await dbFirestore.collection('users').doc(userId).update({
-        'practice_submissions.totalUserScore': totalScore
-      });
-      
-      await dbRealtime.ref(`users/${userId}/practice_submissions/totalUserScore`).set(totalScore);
-      
-      processedCount++;
-      console.log(`Initialized totalUserScore for ${userData.username || userId}: ${totalScore}`);
-    }
-    
-    console.log(`Initialization complete! Processed: ${processedCount}, Skipped: ${skippedCount}`);
-  } catch (error) {
-    console.error('Error initializing totalUserScores:', error);
-  }
-}
-
-// ───────────────────────────────────────────────────────────
-// HELPER FUNCTION: Verify totalUserScore accuracy (for debugging)
-// ───────────────────────────────────────────────────────────
-async function verifyTotalUserScore(userId) {
+async function verifyTotalPointsFromCategories(userId) {
   try {
     const userDoc = await dbFirestore.collection('users').doc(userId).get();
     const userData = userDoc.data();
     
-    const storedTotal = userData.practice_submissions?.totalUserScore || 0;
+    let totalFromCategories = 0;
+    let calculatedFromPractices = 0;
     
-    // Calculate actual total
-    let calculatedTotal = 0;
     if (userData.practice_submissions) {
       Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
         if (dailySubmissionId === 'totalUserScore') return;
@@ -434,13 +315,21 @@ async function verifyTotalUserScore(userId) {
           Object.keys(dailySubmission.categories).forEach(categoryId => {
             const category = dailySubmission.categories[categoryId];
             
-            if (category.practices && Array.isArray(category.practices) && !category.isDeleted) {
-              category.practices.forEach(practice => {
-                if (practice.points !== undefined) {
-                  const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
-                  calculatedTotal += parseInt(points) || 0;
-                }
-              });
+            if (!category.isDeleted) {
+              // Add from totalPoints field
+              if (category.totalPoints !== undefined) {
+                totalFromCategories += parseInt(category.totalPoints) || 0;
+              }
+              
+              // Calculate from individual practices for comparison
+              if (category.practices && Array.isArray(category.practices)) {
+                category.practices.forEach(practice => {
+                  if (practice.points !== undefined) {
+                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
+                    calculatedFromPractices += parseInt(points) || 0;
+                  }
+                });
+              }
             }
           });
         }
@@ -448,14 +337,14 @@ async function verifyTotalUserScore(userId) {
     }
     
     console.log(`User ${userData.username || userId}:`);
-    console.log(`  Stored totalUserScore: ${storedTotal}`);
-    console.log(`  Calculated total: ${calculatedTotal}`);
-    console.log(`  Match: ${storedTotal === calculatedTotal ? 'YES' : 'NO'}`);
+    console.log(`  Total from category totalPoints: ${totalFromCategories}`);
+    console.log(`  Calculated from individual practices: ${calculatedFromPractices}`);
+    console.log(`  Match: ${totalFromCategories === calculatedFromPractices ? 'YES' : 'NO'}`);
     
-    return storedTotal === calculatedTotal;
+    return { totalFromCategories, calculatedFromPractices };
   } catch (error) {
-    console.error('Error verifying totalUserScore:', error);
-    return false;
+    console.error('Error verifying totalPoints from categories:', error);
+    return { totalFromCategories: 0, calculatedFromPractices: 0 };
   }
 }
 
