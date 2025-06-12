@@ -216,178 +216,204 @@ document.addEventListener("DOMContentLoaded", () => {
     if (elements.leaderboardLoading) elements.leaderboardLoading.style.display = 'none';
   }
 
-  // ───────────────────────────────────────────────────────────
-  // 7) SCORE CALCULATION & DISPLAY
-  // ───────────────────────────────────────────────────────────
-  async function fetchUserScores(userId) {
-    console.log("Starting fetchUserScores for userId:", userId);
-    
-    try {
-      if (!userId) {
-        throw new Error("User ID is null or undefined");
-      }
+// ───────────────────────────────────────────────────────────
+// 7) SCORE CALCULATION & DISPLAY - UPDATED VERSION
+// ───────────────────────────────────────────────────────────
+async function fetchUserScores(userId) {
+  console.log("Starting fetchUserScores for userId:", userId);
+  
+  try {
+    if (!userId) {
+      throw new Error("User ID is null or undefined");
+    }
 
-      console.log("Fetching user practice submissions...");
-      
-      // Get all daily submissions for this user
-      const practiceSubmissionsRef = dbFirestore
-        .collection("users")
-        .doc(userId)
-        .collection("practice_submissions");
-      
-      const dailySubmissionsSnapshot = await practiceSubmissionsRef.get();
-      
-      console.log("Found", dailySubmissionsSnapshot.docs.length, "daily submission documents");
-      
-      if (dailySubmissionsSnapshot.empty) {
-        console.log("No daily submissions found for user");
-        updateScoreDisplays(0, 0);
-        return;
-      }
-      
-      // Calculate date range for weekly score (last 7 days)
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      oneWeekAgo.setHours(0, 0, 0, 0);
-      
-      let weeklyScore = 0;
-      let allTimeScore = 0;
-      
-      // Process each daily submission
-      for (const dailySubmissionDoc of dailySubmissionsSnapshot.docs) {
-        const dailySubmissionId = dailySubmissionDoc.id;
-        const dailySubmissionData = dailySubmissionDoc.data();
-        
-        console.log("Processing daily submission:", dailySubmissionId, dailySubmissionData);
-        
-        // Skip if submission is not active
-        if (dailySubmissionData.isActive === false) {
-          console.log("Skipping inactive submission:", dailySubmissionId);
-          continue;
-        }
-        
-        // Method 1: Use daily submission metadata if available (more efficient)
-        if (dailySubmissionData.totalPoints && typeof dailySubmissionData.totalPoints === 'number') {
-          const submissionPoints = dailySubmissionData.totalPoints;
-          const submissionDate = dailySubmissionData.date;
-          
-          console.log("Using metadata - Points:", submissionPoints, "Date:", submissionDate);
-          
-          // Add to all-time score
-          allTimeScore += submissionPoints;
-          
-          // Check if within weekly range
-          if (submissionDate) {
-            const submissionTimestamp = new Date(submissionDate);
-            submissionTimestamp.setHours(0, 0, 0, 0);
-            
-            if (submissionTimestamp >= oneWeekAgo) {
-              weeklyScore += submissionPoints;
-              console.log("Added to weekly score:", submissionPoints);
-            }
-          }
-        } else {
-          // Method 2: Fallback - Get categories subcollection and sum individual points
-          console.log("No metadata found, fetching categories for:", dailySubmissionId);
-          
-          try {
-            const categoriesSnapshot = await practiceSubmissionsRef
-              .doc(dailySubmissionId)
-              .collection("categories")
-              .where('isDeleted', '==', false)
-              .get();
-            
-            console.log("Found", categoriesSnapshot.docs.length, "categories for", dailySubmissionId);
-            
-            let dailyTotal = 0;
-            let dailyDate = null;
-            
-            categoriesSnapshot.forEach(categoryDoc => {
-              const submission = categoryDoc.data();
-              const submissionPoints = submission.totalPoints || 0;
-              
-              // Verify this submission belongs to the current user
-              if (submission.userId && submission.userId !== userId) {
-                console.log("Skipping category - not for current user");
-                return;
-              }
-              
-              dailyTotal += submissionPoints;
-              
-              // Get date from first category if not set
-              if (!dailyDate && submission.date) {
-                dailyDate = submission.date;
-              }
-              
-              console.log("Processed category:", submission.category, "Points:", submissionPoints);
-            });
-            
-            // Add to all-time score
-            allTimeScore += dailyTotal;
-            
-            // Check if within weekly range
-            if (dailyDate) {
-              const submissionTimestamp = new Date(dailyDate);
-              submissionTimestamp.setHours(0, 0, 0, 0);
-              
-              if (submissionTimestamp >= oneWeekAgo) {
-                weeklyScore += dailyTotal;
-                console.log("Added to weekly score from categories:", dailyTotal);
-              }
-            }
-            
-          } catch (categoryError) {
-            console.log("Error fetching categories for", dailySubmissionId, ":", categoryError);
-            continue;
-          }
-        }
-      }
-      
-      console.log("Final calculated scores - Weekly:", weeklyScore, "All-time:", allTimeScore);
-      
-      // Update UI with calculated scores
-      updateScoreDisplays(weeklyScore, allTimeScore);
-      
-    } catch (error) {
-      console.error("Error fetching user scores:", error);
-      console.error("Error details:", {
-        name: error.name,
-        message: error.message,
-        stack: error.stack
-      });
-      
-      showMessage("Error calculating scores. Please refresh the page.", "red");
+    console.log("Fetching user practice submissions...");
+    
+    // Get all daily submissions for this user
+    const practiceSubmissionsRef = dbFirestore
+      .collection("users")
+      .doc(userId)
+      .collection("practice_submissions");
+    
+    const dailySubmissionsSnapshot = await practiceSubmissionsRef.get();
+    
+    console.log("Found", dailySubmissionsSnapshot.docs.length, "daily submission documents");
+    
+    if (dailySubmissionsSnapshot.empty) {
+      console.log("No daily submissions found for user");
       updateScoreDisplays(0, 0);
+      return;
     }
+    
+    // Calculate date range for weekly score (last 7 days including today)
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // End of today
+    
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 6); // Last 7 days including today (6 days back + today = 7 days)
+    oneWeekAgo.setHours(0, 0, 0, 0); // Start of that day
+    
+    console.log("Weekly score date range:", oneWeekAgo.toDateString(), "to", today.toDateString());
+    
+    let weeklyScore = 0;
+    let allTimeScore = 0;
+    
+    // Process each daily submission
+    for (const dailySubmissionDoc of dailySubmissionsSnapshot.docs) {
+      const dailySubmissionId = dailySubmissionDoc.id;
+      const dailySubmissionData = dailySubmissionDoc.data();
+      
+      console.log("Processing daily submission:", dailySubmissionId, dailySubmissionData);
+      
+      // Skip if submission is not active
+      if (dailySubmissionData.isActive === false) {
+        console.log("Skipping inactive submission:", dailySubmissionId);
+        continue;
+      }
+      
+      // Method 1: Check if daily submission has pre-calculated totalPoints (fallback method)
+      let dailyTotalFromMetadata = 0;
+      let dailyDateFromMetadata = null;
+      let useMetadata = false;
+      
+      if (dailySubmissionData.totalPoints && typeof dailySubmissionData.totalPoints === 'number') {
+        dailyTotalFromMetadata = dailySubmissionData.totalPoints;
+        dailyDateFromMetadata = dailySubmissionData.date;
+        useMetadata = true;
+        console.log("Found metadata - Points:", dailyTotalFromMetadata, "Date:", dailyDateFromMetadata);
+      }
+      
+      // Method 2: Primary method - Get individual practice submissions from categories subcollection
+      let dailyTotalFromCategories = 0;
+      let dailyDateFromCategories = null;
+      let categoriesProcessed = 0;
+      
+      try {
+        console.log("Fetching categories for daily submission:", dailySubmissionId);
+        
+        const categoriesSnapshot = await practiceSubmissionsRef
+          .doc(dailySubmissionId)
+          .collection("categories")
+          .where('isDeleted', '==', false)
+          .get();
+        
+        console.log("Found", categoriesSnapshot.docs.length, "category documents for", dailySubmissionId);
+        
+        categoriesSnapshot.forEach(categoryDoc => {
+          const submission = categoryDoc.data();
+          
+          console.log("Processing category submission:", categoryDoc.id, submission);
+          
+          // Verify this submission belongs to the current user
+          if (submission.userId && submission.userId !== userId) {
+            console.log("Skipping category - not for current user:", submission.userId, "vs", userId);
+            return;
+          }
+          
+          // Get points from this individual practice submission
+          const submissionPoints = submission.totalPoints || 0;
+          dailyTotalFromCategories += submissionPoints;
+          categoriesProcessed++;
+          
+          // Get date from first category if not set
+          if (!dailyDateFromCategories && submission.date) {
+            dailyDateFromCategories = submission.date;
+          }
+          
+          console.log("Added points from category:", submission.category, "Points:", submissionPoints, "Running total:", dailyTotalFromCategories);
+        });
+        
+        console.log("Categories processed:", categoriesProcessed, "Total points from categories:", dailyTotalFromCategories);
+        
+      } catch (categoryError) {
+        console.error("Error fetching categories for", dailySubmissionId, ":", categoryError);
+      }
+      
+      // Determine which method to use and calculate scores
+      let finalDailyTotal = 0;
+      let finalDailyDate = null;
+      
+      if (categoriesProcessed > 0) {
+        // Use primary method (categories) if we found any categories
+        finalDailyTotal = dailyTotalFromCategories;
+        finalDailyDate = dailyDateFromCategories;
+        console.log("Using primary method (categories) - Total:", finalDailyTotal, "Date:", finalDailyDate);
+      } else if (useMetadata) {
+        // Fallback to metadata if no categories found
+        finalDailyTotal = dailyTotalFromMetadata;
+        finalDailyDate = dailyDateFromMetadata;
+        console.log("Using fallback method (metadata) - Total:", finalDailyTotal, "Date:", finalDailyDate);
+      } else {
+        console.log("No points found for daily submission:", dailySubmissionId);
+        continue;
+      }
+      
+      // Add to all-time score
+      allTimeScore += finalDailyTotal;
+      console.log("Added", finalDailyTotal, "to all-time score. New total:", allTimeScore);
+      
+      // Check if within weekly range
+      if (finalDailyDate) {
+        const submissionTimestamp = new Date(finalDailyDate);
+        submissionTimestamp.setHours(0, 0, 0, 0); // Start of submission day
+        
+        // Check if submission is within the last 7 days (including today)
+        if (submissionTimestamp >= oneWeekAgo && submissionTimestamp <= today) {
+          weeklyScore += finalDailyTotal;
+          console.log("Added", finalDailyTotal, "to weekly score. Submission date:", submissionTimestamp.toDateString(), "New weekly total:", weeklyScore);
+        } else {
+          console.log("Submission date", submissionTimestamp.toDateString(), "is outside weekly range:", oneWeekAgo.toDateString(), "to", today.toDateString());
+        }
+      } else {
+        console.log("No date found for daily submission:", dailySubmissionId);
+      }
+    }
+    
+    console.log("Final calculated scores - Weekly:", weeklyScore, "All-time:", allTimeScore);
+    
+    // Update UI with calculated scores
+    updateScoreDisplays(weeklyScore, allTimeScore);
+    
+  } catch (error) {
+    console.error("Error fetching user scores:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    
+    showMessage("Error calculating scores. Please refresh the page.", "red");
+    updateScoreDisplays(0, 0);
   }
+}
 
-  // ───────────────────────────────────────────────────────────
-  // 8) UPDATE SCORE DISPLAYS
-  // ───────────────────────────────────────────────────────────
-  function updateScoreDisplays(weeklyScore, allTimeScore) {
-    console.log("Updating score displays - Weekly:", weeklyScore, "All-time:", allTimeScore);
-    
-    // Hide loading indicators
-    hideLoadingIndicators();
-    
-    // Update weekly score
-    if (elements.weeklyScoreText) {
-      elements.weeklyScoreText.textContent = weeklyScore.toString();
-    } else if (elements.weeklyScoreValue) {
-      elements.weeklyScoreValue.textContent = weeklyScore.toString();
-    }
-    
-    // Update all-time score
-    if (elements.allTimeScoreText) {
-      elements.allTimeScoreText.textContent = allTimeScore.toString();
-    } else if (elements.allTimeScoreValue) {
-      elements.allTimeScoreValue.textContent = allTimeScore.toString();
-    }
-    
-    console.log("Score displays updated successfully");
+// ───────────────────────────────────────────────────────────
+// 8) UPDATE SCORE DISPLAYS
+// ───────────────────────────────────────────────────────────
+function updateScoreDisplays(weeklyScore, allTimeScore) {
+  console.log("Updating score displays - Weekly:", weeklyScore, "All-time:", allTimeScore);
+  
+  // Hide loading indicators
+  hideLoadingIndicators();
+  
+  // Update weekly score
+  if (elements.weeklyScoreText) {
+    elements.weeklyScoreText.textContent = weeklyScore.toString();
+  } else if (elements.weeklyScoreValue) {
+    elements.weeklyScoreValue.textContent = weeklyScore.toString();
   }
+  
+  // Update all-time score
+  if (elements.allTimeScoreText) {
+    elements.allTimeScoreText.textContent = allTimeScore.toString();
+  } else if (elements.allTimeScoreValue) {
+    elements.allTimeScoreValue.textContent = allTimeScore.toString();
+  }
+  
+  console.log("Score displays updated successfully");
+}
 
-  // ───────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────
 // 9) FETCH LEADERBOARD POSITION - FIXED VERSION
 // ───────────────────────────────────────────────────────────
 async function fetchLeaderboardPosition(userId) {
@@ -427,7 +453,7 @@ async function fetchLeaderboardPosition(userId) {
         
         console.log(`User ${uid} has ${practiceSubmissionsSnapshot.docs.length} daily submissions`);
         
-        // Calculate total score for this user
+        // Calculate total score for this user using same logic as fetchUserScores
         for (const dailySubmissionDoc of practiceSubmissionsSnapshot.docs) {
           const dailyData = dailySubmissionDoc.data();
           
@@ -437,42 +463,45 @@ async function fetchLeaderboardPosition(userId) {
             continue;
           }
           
-          if (dailyData.totalPoints && typeof dailyData.totalPoints === 'number') {
-            // Use metadata if available
+          // Primary method: Get points from categories subcollection
+          let dailyTotalFromCategories = 0;
+          let categoriesProcessed = 0;
+          
+          try {
+            const categoriesSnapshot = await dbFirestore
+              .collection("users")
+              .doc(uid)
+              .collection("practice_submissions")
+              .doc(dailySubmissionDoc.id)
+              .collection("categories")
+              .where('isDeleted', '==', false)
+              .get();
+            
+            categoriesSnapshot.forEach(categoryDoc => {
+              const submission = categoryDoc.data();
+              
+              // Make sure this category submission belongs to this user
+              if (submission.userId && submission.userId !== uid) {
+                console.log(`Skipping category - belongs to different user: ${submission.userId} vs ${uid}`);
+                return;
+              }
+              
+              const submissionPoints = submission.totalPoints || 0;
+              dailyTotalFromCategories += submissionPoints;
+              categoriesProcessed++;
+            });
+            
+          } catch (categoryError) {
+            console.log(`Error processing categories for user ${uid}:`, categoryError);
+          }
+          
+          // Fallback method: Use metadata if no categories found
+          if (categoriesProcessed > 0) {
+            totalScore += dailyTotalFromCategories;
+            console.log(`Added ${dailyTotalFromCategories} points from categories for user ${uid}`);
+          } else if (dailyData.totalPoints && typeof dailyData.totalPoints === 'number') {
             totalScore += dailyData.totalPoints;
             console.log(`Added ${dailyData.totalPoints} points from metadata for user ${uid}`);
-          } else {
-            // Fallback: sum from categories
-            try {
-              const categoriesSnapshot = await dbFirestore
-                .collection("users")
-                .doc(uid)
-                .collection("practice_submissions")
-                .doc(dailySubmissionDoc.id)
-                .collection("categories")
-                .where('isDeleted', '==', false)
-                .get();
-              
-              let dailyTotal = 0;
-              categoriesSnapshot.forEach(categoryDoc => {
-                const submission = categoryDoc.data();
-                
-                // Make sure this category submission belongs to this user
-                if (submission.userId && submission.userId !== uid) {
-                  console.log(`Skipping category - belongs to different user: ${submission.userId} vs ${uid}`);
-                  return;
-                }
-                
-                const submissionPoints = submission.totalPoints || 0;
-                dailyTotal += submissionPoints;
-              });
-              
-              totalScore += dailyTotal;
-              console.log(`Added ${dailyTotal} points from categories for user ${uid}`);
-              
-            } catch (categoryError) {
-              console.log(`Error processing categories for user ${uid}:`, categoryError);
-            }
           }
         }
         
@@ -536,42 +565,42 @@ async function fetchLeaderboardPosition(userId) {
   }
 }
 
-  // ───────────────────────────────────────────────────────────
-  // 10) UPDATE LEADERBOARD POSITION DISPLAY
-  // ───────────────────────────────────────────────────────────
-  function updateLeaderboardPosition(position) {
-    // Hide loading indicator
-    if (elements.leaderboardLoading) {
-      elements.leaderboardLoading.style.display = 'none';
-    }
-    
-    let displayText = "--";
-    
-    if (position > 0) {
-      const suffix = getOrdinalSuffix(position);
-      displayText = `${position}${suffix}`;
-    } else {
-      displayText = "Not ranked";
-    }
-    
-    // Update position display
-    if (elements.leaderboardPositionText) {
-      elements.leaderboardPositionText.textContent = displayText;
-    } else if (elements.leaderboardPositionValue) {
-      elements.leaderboardPositionValue.textContent = displayText;
-    }
-    
-    console.log("Leaderboard position updated:", displayText);
+// ───────────────────────────────────────────────────────────
+// 10) UPDATE LEADERBOARD POSITION DISPLAY
+// ───────────────────────────────────────────────────────────
+function updateLeaderboardPosition(position) {
+  // Hide loading indicator
+  if (elements.leaderboardLoading) {
+    elements.leaderboardLoading.style.display = 'none';
   }
+  
+  let displayText = "--";
+  
+  if (position > 0) {
+    const suffix = getOrdinalSuffix(position);
+    displayText = `${position}${suffix}`;
+  } else {
+    displayText = "Not ranked";
+  }
+  
+  // Update position display
+  if (elements.leaderboardPositionText) {
+    elements.leaderboardPositionText.textContent = displayText;
+  } else if (elements.leaderboardPositionValue) {
+    elements.leaderboardPositionValue.textContent = displayText;
+  }
+  
+  console.log("Leaderboard position updated:", displayText);
+}
 
-  // ───────────────────────────────────────────────────────────
-  // 11) HELPER FUNCTIONS
-  // ───────────────────────────────────────────────────────────
-  function getOrdinalSuffix(num) {
-    const suffixes = ["th", "st", "nd", "rd"];
-    const value = num % 100;
-    return suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0];
-  }
+// ───────────────────────────────────────────────────────────
+// 11) HELPER FUNCTIONS
+// ───────────────────────────────────────────────────────────
+function getOrdinalSuffix(num) {
+  const suffixes = ["th", "st", "nd", "rd"];
+  const value = num % 100;
+  return suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0];
+}
 
   // ───────────────────────────────────────────────────────────
   // 12) SETUP REALTIME LISTENERS
