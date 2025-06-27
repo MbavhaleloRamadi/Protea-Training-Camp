@@ -59,6 +59,27 @@ firebase.auth().onAuthStateChanged(user => {
     return;
   }
 
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch today's completed practices from Firestore
+  const dailyCompletionsRef = firebase.firestore()
+      .collection("users").doc(userId)
+      .collection("daily_completions").doc(today);
+
+  dailyCompletionsRef.get().then(doc => {
+    if (doc.exists) {
+      // Store the array of completed practice names
+      todaysCompletedPractices = doc.data().completed_practices || [];
+      console.log("Fetched today's completed practices:", todaysCompletedPractices);
+    } else {
+      console.log("No practices submitted yet today.");
+      todaysCompletedPractices = [];
+    }
+  }).catch(error => {
+    console.error("Error fetching daily completions:", error);
+  });
+
   // First try Firestore
   firebase.firestore().collection("users").doc(userId).get()
     .then(doc => {
@@ -168,6 +189,8 @@ firebase.auth().onAuthStateChanged(user => {
   const selectedList      = document.getElementById("selectedList");
   const selectedLabel     = document.getElementById("selectedLabel");
   const submitButton      = document.getElementById("submitBtn");
+
+  let todaysCompletedPractices = []; // This will store practices completed today
   
   // Add special points info element
   const specialPointsInfo = document.createElement("div");
@@ -450,6 +473,12 @@ if (taskCategory) {
     }
   
     practicesData[cat].forEach(practice => {
+
+       // If the practice does not allow multiple submissions AND it has already been completed today, skip it.
+      if (!practice.allowMultiple && todaysCompletedPractices.includes(practice.name)) {
+        return; // This will hide the practice from the list
+      }
+
       const card = document.createElement("div");
       card.className = "practice-card";
       card.style.cssText = `
@@ -1156,6 +1185,28 @@ if (submitForm) {
       console.log("Executing database operations for categories...");
       await firestoreBatch.commit();
       await Promise.all(realtimePromises);
+
+       // Filter for single-submission practices that were just submitted
+      const singleSubmissionPractices = selectedPractices
+        .filter(p => !practicesData[p.category].find(pd => pd.name === p.name)?.allowMultiple)
+        .map(p => p.name);
+
+      if (singleSubmissionPractices.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        const dailyCompletionsRef = dbFirestore
+            .collection("users").doc(userId)
+            .collection("daily_completions").doc(today);
+
+        // Use arrayUnion to add the new practice names to the document
+        // This safely adds elements and prevents duplicates
+        await dailyCompletionsRef.set({
+          completed_practices: firebase.firestore.FieldValue.arrayUnion(...singleSubmissionPractices)
+        }, { merge: true }); // Use merge:true to create the doc if it doesn't exist or update it if it does
+
+        // Update the local array so the UI updates immediately without a page refresh
+        todaysCompletedPractices.push(...singleSubmissionPractices);
+        console.log("Updated daily completions in Firebase and locally.");
+      }
 
       // Calculate NEW totals AFTER submission
       console.log("Calculating updated totals...");
