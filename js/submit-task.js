@@ -59,11 +59,32 @@ firebase.auth().onAuthStateChanged(user => {
     return;
   }
 
+  // Get today's date in YYYY-MM-DD format
+  const today = new Date().toISOString().split('T')[0];
+
+  // Fetch today's completed practices from Firestore
+  const dailyCompletionsRef = firebase.firestore()
+      .collection("users").doc(userId)
+      .collection("daily_completions").doc(today);
+
+  dailyCompletionsRef.get().then(doc => {
+    if (doc.exists) {
+      // Store the array of completed practice names
+      todaysCompletedPractices = doc.data().completed_practices || [];
+      console.log("Fetched today's completed practices:", todaysCompletedPractices);
+    } else {
+      console.log("No practices submitted yet today.");
+      todaysCompletedPractices = [];
+    }
+  }).catch(error => {
+    console.error("Error fetching daily completions:", error);
+  });
+
   // First try Firestore
   firebase.firestore().collection("users").doc(userId).get()
     .then(doc => {
       if (doc.exists && doc.data().username) {
-        const username = doc.data().username;
+        const { username } = doc.data();
         nameDisplay.textContent = username;
         nameInput.value = username;
         console.log("Username loaded from Firestore:", username);
@@ -140,7 +161,9 @@ firebase.auth().onAuthStateChanged(user => {
   
   // Function to check if double points apply for a category on a specific date
   function shouldDoublePoints(category, date) {
-    if (!specialPointsPeriods[category]) return false;
+    if (!specialPointsPeriods[category]) {
+      return false;
+    }
     
     return specialPointsPeriods[category].some(period => 
       isDateInRange(date, period.start, period.end)
@@ -168,6 +191,8 @@ firebase.auth().onAuthStateChanged(user => {
   const selectedList      = document.getElementById("selectedList");
   const selectedLabel     = document.getElementById("selectedLabel");
   const submitButton      = document.getElementById("submitBtn");
+
+  let todaysCompletedPractices = []; // This will store practices completed today
   
   // Add special points info element
   const specialPointsInfo = document.createElement("div");
@@ -188,7 +213,7 @@ const practicesData = {
     { name: "Putt-30/3",      description: "Putt 30 Balls longer than 3 Metres",                                                     points: 5 },
     { name: "Putt-Drain10/1", description: "Drain 10 Consecutive Putts Longer than 1 Metre",                                         points: 5 },
     { name: "Putt-Drain10/2", description: "Drain 10 Consecutive Putts Longer than 2 Metres",                                        points: 10 },
-    { name: "Putt-Under36",   description: "Practise under 36 putts (2 putt average) for 18 different holes longer than 3 metres", points: 15 },
+    { name: "Putt-Under36",   description: "Practice under 36 putts (2 putt average) for 18 different holes longer than 3 metres", points: 15 },
     { name: "Putt-CircleGame",description: "4 Balls in a circle around hole longer than 2 metres, drain consecutive 5 rounds",     points: 15 },
     { name: "Putt-ClockGame", description: "Finish the clock game - 12 Putts in circle from 0.5m + 1m + 1.5m (All 3 Distances)", points: 15 },
     { name: "Putt-MatchPlay", description: "Win against another player Matchplay 18 Holes on Practice Green",                    points: 25 },
@@ -226,28 +251,28 @@ const practicesData = {
     { name: "Mind-Chess",        description: "Play a game of chess",                                                       points: 3 },
     { name: "Mind-Juggle",       description: "Learn to Juggle for 60mins",                                                 points: 3 },
     { name: "Mind-Affirmation",  description: "Write down 10 different reasons why you want to win the Guarra Guarra 2025",  points: 3 },
-    { name: "Mind Calmness",     description: "Medidate for 30mins",                                                         points: 3 },
-    { name: "Mind Soduko",       description: "Complete a game of Sudoko",                                                   points: 3 },
+    { name: "Mind Calmness",     description: "Meditate for 30mins",                                                         points: 3 },
+    { name: "Mind Soduko",       description: "Complete a game of Sudoku",                                                   points: 3 },
     { name: "Mind Reflect",      description: "Compile a list of 5 different weaknesses in your game and how to improve each one", points: 3 },
-    { name: "Mind Achive",       description: "Complete 5 improvements to weaknesses previously listed (to satisfaction)",   points: 5 },
+    { name: "Mind Achieve",       description: "Complete 5 improvements to weaknesses previously listed (to satisfaction)",   points: 5 },
     { name: "Mind Putt Routine", description: "Set up a Pre Shot Putting Routine (Practice the preshot PUTTING routine 30 times)", points: 5 },
     { name: "Mind Shot Routine", description: "Set up a Pre Shot Routine (Practice the preshot routine 30 times)",           points: 5 },
-    { name: "Mind Control",      description: "Excersixe full deep breathing excersises for 30mins",                        points: 10 },
+    { name: "Mind Control",      description: "Exercise full deep breathing exercises for 30mins",                        points: 10 },
     { name: "Mind Learn",        description: "Complete any Book or Audio Book by Dr Bob Rotella (minimum 100minutes)",       points: 25 }
   ],
   "On The Course": [
     { name: "OTC-Quick9",          description: "Play 9 holes on an official Golf Course",                                 points: 5 },
     { name: "OTC-Myball",          description: "Finish with the Ball you started",                                       points: 5 },
-    { name: "OTC-Partime",         description: "Score a Par on a Hole (unlimitted per day)",                             points: 5, allowMultiple: true },
-    { name: "OTC-Par3",            description: "Score a par or lower on a par 3 (unlimitted per day)",                   points: 5, allowMultiple: true },
-    { name: "OTC-Up&Down",         description: "Score an Up&Down for par or lower out of a greenside bunker (unlimitted per day)", points: 5, allowMultiple: true },
+    { name: "OTC-Partime",         description: "Score a Par on a Hole (unlimited per day)",                             points: 5, allowMultiple: true },
+    { name: "OTC-Par3",            description: "Score a par or lower on a par 3 (unlimited per day)",                   points: 5, allowMultiple: true },
+    { name: "OTC-Up&Down",         description: "Score an Up&Down for par or lower out of a greenside bunker (unlimited per day)", points: 5, allowMultiple: true },
     { name: "OTC-Full18",          description: "Play 18 holes on an official Golf Course",                               points: 10 },
-    { name: "OTC-Birdies",         description: "Score a Birdie on a Hole (unlimitted per day)",                          points: 10, allowMultiple: true },
+    { name: "OTC-Birdies",         description: "Score a Birdie on a Hole (unlimited per day)",                          points: 10, allowMultiple: true },
     { name: "OTC-Fairways4days",   description: "Hit 75% Fairways in regulation",                                         points: 10 },
     { name: "OTC-Deadaim",         description: "Hit 50% Greens in regulation",                                           points: 10 },
     { name: "OTC-MrPutt",          description: "Score average of 2 putts or less per hole",                              points: 10 },
     { name: "OTC-Beatme",          description: "Score below your course handicap",                                       points: 15 },
-    { name: "OTC-Eagle",           description: "Score an Eagle (unlimitted per day)",                                    points: 25, allowMultiple: true }
+    { name: "OTC-Eagle",           description: "Score an Eagle (unlimited per day)",                                    points: 25, allowMultiple: true }
   ],
   "Tournament Prep": [
     { name: "TP-Visualize",    description: "Map out a hole of Magalies park golf course, Distances, Obstacles, Stroke, Par, Gameplan", points: 5 },
@@ -450,6 +475,12 @@ if (taskCategory) {
     }
   
     practicesData[cat].forEach(practice => {
+
+       // If the practice does not allow multiple submissions AND it has already been completed today, skip it.
+      if (!practice.allowMultiple && todaysCompletedPractices.includes(practice.name)) {
+        return; // This will hide the practice from the list
+      }
+
       const card = document.createElement("div");
       card.className = "practice-card";
       card.style.cssText = `
@@ -1156,6 +1187,28 @@ if (submitForm) {
       console.log("Executing database operations for categories...");
       await firestoreBatch.commit();
       await Promise.all(realtimePromises);
+
+       // Filter for single-submission practices that were just submitted
+      const singleSubmissionPractices = selectedPractices
+        .filter(p => !practicesData[p.category].find(pd => pd.name === p.name)?.allowMultiple)
+        .map(p => p.name);
+
+      if (singleSubmissionPractices.length > 0) {
+        const today = new Date().toISOString().split('T')[0];
+        const dailyCompletionsRef = dbFirestore
+            .collection("users").doc(userId)
+            .collection("daily_completions").doc(today);
+
+        // Use arrayUnion to add the new practice names to the document
+        // This safely adds elements and prevents duplicates
+        await dailyCompletionsRef.set({
+          completed_practices: firebase.firestore.FieldValue.arrayUnion(...singleSubmissionPractices)
+        }, { merge: true }); // Use merge:true to create the doc if it doesn't exist or update it if it does
+
+        // Update the local array so the UI updates immediately without a page refresh
+        todaysCompletedPractices.push(...singleSubmissionPractices);
+        console.log("Updated daily completions in Firebase and locally.");
+      }
 
       // Calculate NEW totals AFTER submission
       console.log("Calculating updated totals...");
