@@ -744,6 +744,7 @@ function getActiveDoublePointsCategories() {
 }
 
 // Function to show/hide double points banner
+// Function to show/hide double points banner
 function updateDoublePointsBanner() {
   const banner = document.getElementById('doublePointsBanner');
   const flagMainText = document.getElementById('flagMainText');
@@ -753,23 +754,36 @@ function updateDoublePointsBanner() {
   
   const activeCategories = getActiveDoublePointsCategories();
   
+  // Check if today is a double points day
   if (activeCategories.length > 0) {
-    // Show banner with active categories
-    const categoryText = activeCategories.length === 1 
-      ? activeCategories[0]
-      : `${activeCategories.length} Categories`;
-    
-    flagMainText.textContent = '2X POINTS!';
-    flagCategory.textContent = categoryText;
-    banner.classList.add('active');
-    
-    console.log('Double points active for:', activeCategories);
+    const today = new Date().toDateString(); // Get a unique string for the current date
+    const lastShownDate = localStorage.getItem('doublePointsBannerLastShown');
+
+    // Only show the banner if it hasn't been shown today
+    if (lastShownDate !== today) {
+      const categoryText = activeCategories.length === 1 
+        ? activeCategories[0]
+        : `${activeCategories.length} Categories`;
+      
+      flagMainText.textContent = '2X POINTS!';
+      flagCategory.textContent = categoryText;
+      
+      // 1. Show the banner
+      banner.classList.add('active');
+      
+      // 2. Hide the banner after 3 seconds
+      setTimeout(() => {
+        banner.classList.remove('active');
+      }, 3000); // 3000 milliseconds = 3 seconds
+      
+      // 3. Remember that the banner was shown today
+      localStorage.setItem('doublePointsBannerLastShown', today);
+    }
   } else {
-    // Hide banner
+    // If it's not a double points day, ensure the banner is hidden
     banner.classList.remove('active');
   }
 }
-
   // Show confirmation/alert messages
   function showMessage(message, color) {
     if (!elements.confirmEl) return;
