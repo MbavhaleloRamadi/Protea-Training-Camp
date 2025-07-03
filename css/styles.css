@@ -674,130 +674,162 @@ header p {
   display: none !important;
 }
 
+
 /* =========================================
-   DOUBLE POINTS FLAG BANNER
+   NEW DOUBLE POINTS COIN ANIMATION
    ========================================= */
-.double-points-banner {
-  position: fixed;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1200;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.5s ease;
+#doublePointsContainer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    pointer-events: none;
+    perspective: 1000px;
 }
 
-.double-points-banner.active {
-  opacity: 1;
+.coin-wrapper {
+    position: relative;
+    opacity: 0;
+    transform-style: preserve-3d;
 }
 
-.flag-container {
-  position: relative;
-  width: 300px;
-  height: 80px;
+.coin {
+    width: 180px;
+    height: 180px;
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateY(180deg);
 }
 
-.flag {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(45deg, #1a5d1a, #2d8f2d, #4caf4c);
-  border-radius: 8px 0 0 8px;
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  animation: flag-wave 2s ease-in-out infinite;
-  transform-origin: left center;
+.coin-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    backface-visibility: hidden;
+    background: radial-gradient(circle at 70% 30%, #fffbd6, #ffd700 50%, #f0c400 100%);
+    box-shadow: 0 0 25px rgba(255, 215, 0, 0.5), inset 0 0 15px rgba(0,0,0,0.2);
+    border: 5px solid #e6c300;
 }
 
-.flag::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 40px 20px 40px 0;
-  border-color: transparent #1a5d1a transparent transparent;
-  animation: flag-tip-wave 2s ease-in-out infinite;
+.coin-face.front {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #8b4513; /* Brown text */
+    text-shadow: 1px 1px 1px rgba(255, 255, 255, 0.2);
+    font-family: 'Arial Black', Gadget, sans-serif;
 }
-
-.flag-pole {
-  position: absolute;
-  left: -8px;
-  top: -10px;
-  width: 6px;
-  height: 100px;
-  background: linear-gradient(to bottom, #8b4513, #a0522d);
-  border-radius: 3px;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.2);
+.coin-face.front span {
+    font-size: 4rem;
+    font-weight: 900;
+    line-height: 1;
 }
-
-.flag-text {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  color: white;
-  font-weight: bold;
-  font-size: 1.1rem;
-  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-  white-space: nowrap;
-  z-index: 1;
-}
-
-.flag-category {
-  font-size: 0.8rem;
-  display: block;
-  margin-top: 2px;
-  opacity: 0.9;
-}
-
-@keyframes flag-wave {
-  0%, 100% { 
-    transform: perspective(100px) rotateY(0deg) rotateX(2deg);
-  }
-  25% { 
-    transform: perspective(100px) rotateY(-3deg) rotateX(1deg);
-  }
-  50% { 
-    transform: perspective(100px) rotateY(0deg) rotateX(-1deg);
-  }
-  75% { 
-    transform: perspective(100px) rotateY(2deg) rotateX(1deg);
-  }
-}
-
-@keyframes flag-tip-wave {
-  0%, 100% { 
-    transform: translateX(0px) translateY(0px);
-  }
-  25% { 
-    transform: translateX(-2px) translateY(1px);
-  }
-  50% { 
-    transform: translateX(0px) translateY(-1px);
-  }
-  75% { 
-    transform: translateX(1px) translateY(1px);
-  }
-}
-
-/* Mobile responsive */
-@media (max-width: 768px) {
-  .flag-container {
-    width: 250px;
-    height: 70px;
-  }
-  
-  .flag-text {
+.coin-face.front small {
     font-size: 1rem;
-  }
-  
-  .flag-category {
-    font-size: 0.7rem;
-  }
+    font-weight: bold;
+    margin-top: 5px;
+    text-transform: uppercase;
+}
+
+
+.coin-face.back {
+    transform: rotateY(180deg);
+}
+
+.coin-shadow {
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    width: 80%;
+    height: 20px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 50%;
+    filter: blur(10px);
+    transform: translateX(-50%) scaleX(0);
+}
+
+/* Toss-in Animation */
+.coin-wrapper.toss-in {
+    animation: toss-in 1.5s cubic-bezier(0.3, 0, 0.4, 1.5) forwards;
+}
+@keyframes toss-in {
+    0% {
+        transform: translateZ(-500px) translateY(-100vh) rotateY(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateZ(0) translateY(0) rotateY(1800deg);
+        opacity: 1;
+    }
+}
+.coin-wrapper.toss-in .coin-shadow {
+    animation: shadow-in 1.5s cubic-bezier(0.3, 0, 0.4, 1.5) forwards;
+}
+@keyframes shadow-in {
+    0% { transform: translateX(-50%) scaleX(0); opacity: 0; }
+    50% { transform: translateX(-50%) scaleX(1); opacity: 1; }
+    100% { transform: translateX(-50%) scaleX(1); opacity: 1; }
+}
+
+
+/* Melt-out Animation */
+.coin-wrapper.melt-out {
+    animation: melt-out 1.5s ease-in forwards;
+}
+@keyframes melt-out {
+    0% {
+        transform: translateY(0) scale(1, 1);
+        filter: blur(0px) contrast(1);
+        opacity: 1;
+    }
+    50% {
+        filter: blur(5px) contrast(5);
+    }
+    100% {
+        transform: translateY(120px) scale(1.5, 0.1);
+        filter: blur(15px) contrast(2);
+        opacity: 0;
+    }
+}
+.coin-wrapper.melt-out .coin-shadow {
+    animation: shadow-out 1.5s ease-in forwards;
+}
+@keyframes shadow-out {
+    to { transform: translateX(-50%) scaleX(0); opacity: 0; }
+}
+
+
+/* =========================================
+   NEW ENCOURAGING MESSAGE STYLES
+   ========================================= */
+.encouraging-message {
+    position: fixed;
+    bottom: 20vh;
+    left: 50%;
+    transform: translateX(-50%) translateY(50px);
+    background: linear-gradient(45deg, var(--primary-color), var(--accent-color));
+    color: white;
+    padding: 18px 30px;
+    border-radius: 50px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    z-index: 10000;
+    opacity: 0;
+    transition: transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.5s ease;
+    white-space: nowrap;
+}
+
+.encouraging-message.show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
 }
 
 /* =========================================
@@ -1257,6 +1289,107 @@ button:focus {
   .leaderboard-container h1 {
     font-size: 2.5rem;
   }
+}
+
+/* =========================================
+   NEW STYLES FOR CLICKABLE LEADERBOARD
+   ========================================= */
+
+/* Makes the player name button look like plain text but be clickable */
+.player-name-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-align: inherit;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline;
+  transition: color 0.2s ease, text-decoration 0.2s ease;
+}
+
+.player-name-btn:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* Styling for the history popup timeline */
+.history-timeline-popup {
+    color: #333; /* Dark text for readability on white modal */
+}
+
+.timeline-day-group {
+    margin-bottom: 2rem;
+}
+
+.timeline-date-heading {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #0056b3;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+    margin-bottom: 1rem;
+}
+
+.practice-log-list {
+    list-style: none;
+    padding-left: 0;
+}
+
+.practice-log-item {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px 80px;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.practice-log-item:nth-child(odd) {
+    background-color: #f8f9fa;
+}
+
+.practice-log-item:hover {
+    background-color: #e9ecef;
+}
+
+.log-time {
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.log-name {
+    font-weight: 500;
+}
+
+.log-points {
+    font-weight: 600;
+    color: var(--primary-color);
+    text-align: right;
+}
+
+.log-edited {
+    font-style: italic;
+    font-size: 0.85rem;
+    color: #dc3545;
+    font-weight: 600;
+    text-align: center;
+    background-color: rgba(220, 53, 69, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Responsive adjustments for the popup */
+@media screen and (max-width: 600px) {
+    .practice-log-item {
+        grid-template-columns: 60px 1fr 50px 60px;
+        gap: 0.5rem;
+        font-size: 0.9rem;
+    }
 }
 
 /* =========================================

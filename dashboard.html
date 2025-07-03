@@ -8,29 +8,23 @@
     <meta name="author" content="Mbavhalelo Innocent Ramadi">
     <title>Dashboard</title>
     
-    <!-- Linking the main stylesheet -->
     <link rel="stylesheet" href="css/styles.css">
     
-    <!-- Adding Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 <body>
-    <!-- Background Video -->
     <video autoplay muted loop class="background-video" id="bg-video">
         <source src="assets/video/back.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
 
-    <!-- Fullscreen Fun Loader -->
     <div class="loader-overlay" id="loader">
         <div class="loader-container">
             <div class="golf-loader"></div>
@@ -40,18 +34,9 @@
 
     <div class="blur-overlay"></div>
 
-    <!-- Double Points Flag Banner -->
-    <div class="double-points-banner" id="doublePointsBanner">
-      <div class="flag-container">
-        <div class="flag-pole"></div>
-        <div class="flag">
-          <div class="flag-text">
-            <span id="flagMainText">2X POINTS!</span>
-            <span class="flag-category" id="flagCategory"></span>
-          </div>
+    <div id="doublePointsContainer">
         </div>
-      </div>
-    </div>
+
 
     <div class="main-content">
         <div class="user-actions">
@@ -59,14 +44,12 @@
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
-        <!-- Header with Welcome and Logout -->
         <div class="header-container">
             <div class="welcome-message">
                 <h1>Welcome, <span id="user-name">Golfer</span></h1>
             </div>
         </div>
 
-        <!-- Score Overview Cards -->
         <div class="score-cards">
             <div class="card" id="leaderboard-position">
                 <h2>Current Position</h2>
@@ -91,7 +74,6 @@
             </div>
         </div>
 
-        <!-- Primary Action Buttons -->
         <div class="primary-actions">
             <button onclick="submitTasks()" class="primary-btn">
                 <i class="fas fa-golf-ball"></i> Log Training
@@ -101,14 +83,12 @@
             </button>
         </div>
         
-        <!-- Mobile Navigation Toggle -->
         <div class="nav-toggle" id="nav-toggle">
             <span></span>
             <span></span>
             <span></span>
         </div>
 
-        <!-- Navigation Bar -->
         <nav class="navbar">
             <ul>
                 <li>
@@ -150,7 +130,6 @@
             </ul>
         </nav>
 
-        <!-- Confirmation/Alert Message Area -->
         <div id="confirmationMessage" class="hidden"></div>
     </div>
 

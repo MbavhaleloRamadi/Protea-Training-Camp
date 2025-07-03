@@ -9,6 +9,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // Leaderboard elements
       leaderboardContainer: document.getElementById("leaderboardData"),
     };
+
+    // Create and inject the modal for player history
+    createPlayerHistoryModal();
   
     // ───────────────────────────────────────────────────────────
     // 1) PAGE LOADER
@@ -30,7 +33,6 @@ document.addEventListener("DOMContentLoaded", () => {
     // ───────────────────────────────────────────────────────────
     // 2) FIREBASE INITIALIZATION
     // ───────────────────────────────────────────────────────────
-    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyCLFOHGb5xaMSUtE_vgVO0aaY6MfLySeTs",
       authDomain: "protea-training-camp.firebaseapp.com",
@@ -46,11 +48,13 @@ document.addEventListener("DOMContentLoaded", () => {
   
     try {
       if (window.firebase) {
-        firebase.initializeApp(firebaseConfig);
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
         
         // Initialize Firebase services
         auth = firebase.auth();
-        dbFirestore = firebase.firestore();
+        dbFirestore = firebase.firestore(); // Firestore is needed now
         dbRealtime = firebase.database();
         
         // Auth state changes
@@ -91,6 +95,9 @@ document.addEventListener("DOMContentLoaded", () => {
   
       // Setup real-time listener for all users
       setupRealtimeLeaderboard();
+      
+      // Add event listener for clicking on player names
+      setupPlayerHistoryClickListener();
     }
   
     function showLoading() {
@@ -141,221 +148,60 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   
-
-// ───────────────────────────────────────────────────────────
-// SIMPLIFIED LEADERBOARD PROCESSING - Using totalPoints field from categories
-// ───────────────────────────────────────────────────────────
-function processLeaderboardData(usersData) {
-  // Convert users data to array for sorting
-  const leaderboardEntries = [];
-  
-  // Process each user
-  Object.keys(usersData).forEach(userId => {
-    const userData = usersData[userId];
-    
-    // Skip users without necessary data
-    if (!userData.username) return;
-    
-    // Initialize totals
-    let totalScore = 0;
-    let roundsPlayed = 0;
-    let latestSubmissionTime = 0;
-    
-    // NEW: Collect totalPoints from each category
-    if (userData.practice_submissions) {
-      Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-        // Skip the totalUserScore field itself if it exists
-        if (dailySubmissionId === 'totalUserScore') return;
+    // ───────────────────────────────────────────────────────────
+    // SIMPLIFIED LEADERBOARD PROCESSING - Using totalPoints field from categories
+    // ───────────────────────────────────────────────────────────
+    function processLeaderboardData(usersData) {
+      const leaderboardEntries = [];
+      Object.keys(usersData).forEach(userId => {
+        const userData = usersData[userId];
+        if (!userData.username) return;
         
-        const dailySubmission = userData.practice_submissions[dailySubmissionId];
+        let totalScore = 0;
+        let roundsPlayed = 0;
+        let latestSubmissionTime = 0;
         
-        // Process categories to get totalPoints
-        if (dailySubmission.categories) {
-          Object.keys(dailySubmission.categories).forEach(categoryId => {
-            const category = dailySubmission.categories[categoryId];
-            
-            // Skip deleted categories
-            if (category.isDeleted) return;
-            
-            // Add totalPoints from this category
-            if (category.totalPoints !== undefined) {
-              totalScore += parseInt(category.totalPoints) || 0;
-            }
-            
-            // Count totalPractices from this category
-            if (category.totalPractices !== undefined) {
-              roundsPlayed += parseInt(category.totalPractices) || 0;
-            }
-            
-            // Track latest submission time from this category
-            if (category.submittedAt) {
-              const submissionTime = typeof category.submittedAt === 'object' 
-                ? category.submittedAt.timestamp || Date.now()
-                : parseInt(category.submittedAt) || 0;
-              
-              if (submissionTime > latestSubmissionTime) {
-                latestSubmissionTime = submissionTime;
-              }
-            }
-            
-            // Fallback: if no totalPoints/totalPractices, calculate from practices array
-            if (category.totalPoints === undefined && category.practices && Array.isArray(category.practices)) {
-              category.practices.forEach(practice => {
-                if (practice.points !== undefined) {
-                  const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
-                  totalScore += parseInt(points) || 0;
-                  roundsPlayed++;
-                  
-                  // Track latest submission time for tiebreaker
-                  if (practice.addedAt) {
-                    const submissionTime = parseInt(practice.addedAt) || 0;
-                    if (submissionTime > latestSubmissionTime) {
-                      latestSubmissionTime = submissionTime;
-                    }
-                  }
-                }
-              });
-            }
+        if (userData.practice_submissions) {
+          Object.values(userData.practice_submissions).forEach(dailySubmission => {
+             if (dailySubmission.categories) {
+                 Object.values(dailySubmission.categories).forEach(category => {
+                     if (!category.isDeleted) {
+                         totalScore += category.totalPoints || 0;
+                         roundsPlayed += category.totalPractices || 0;
+                         if (category.submittedAt && category.submittedAt.timestamp > latestSubmissionTime) {
+                             latestSubmissionTime = category.submittedAt.timestamp;
+                         }
+                     }
+                 });
+             }
           });
         }
         
-        // Also check for metadata-level totals as secondary source
-        if (dailySubmission.metadata) {
-          // Track latest submission time from metadata
-          if (dailySubmission.metadata.lastSubmissionAt) {
-            const submissionTime = typeof dailySubmission.metadata.lastSubmissionAt === 'object' 
-              ? dailySubmission.metadata.lastSubmissionAt.timestamp || Date.now()
-              : dailySubmission.metadata.lastSubmissionAt;
-            
-            if (submissionTime > latestSubmissionTime) {
-              latestSubmissionTime = submissionTime;
-            }
-          }
-        }
+        leaderboardEntries.push({
+          userId: userId,
+          name: userData.username,
+          rawScore: totalScore,
+          displayScore: roundsPlayed > 0 ? totalScore.toString() : "N/A",
+          roundsPlayed: roundsPlayed,
+          latestSubmissionTime: latestSubmissionTime
+        });
       });
-    }
-    
-    // Final fallback: Check old task_submissions structure
-    if (totalScore === 0 && userData.task_submissions) {
-      Object.values(userData.task_submissions).forEach(submission => {
-        if (submission.practices && Array.isArray(submission.practices)) {
-          submission.practices.forEach(practice => {
-            if (practice.points !== undefined) {
-              totalScore += parseInt(practice.points) || 0;
-              roundsPlayed++;
-              
-              if (practice.submissionTime) {
-                const submissionTime = parseInt(practice.submissionTime) || 0;
-                if (submissionTime > latestSubmissionTime) {
-                  latestSubmissionTime = submissionTime;
-                }
-              }
-            }
-          });
-        }
+      
+      leaderboardEntries.sort((a, b) => {
+        if (a.roundsPlayed === 0 && b.roundsPlayed > 0) return 1;
+        if (b.roundsPlayed === 0 && a.roundsPlayed > 0) return -1;
+        if (b.rawScore !== a.rawScore) return b.rawScore - a.rawScore;
+        return a.latestSubmissionTime - b.latestSubmissionTime;
       });
+      
+      renderLeaderboard(leaderboardEntries);
     }
-    
-    // Format the score for display
-    const formattedScore = roundsPlayed > 0 ? totalScore.toString() : "N/A";
-    
-    // Add to leaderboard entries
-    leaderboardEntries.push({
-      userId: userId,
-      name: userData.username,
-      rawScore: totalScore,
-      displayScore: formattedScore,
-      roundsPlayed: roundsPlayed,
-      latestSubmissionTime: latestSubmissionTime,
-      usingTotalPoints: true // For debugging - indicates we're using category totalPoints
-    });
-  });
-  
-  // Sort by score (highest first for points)
-  leaderboardEntries.sort((a, b) => {
-    // If a player hasn't played, they should be at the bottom
-    if (a.roundsPlayed === 0 && b.roundsPlayed > 0) return 1;
-    if (b.roundsPlayed === 0 && a.roundsPlayed > 0) return -1;
-    
-    // Sort by score (higher is better for points)
-    if (b.rawScore !== a.rawScore) {
-      return b.rawScore - a.rawScore;
-    }
-    
-    // Tiebreaker: earlier submission time ranks higher
-    return a.latestSubmissionTime - b.latestSubmissionTime;
-  });
-  
-  // Log summary for debugging
-  console.log("Leaderboard Summary:");
-  console.log(`Total users: ${leaderboardEntries.length}`);
-  console.log(`Users processed with totalPoints from categories: ${leaderboardEntries.length}`);
-  
-  // Render sorted leaderboard
-  renderLeaderboard(leaderboardEntries);
-}
-
-// ───────────────────────────────────────────────────────────
-// HELPER FUNCTION: Verify category totalPoints accuracy (for debugging)
-// ───────────────────────────────────────────────────────────
-async function verifyTotalPointsFromCategories(userId) {
-  try {
-    const userDoc = await dbFirestore.collection('users').doc(userId).get();
-    const userData = userDoc.data();
-    
-    let totalFromCategories = 0;
-    let calculatedFromPractices = 0;
-    
-    if (userData.practice_submissions) {
-      Object.keys(userData.practice_submissions).forEach(dailySubmissionId => {
-        if (dailySubmissionId === 'totalUserScore') return;
-        
-        const dailySubmission = userData.practice_submissions[dailySubmissionId];
-        if (dailySubmission.categories) {
-          Object.keys(dailySubmission.categories).forEach(categoryId => {
-            const category = dailySubmission.categories[categoryId];
-            
-            if (!category.isDeleted) {
-              // Add from totalPoints field
-              if (category.totalPoints !== undefined) {
-                totalFromCategories += parseInt(category.totalPoints) || 0;
-              }
-              
-              // Calculate from individual practices for comparison
-              if (category.practices && Array.isArray(category.practices)) {
-                category.practices.forEach(practice => {
-                  if (practice.points !== undefined) {
-                    const points = practice.isDoublePoints ? practice.points * 2 : practice.points;
-                    calculatedFromPractices += parseInt(points) || 0;
-                  }
-                });
-              }
-            }
-          });
-        }
-      });
-    }
-    
-    console.log(`User ${userData.username || userId}:`);
-    console.log(`  Total from category totalPoints: ${totalFromCategories}`);
-    console.log(`  Calculated from individual practices: ${calculatedFromPractices}`);
-    console.log(`  Match: ${totalFromCategories === calculatedFromPractices ? 'YES' : 'NO'}`);
-    
-    return { totalFromCategories, calculatedFromPractices };
-  } catch (error) {
-    console.error('Error verifying totalPoints from categories:', error);
-    return { totalFromCategories: 0, calculatedFromPractices: 0 };
-  }
-}
 
     // ───────────────────────────────────────────────────────────
-    // 7) RENDER LEADERBOARD - UPDATED FOR GOLF DISPLAY
+    // 7) RENDER LEADERBOARD - UPDATED FOR GOLF DISPLAY & CLICKABLE NAMES
     // ───────────────────────────────────────────────────────────
     function renderLeaderboard(entries) {
-      // Clear current content
       elements.leaderboardContainer.innerHTML = "";
-      
-      // Create document fragment for better performance
       const fragment = document.createDocumentFragment();
       
       if (entries.length === 0) {
@@ -364,7 +210,6 @@ async function verifyTotalPointsFromCategories(userId) {
         emptyMessage.textContent = "No leaderboard data available yet.";
         fragment.appendChild(emptyMessage);
       } else {
-        // Add each entry with rank
         entries.forEach((entry, index) => {
           const rank = index + 1;
           const row = createLeaderboardRow(rank, entry);
@@ -372,38 +217,161 @@ async function verifyTotalPointsFromCategories(userId) {
         });
       }
       
-      // Single DOM update with all rows
       elements.leaderboardContainer.appendChild(fragment);
       
-      // Hide loader if still visible
       if (elements.loader) {
         elements.loader.style.display = "none";
       }
     }
   
+    // UPDATED to make names clickable
     function createLeaderboardRow(rank, entry) {
       const row = document.createElement("div");
       row.classList.add("leaderboard-row");
       
-      // Add highlight class for top 3
-      if (rank <= 3) {
-        row.classList.add(`rank-${rank}`);
-      }
+      if (rank <= 3) row.classList.add(`rank-${rank}`);
       
-      // Highlight current user
       const currentUser = auth.currentUser;
       if (currentUser && entry.userId === currentUser.uid) {
         row.classList.add("current-user");
       }
       
-      // Create HTML structure that matches the header columns in the HTML
+      // Make the name a clickable button
       row.innerHTML = `
         <div class="rank">${rank}</div>
-        <div class="name">${escapeHtml(entry.name)}</div>
+        <div class="name">
+          <button class="player-name-btn" data-userid="${entry.userId}" data-username="${escapeHtml(entry.name)}">
+            ${escapeHtml(entry.name)}
+          </button>
+        </div>
         <div class="score">${entry.displayScore}</div>
       `;
       
       return row;
+    }
+
+    // ───────────────────────────────────────────────────────────
+    // 8) NEW: PLAYER HISTORY MODAL FUNCTIONALITY
+    // ───────────────────────────────────────────────────────────
+
+    function createPlayerHistoryModal() {
+        if (document.getElementById('playerHistoryModal')) return;
+
+        const modalHTML = `
+            <div class="modal-overlay hidden" id="playerHistoryModal">
+                <div class="modal-container large-modal">
+                    <div class="modal-header">
+                        <h3 id="playerHistoryModalTitle">Player History</h3>
+                        <button class="modal-close" id="playerHistoryModalCloseBtn" aria-label="Close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="modal-body" id="playerHistoryModalBody">
+                        </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        // Add event listener to close button
+        document.getElementById('playerHistoryModalCloseBtn').addEventListener('click', () => {
+            document.getElementById('playerHistoryModal').classList.add('hidden');
+        });
+    }
+
+    function setupPlayerHistoryClickListener() {
+        elements.leaderboardContainer.addEventListener('click', (event) => {
+            const button = event.target.closest('.player-name-btn');
+            if (button) {
+                const userId = button.dataset.userid;
+                const username = button.dataset.username;
+                showPlayerHistoryModal(userId, username);
+            }
+        });
+    }
+
+    async function showPlayerHistoryModal(userId, username) {
+        const modal = document.getElementById('playerHistoryModal');
+        const modalTitle = document.getElementById('playerHistoryModalTitle');
+        const modalBody = document.getElementById('playerHistoryModalBody');
+
+        modalTitle.textContent = `${username}'s Submission History`;
+        modalBody.innerHTML = `
+            <div class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <p>Loading practice history...</p>
+            </div>`;
+        modal.classList.remove('hidden');
+
+        try {
+            const submissionsRef = dbFirestore.collection("users").doc(userId).collection("practice_submissions");
+            const snapshot = await submissionsRef.orderBy("date", "desc").get();
+
+            if (snapshot.empty) {
+                modalBody.innerHTML = `<div class="no-data">No practice history found for this player.</div>`;
+                return;
+            }
+
+            let allPractices = [];
+            for (const doc of snapshot.docs) {
+                const submissionData = doc.data();
+                const submissionDate = submissionData.date;
+
+                const categoriesSnapshot = await doc.ref.collection("categories").get();
+                for (const catDoc of categoriesSnapshot.docs) {
+                    const categoryData = catDoc.data();
+                    if (categoryData.isDeleted) continue;
+
+                    const practices = categoryData.practices || [];
+                    practices.forEach(p => {
+                        allPractices.push({
+                            date: submissionDate,
+                            name: p.name || 'Unnamed Practice',
+                            points: p.isDoublePoints ? (p.points || 0) * 2 : (p.points || 0),
+                            time: p.addedAt ? new Date(p.addedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+                            isEdited: p.isEdited || !!p.lastModified
+                        });
+                    });
+                }
+            }
+            
+            // Group practices by date
+            const groupedByDate = allPractices.reduce((acc, practice) => {
+                (acc[practice.date] = acc[practice.date] || []).push(practice);
+                return acc;
+            }, {});
+
+            // Generate HTML
+            let historyHtml = '<div class="history-timeline-popup">';
+            if (Object.keys(groupedByDate).length === 0) {
+                 historyHtml += `<div class="no-data">No practice history found for this player.</div>`;
+            } else {
+                 for (const date in groupedByDate) {
+                    historyHtml += `
+                        <div class="timeline-day-group">
+                            <h4 class="timeline-date-heading">${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h4>
+                            <ul class="practice-log-list">`;
+                    
+                    groupedByDate[date].forEach(p => {
+                        historyHtml += `
+                            <li class="practice-log-item">
+                                <span class="log-time">${p.time}</span>
+                                <span class="log-name">${escapeHtml(p.name)}</span>
+                                <span class="log-points">${p.points} pts</span>
+                                ${p.isEdited ? '<span class="log-edited" title="This practice was edited.">Edited</span>' : ''}
+                            </li>`;
+                    });
+
+                    historyHtml += `</ul></div>`;
+                }
+            }
+            historyHtml += '</div>';
+            modalBody.innerHTML = historyHtml;
+
+        } catch (error) {
+            console.error("Error fetching player history:", error);
+            modalBody.innerHTML = `<div class="error-message"><p>Could not load player history.</p></div>`;
+        }
     }
   
     // ───────────────────────────────────────────────────────────
@@ -413,47 +381,8 @@ async function verifyTotalPointsFromCategories(userId) {
     // Escape HTML to prevent XSS
     function escapeHtml(text) {
       if (!text) return "";
-      
       const div = document.createElement("div");
       div.textContent = text;
       return div.innerHTML;
     }
-
-    // Function to create a leaderboard row
-function createLeaderboardRow(rank, entry) {
-    const row = document.createElement("div");
-    row.classList.add("leaderboard-row");
-    
-    // Add highlight class for top 3
-    if (rank <= 3) {
-      row.classList.add(`rank-${rank}`);
-    }
-    
-    // Highlight current user
-    const currentUser = auth.currentUser;
-    if (currentUser && entry.userId === currentUser.uid) {
-      row.classList.add("current-user");
-    }
-    
-    // Create HTML structure that matches the header columns in the HTML
-    // Each div corresponds to a column in the grid layout
-    const rankDiv = document.createElement("div");
-    rankDiv.className = "rank";
-    rankDiv.textContent = rank;
-    
-    const nameDiv = document.createElement("div");
-    nameDiv.className = "name";
-    nameDiv.textContent = escapeHtml(entry.name);
-    
-    const scoreDiv = document.createElement("div");
-    scoreDiv.className = "score";
-    scoreDiv.textContent = entry.displayScore;
-    
-    // Add each column div to the row
-    row.appendChild(rankDiv);
-    row.appendChild(nameDiv);
-    row.appendChild(scoreDiv);
-    
-    return row;
-  }
-  });
+});
