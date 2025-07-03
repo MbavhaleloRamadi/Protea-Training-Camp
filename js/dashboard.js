@@ -68,20 +68,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // Firebase services
   let auth, dbFirestore, dbRealtime;
 
-  // Initialize Firebase - improved error handling
   function initializeFirebase() {
     try {
-      // Check if Firebase is already initialized
       if (firebase.apps.length === 0) {
         firebase.initializeApp(firebaseConfig);
       }
       
-      // Initialize Firebase services
       auth = firebase.auth();
       dbFirestore = firebase.firestore();
       dbRealtime = firebase.database();
       
-      // Monitor auth state changes
       auth.onAuthStateChanged(handleAuthStateChanged);
       
       return true;
@@ -92,29 +88,10 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Ensure Firebase SDK is loaded before initializing
   if (typeof firebase !== 'undefined') {
     initializeFirebase();
   } else {
     console.error("Firebase SDK not found. Make sure it's included before this script.");
-    showMessage("Firebase SDK not found. Please refresh or contact support.", "red");
-    
-    // Optional: Add a retry mechanism with a small delay
-    const maxRetries = 3;
-    let retryCount = 0;
-    
-    const retryInterval = setInterval(() => {
-      retryCount++;
-      console.log(`Retrying Firebase initialization (${retryCount}/${maxRetries})...`);
-      
-      if (typeof firebase !== 'undefined') {
-        clearInterval(retryInterval);
-        initializeFirebase();
-      } else if (retryCount >= maxRetries) {
-        clearInterval(retryInterval);
-        console.error("Firebase SDK could not be loaded after multiple attempts.");
-      }
-    }, 1000); // Retry every second
   }
 
   // ───────────────────────────────────────────────────────────
@@ -122,51 +99,29 @@ document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────────────────────────────────
   async function handleAuthStateChanged(user) {
     if (user) {
-      console.log("User is logged in:", user.uid);
-      
       try {
-        // Fetch user data from Firestore
         const userDoc = await dbFirestore.collection("users").doc(user.uid).get();
         
         if (userDoc.exists) {
           const userData = userDoc.data();
-          
-          // Update UI with user info
           displayUserInfo(userData);
-          
-          // Check if admin (optional feature)
           checkIfAdmin(user.uid);
-          
-          // Show loading indicators
           showLoadingIndicators();
           
-          // Fetch and calculate scores
           await fetchUserScores(user.uid);
-          
-          // Fetch user's leaderboard position
           await fetchLeaderboardPosition(user.uid);
           
-          // Set up real-time listeners for score updates
           setupRealtimeListeners(user.uid);
-
-          // Initialize double points banner
-          updateDoublePointsBanner();
+          updateDoublePointsNotification();
  
-          // Update banner every hour in case date changes
-          setInterval(updateDoublePointsBanner, 3600000); // 1 hour
+          setInterval(updateDoublePointsNotification, 3600000); // Check every hour
         } else {
           console.error("User document not found");
-          showMessage("User profile not found. Please contact support.", "red");
-          hideLoadingIndicators();
         }
       } catch (error) {
         console.error("Error fetching user data:", error);
-        showMessage("Error loading user data. Please refresh the page.", "red");
-        hideLoadingIndicators();
       }
     } else {
-      // User is not logged in, redirect to login page
-      console.log("User is not logged in, redirecting...");
       window.location.href = "index.html";
     }
   }
@@ -175,12 +130,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // 4) DISPLAY USER INFORMATION
   // ───────────────────────────────────────────────────────────
   function displayUserInfo(userData) {
-    if (elements.userName && userData.username) {
-      // Use username instead of fullName
-      elements.userName.textContent = userData.username;
-    } else if (elements.userName && userData.fullName) {
-      // Fallback to fullName if username doesn't exist
-      elements.userName.textContent = userData.fullName;
+    if (elements.userName && (userData.username || userData.fullName)) {
+      elements.userName.textContent = userData.username || userData.fullName;
     }
   }
 
@@ -189,11 +140,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ───────────────────────────────────────────────────────────
   async function checkIfAdmin(userId) {
     try {
-      // Check if user is in admins collection
       const adminDoc = await dbFirestore.collection("admins").doc(userId).get();
-      
       if (adminDoc.exists && elements.adminButton) {
-        // Show admin button if user is an admin
         elements.adminButton.classList.remove("hidden");
       }
     } catch (error) {
@@ -217,172 +165,57 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 // ───────────────────────────────────────────────────────────
-// 7) SCORE CALCULATION & DISPLAY - UPDATED VERSION
+// 7) SCORE CALCULATION & DISPLAY
 // ───────────────────────────────────────────────────────────
 async function fetchUserScores(userId) {
-  console.log("Starting fetchUserScores for userId:", userId);
-  
   try {
-    if (!userId) {
-      throw new Error("User ID is null or undefined");
-    }
+    if (!userId) throw new Error("User ID is null or undefined");
 
-    console.log("Fetching user practice submissions...");
-    
-    // Get all daily submissions for this user
-    const practiceSubmissionsRef = dbFirestore
-      .collection("users")
-      .doc(userId)
-      .collection("practice_submissions");
-    
+    const practiceSubmissionsRef = dbFirestore.collection("users").doc(userId).collection("practice_submissions");
     const dailySubmissionsSnapshot = await practiceSubmissionsRef.get();
-    
-    console.log("Found", dailySubmissionsSnapshot.docs.length, "daily submission documents");
-    
+
     if (dailySubmissionsSnapshot.empty) {
-      console.log("No daily submissions found for user");
       updateScoreDisplays(0, 0);
       return;
     }
     
-    // Calculate date range for weekly score (last 7 days including today)
     const today = new Date();
-    today.setHours(23, 59, 59, 999); // End of today
-    
+    today.setHours(23, 59, 59, 999); 
     const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 6); // Last 7 days including today (6 days back + today = 7 days)
-    oneWeekAgo.setHours(0, 0, 0, 0); // Start of that day
-    
-    console.log("Weekly score date range:", oneWeekAgo.toDateString(), "to", today.toDateString());
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 6);
+    oneWeekAgo.setHours(0, 0, 0, 0);
     
     let weeklyScore = 0;
     let allTimeScore = 0;
     
-    // Process each daily submission
     for (const dailySubmissionDoc of dailySubmissionsSnapshot.docs) {
-      const dailySubmissionId = dailySubmissionDoc.id;
       const dailySubmissionData = dailySubmissionDoc.data();
+      if (dailySubmissionData.isActive === false) continue;
       
-      console.log("Processing daily submission:", dailySubmissionId, dailySubmissionData);
-      
-      // Skip if submission is not active
-      if (dailySubmissionData.isActive === false) {
-        console.log("Skipping inactive submission:", dailySubmissionId);
-        continue;
-      }
-      
-      // Method 1: Check if daily submission has pre-calculated totalPoints (fallback method)
-      let dailyTotalFromMetadata = 0;
-      let dailyDateFromMetadata = null;
-      let useMetadata = false;
-      
-      if (dailySubmissionData.totalPoints && typeof dailySubmissionData.totalPoints === 'number') {
-        dailyTotalFromMetadata = dailySubmissionData.totalPoints;
-        dailyDateFromMetadata = dailySubmissionData.date;
-        useMetadata = true;
-        console.log("Found metadata - Points:", dailyTotalFromMetadata, "Date:", dailyDateFromMetadata);
-      }
-      
-      // Method 2: Primary method - Get individual practice submissions from categories subcollection
-      let dailyTotalFromCategories = 0;
-      let dailyDateFromCategories = null;
-      let categoriesProcessed = 0;
-      
-      try {
-        console.log("Fetching categories for daily submission:", dailySubmissionId);
-        
-        const categoriesSnapshot = await practiceSubmissionsRef
-          .doc(dailySubmissionId)
-          .collection("categories")
-          .where('isDeleted', '==', false)
-          .get();
-        
-        console.log("Found", categoriesSnapshot.docs.length, "category documents for", dailySubmissionId);
-        
-        categoriesSnapshot.forEach(categoryDoc => {
-          const submission = categoryDoc.data();
-          
-          console.log("Processing category submission:", categoryDoc.id, submission);
-          
-          // Verify this submission belongs to the current user
-          if (submission.userId && submission.userId !== userId) {
-            console.log("Skipping category - not for current user:", submission.userId, "vs", userId);
-            return;
-          }
-          
-          // Get points from this individual practice submission
-          const submissionPoints = submission.totalPoints || 0;
-          dailyTotalFromCategories += submissionPoints;
-          categoriesProcessed++;
-          
-          // Get date from first category if not set
-          if (!dailyDateFromCategories && submission.date) {
-            dailyDateFromCategories = submission.date;
-          }
-          
-          console.log("Added points from category:", submission.category, "Points:", submissionPoints, "Running total:", dailyTotalFromCategories);
-        });
-        
-        console.log("Categories processed:", categoriesProcessed, "Total points from categories:", dailyTotalFromCategories);
-        
-      } catch (categoryError) {
-        console.error("Error fetching categories for", dailySubmissionId, ":", categoryError);
-      }
-      
-      // Determine which method to use and calculate scores
       let finalDailyTotal = 0;
-      let finalDailyDate = null;
+      let finalDailyDate = dailySubmissionData.date;
       
-      if (categoriesProcessed > 0) {
-        // Use primary method (categories) if we found any categories
-        finalDailyTotal = dailyTotalFromCategories;
-        finalDailyDate = dailyDateFromCategories;
-        console.log("Using primary method (categories) - Total:", finalDailyTotal, "Date:", finalDailyDate);
-      } else if (useMetadata) {
-        // Fallback to metadata if no categories found
-        finalDailyTotal = dailyTotalFromMetadata;
-        finalDailyDate = dailyDateFromMetadata;
-        console.log("Using fallback method (metadata) - Total:", finalDailyTotal, "Date:", finalDailyDate);
-      } else {
-        console.log("No points found for daily submission:", dailySubmissionId);
-        continue;
+      // Use the pre-calculated totalPoints from the daily submission metadata if it exists
+      if (typeof dailySubmissionData.totalPoints === 'number') {
+          finalDailyTotal = dailySubmissionData.totalPoints;
       }
-      
-      // Add to all-time score
+
       allTimeScore += finalDailyTotal;
-      console.log("Added", finalDailyTotal, "to all-time score. New total:", allTimeScore);
       
-      // Check if within weekly range
       if (finalDailyDate) {
         const submissionTimestamp = new Date(finalDailyDate);
-        submissionTimestamp.setHours(0, 0, 0, 0); // Start of submission day
+        submissionTimestamp.setHours(0, 0, 0, 0);
         
-        // Check if submission is within the last 7 days (including today)
         if (submissionTimestamp >= oneWeekAgo && submissionTimestamp <= today) {
           weeklyScore += finalDailyTotal;
-          console.log("Added", finalDailyTotal, "to weekly score. Submission date:", submissionTimestamp.toDateString(), "New weekly total:", weeklyScore);
-        } else {
-          console.log("Submission date", submissionTimestamp.toDateString(), "is outside weekly range:", oneWeekAgo.toDateString(), "to", today.toDateString());
         }
-      } else {
-        console.log("No date found for daily submission:", dailySubmissionId);
       }
     }
     
-    console.log("Final calculated scores - Weekly:", weeklyScore, "All-time:", allTimeScore);
-    
-    // Update UI with calculated scores
     updateScoreDisplays(weeklyScore, allTimeScore);
     
   } catch (error) {
     console.error("Error fetching user scores:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
-    
-    showMessage("Error calculating scores. Please refresh the page.", "red");
     updateScoreDisplays(0, 0);
   }
 }
@@ -391,176 +224,52 @@ async function fetchUserScores(userId) {
 // 8) UPDATE SCORE DISPLAYS
 // ───────────────────────────────────────────────────────────
 function updateScoreDisplays(weeklyScore, allTimeScore) {
-  console.log("Updating score displays - Weekly:", weeklyScore, "All-time:", allTimeScore);
-  
-  // Hide loading indicators
   hideLoadingIndicators();
   
-  // Update weekly score
-  if (elements.weeklyScoreText) {
-    elements.weeklyScoreText.textContent = weeklyScore.toString();
-  } else if (elements.weeklyScoreValue) {
-    elements.weeklyScoreValue.textContent = weeklyScore.toString();
-  }
-  
-  // Update all-time score
-  if (elements.allTimeScoreText) {
-    elements.allTimeScoreText.textContent = allTimeScore.toString();
-  } else if (elements.allTimeScoreValue) {
-    elements.allTimeScoreValue.textContent = allTimeScore.toString();
-  }
-  
-  console.log("Score displays updated successfully");
+  if (elements.weeklyScoreText) elements.weeklyScoreText.textContent = weeklyScore.toString();
+  if (elements.allTimeScoreText) elements.allTimeScoreText.textContent = allTimeScore.toString();
 }
 
 // ───────────────────────────────────────────────────────────
-// 9) FETCH LEADERBOARD POSITION - FIXED VERSION
+// 9) FETCH LEADERBOARD POSITION - WITH NEW MESSAGE TRIGGER
 // ───────────────────────────────────────────────────────────
 async function fetchLeaderboardPosition(userId) {
   try {
-    console.log("Fetching leaderboard positions for userId:", userId);
-    
-    // Get all users
     const usersSnapshot = await dbFirestore.collection("users").get();
     const userScores = [];
     
-    // Process each user
     for (const userDoc of usersSnapshot.docs) {
       const userData = userDoc.data();
       const uid = userDoc.id;
       
-      // Skip users without necessary data or deleted users
-      if (!userData.username && !userData.fullName) {
-        console.log(`Skipping user ${uid} - no username or fullName`);
-        continue;
-      }
-      
-      // Skip if user is marked as deleted or inactive
-      if (userData.isDeleted === true || userData.isActive === false) {
-        console.log(`Skipping user ${uid} - marked as deleted or inactive`);
-        continue;
-      }
+      if (!userData.username && !userData.fullName) continue;
+      if (userData.isDeleted === true || userData.isActive === false) continue;
       
       let totalScore = 0;
+      const practiceSubmissionsSnapshot = await dbFirestore.collection("users").doc(uid).collection("practice_submissions").get();
       
-      try {
-        // Get user's daily submissions
-        const practiceSubmissionsSnapshot = await dbFirestore
-          .collection("users")
-          .doc(uid)
-          .collection("practice_submissions")
-          .get();
-        
-        console.log(`User ${uid} has ${practiceSubmissionsSnapshot.docs.length} daily submissions`);
-        
-        // Calculate total score for this user using same logic as fetchUserScores
-        for (const dailySubmissionDoc of practiceSubmissionsSnapshot.docs) {
-          const dailyData = dailySubmissionDoc.data();
-          
-          // Skip inactive submissions
-          if (dailyData.isActive === false) {
-            console.log(`Skipping inactive daily submission for user ${uid}`);
-            continue;
-          }
-          
-          // Primary method: Get points from categories subcollection
-          let dailyTotalFromCategories = 0;
-          let categoriesProcessed = 0;
-          
-          try {
-            const categoriesSnapshot = await dbFirestore
-              .collection("users")
-              .doc(uid)
-              .collection("practice_submissions")
-              .doc(dailySubmissionDoc.id)
-              .collection("categories")
-              .where('isDeleted', '==', false)
-              .get();
-            
-            categoriesSnapshot.forEach(categoryDoc => {
-              const submission = categoryDoc.data();
-              
-              // Make sure this category submission belongs to this user
-              if (submission.userId && submission.userId !== uid) {
-                console.log(`Skipping category - belongs to different user: ${submission.userId} vs ${uid}`);
-                return;
-              }
-              
-              const submissionPoints = submission.totalPoints || 0;
-              dailyTotalFromCategories += submissionPoints;
-              categoriesProcessed++;
-            });
-            
-          } catch (categoryError) {
-            console.log(`Error processing categories for user ${uid}:`, categoryError);
-          }
-          
-          // Fallback method: Use metadata if no categories found
-          if (categoriesProcessed > 0) {
-            totalScore += dailyTotalFromCategories;
-            console.log(`Added ${dailyTotalFromCategories} points from categories for user ${uid}`);
-          } else if (dailyData.totalPoints && typeof dailyData.totalPoints === 'number') {
+      for (const dailySubmissionDoc of practiceSubmissionsSnapshot.docs) {
+        const dailyData = dailySubmissionDoc.data();
+        if (dailyData.isActive === false) continue;
+        if (typeof dailyData.totalPoints === 'number') {
             totalScore += dailyData.totalPoints;
-            console.log(`Added ${dailyData.totalPoints} points from metadata for user ${uid}`);
-          }
         }
-        
-      } catch (userError) {
-        console.log(`Error processing user ${uid}:`, userError);
-        continue;
       }
       
-      // Only add users with valid scores to the leaderboard
-      if (totalScore >= 0) {
-        userScores.push({
-          uid,
-          name: userData.username || userData.fullName,
-          score: totalScore
-        });
-        
-        console.log(`User ${uid} (${userData.username || userData.fullName}) has total score: ${totalScore}`);
-      }
+      userScores.push({ uid, name: userData.username || userData.fullName, score: totalScore });
     }
     
-    // Sort by score (descending) - users with same score will maintain their relative order
-    userScores.sort((a, b) => {
-      if (b.score !== a.score) {
-        return b.score - a.score;
-      }
-      // If scores are equal, sort by name for consistency
-      return a.name.localeCompare(b.name);
-    });
+    userScores.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
     
-    console.log("Final leaderboard (top 10):", userScores.slice(0, 10));
-    
-    // Find current user's position
     const userPosition = userScores.findIndex(user => user.uid === userId) + 1;
     
-    // Double-check: log the current user's score and position
-    const currentUserData = userScores.find(user => user.uid === userId);
-    if (currentUserData) {
-      console.log(`Current user (${currentUserData.name}) score: ${currentUserData.score}, position: ${userPosition}`);
-      
-      // Log users around current user's position for context
-      const start = Math.max(0, userPosition - 3);
-      const end = Math.min(userScores.length, userPosition + 2);
-      console.log("Users around current user's position:", userScores.slice(start, end));
-    } else {
-      console.log("Current user not found in leaderboard");
-    }
-    
-    // Update UI
     updateLeaderboardPosition(userPosition);
     
-    console.log("Final user position:", userPosition);
-    
+    // NEW: Trigger the encouraging message if user is in top 3
+    triggerEncouragingMessage(userPosition);
+
   } catch (error) {
     console.error("Error fetching leaderboard position:", error);
-    console.error("Error details:", {
-      name: error.name,
-      message: error.message,
-      stack: error.stack
-    });
     updateLeaderboardPosition(0);
   }
 }
@@ -569,243 +278,150 @@ async function fetchLeaderboardPosition(userId) {
 // 10) UPDATE LEADERBOARD POSITION DISPLAY
 // ───────────────────────────────────────────────────────────
 function updateLeaderboardPosition(position) {
-  // Hide loading indicator
-  if (elements.leaderboardLoading) {
-    elements.leaderboardLoading.style.display = 'none';
-  }
+  if (elements.leaderboardLoading) elements.leaderboardLoading.style.display = 'none';
   
   let displayText = "--";
-  
   if (position > 0) {
-    const suffix = getOrdinalSuffix(position);
+    const suffixes = ["th", "st", "nd", "rd"];
+    const value = position % 100;
+    const suffix = suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0];
     displayText = `${position}${suffix}`;
   } else {
     displayText = "Not ranked";
   }
   
-  // Update position display
   if (elements.leaderboardPositionText) {
     elements.leaderboardPositionText.textContent = displayText;
-  } else if (elements.leaderboardPositionValue) {
-    elements.leaderboardPositionValue.textContent = displayText;
   }
-  
-  console.log("Leaderboard position updated:", displayText);
 }
 
 // ───────────────────────────────────────────────────────────
-// 11) HELPER FUNCTIONS
+// 12) SETUP REALTIME LISTENERS
 // ───────────────────────────────────────────────────────────
-function getOrdinalSuffix(num) {
-  const suffixes = ["th", "st", "nd", "rd"];
-  const value = num % 100;
-  return suffixes[(value - 20) % 10] || suffixes[value] || suffixes[0];
-}
-
-  // ───────────────────────────────────────────────────────────
-  // 12) SETUP REALTIME LISTENERS
-  // ───────────────────────────────────────────────────────────
-  function setupRealtimeListeners(userId) {
-    console.log("Setting up realtime listeners for userId:", userId);
-    
-    // Set up Realtime Database listener for score updates
+function setupRealtimeListeners(userId) {
     const userSubmissionsRef = dbRealtime.ref(`users/${userId}/practice_submissions`);
-    
-    userSubmissionsRef.on("value", (snapshot) => {
-      console.log("Realtime update received for practice submissions");
-      
-      // Re-fetch and calculate scores when data changes
+    userSubmissionsRef.on("value", () => {
       fetchUserScores(userId);
       fetchLeaderboardPosition(userId);
     });
-    
-    // Also listen for global leaderboard changes (if you maintain a global leaderboard)
-    const leaderboardRef = dbRealtime.ref('leaderboard');
-    
-    leaderboardRef.on("value", (snapshot) => {
-      console.log("Leaderboard update received");
-      fetchLeaderboardPosition(userId);
-    });
-    
-    // Optional: Listen to daily submissions collection changes in Firestore
-    // This provides more granular updates
-    const practiceSubmissionsRef = dbFirestore
-      .collection("users")
-      .doc(userId)
-      .collection("practice_submissions");
-    
-    // Note: Firestore realtime listeners can be expensive, use sparingly
-    const unsubscribe = practiceSubmissionsRef.onSnapshot((snapshot) => {
-      console.log("Firestore practice submissions updated");
-      
-      // Debounce the score update to avoid too many calls
-      clearTimeout(window.scoreUpdateTimeout);
-      window.scoreUpdateTimeout = setTimeout(() => {
-        fetchUserScores(userId);
-        fetchLeaderboardPosition(userId);
-      }, 1000);
-    });
-    
-    // Store unsubscribe function for cleanup
-    window.firestoreUnsubscribe = unsubscribe;
-  }
-
-  // ───────────────────────────────────────────────────────────
-  // 13) CLEANUP FUNCTION
-  // ───────────────────────────────────────────────────────────
-  function cleanupRealtimeListeners() {
-    // Clean up Firestore listener
-    if (window.firestoreUnsubscribe) {
-      window.firestoreUnsubscribe();
-      window.firestoreUnsubscribe = null;
-    }
-    
-    // Clean up timeout
-    if (window.scoreUpdateTimeout) {
-      clearTimeout(window.scoreUpdateTimeout);
-      window.scoreUpdateTimeout = null;
-    }
-    
-    // Note: Realtime Database listeners should be cleaned up manually
-    // if you need to remove them (e.g., on user logout)
-  }
-  
-// ───────────────────────────────────────────────────────────
-// DOUBLE POINTS SYSTEM
-// ───────────────────────────────────────────────────────────
-
-// Helper function to create dates (months are 0-indexed in JS)
-function createDate(year, month, day) {
-  return new Date(year, month - 1, day); // Subtract 1 from month
 }
 
-// Helper function to check if date is in range
-function isDateInRange(date, start, end) {
-  return date >= start && date <= end;
+// ───────────────────────────────────────────────────────────
+// 13) NEW: ENCOURAGING MESSAGE FOR TOP PLAYERS
+// ───────────────────────────────────────────────────────────
+function triggerEncouragingMessage(position) {
+    // Only show if the user is in the top 3 and the message hasn't been shown today
+    const today = new Date().toDateString();
+    const lastShownDate = localStorage.getItem('encouragingMessageLastShown');
+
+    if (position > 0 && position <= 3 && lastShownDate !== today) {
+        const messages = [
+            "You're on fire! 🔥", 
+            "Top 3! Keep up the great work! 🚀", 
+            "In the winner's circle! Amazing! 🏆"
+        ];
+        const message = messages[Math.floor(Math.random() * messages.length)];
+
+        // Create message element
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'encouraging-message';
+        messageDiv.textContent = message;
+        
+        document.body.appendChild(messageDiv);
+        
+        // Add class to trigger animation
+        setTimeout(() => messageDiv.classList.add('show'), 100);
+
+        // Hide and remove after 3 seconds
+        setTimeout(() => {
+            messageDiv.classList.remove('show');
+            setTimeout(() => messageDiv.remove(), 500);
+        }, 3000);
+
+        // Remember that the message was shown today
+        localStorage.setItem('encouragingMessageLastShown', today);
+    }
 }
 
-// Special points periods for each category
+
+// ───────────────────────────────────────────────────────────
+// 14) NEW: DOUBLE POINTS COIN ANIMATION
+// ───────────────────────────────────────────────────────────
 const specialPointsPeriods = {
-  "Putting": [
-    { start: createDate(2025, 7, 1), end: createDate(2025, 7, 6) },
-    { start: createDate(2025, 8, 11), end: createDate(2025, 8, 17) }
-  ],
-  "Chipping": [
-    { start: createDate(2025, 7, 7), end: createDate(2025, 7, 13) },
-    { start: createDate(2025, 8, 18), end: createDate(2025, 8, 24) }
-  ],
-  "Irons & Tee Shot": [
-    { start: createDate(2025, 7, 14), end: createDate(2025, 7, 20) },
-    { start: createDate(2025, 8, 4), end: createDate(2025, 8, 10) }
-  ],
-  "Tournament Prep": [
-    { start: createDate(2025, 7, 21), end: createDate(2025, 7, 27) },
-    { start: createDate(2025, 9, 15), end: createDate(2025, 9, 23) }
-  ],
-  "Mental": [
-    { start: createDate(2025, 7, 28), end: createDate(2025, 8, 3) },
-    { start: createDate(2025, 9, 8), end: createDate(2025, 9, 14) }
-  ],
-  "Fitness": [
-    { start: createDate(2025, 8, 25), end: createDate(2025, 8, 31) }
-  ]
+  "Putting": [{ start: new Date(2025, 6, 1), end: new Date(2025, 6, 6) }, { start: new Date(2025, 7, 11), end: new Date(2025, 7, 17) }],
+  "Chipping": [{ start: new Date(2025, 6, 7), end: new Date(2025, 6, 13) }, { start: new Date(2025, 7, 18), end: new Date(2025, 7, 24) }],
+  "Irons & Tee Shot": [{ start: new Date(2025, 6, 14), end: new Date(2025, 6, 20) }, { start: new Date(2025, 7, 4), end: new Date(2025, 7, 10) }],
+  "Tournament Prep": [{ start: new Date(2025, 6, 21), end: new Date(2025, 6, 27) }, { start: new Date(2025, 8, 15), end: new Date(2025, 8, 23) }],
+  "Mental": [{ start: new Date(2025, 6, 28), end: new Date(2025, 7, 3) }, { start: new Date(2025, 8, 8), end: new Date(2025, 8, 14) }],
+  "Fitness": [{ start: new Date(2025, 7, 25), end: new Date(2025, 7, 31) }]
 };
 
-// Tournament days (no submissions allowed)
-const tournamentStart = createDate(2025, 9, 24);
-const tournamentEnd = createDate(2025, 9, 28);
-
-// Function to check if double points apply for a category on a specific date
-function shouldDoublePoints(category, date) {
-  if (!specialPointsPeriods[category]) return false;
-  
-  return specialPointsPeriods[category].some(period => 
-    isDateInRange(date, period.start, period.end)
-  );
-}
-
-// Function to check if submissions are allowed (not tournament days)
-function areSubmissionsAllowed(date) {
-  return !(isDateInRange(date, tournamentStart, tournamentEnd));
-}
-
-// Function to get active double points categories for today
 function getActiveDoublePointsCategories() {
   const today = new Date();
+  today.setHours(0,0,0,0);
   const activeCategories = [];
   
-  Object.keys(specialPointsPeriods).forEach(category => {
-    if (shouldDoublePoints(category, today)) {
-      activeCategories.push(category);
+  for (const category in specialPointsPeriods) {
+    for (const period of specialPointsPeriods[category]) {
+      if (today >= period.start && today <= period.end) {
+        activeCategories.push(category);
+        break; 
+      }
     }
-  });
-  
+  }
   return activeCategories;
 }
 
-// Function to show/hide double points banner
-// Function to show/hide double points banner
-function updateDoublePointsBanner() {
-  const banner = document.getElementById('doublePointsBanner');
-  const flagMainText = document.getElementById('flagMainText');
-  const flagCategory = document.getElementById('flagCategory');
-  
-  if (!banner || !flagMainText || !flagCategory) return;
-  
+function updateDoublePointsNotification() {
+  const container = document.getElementById('doublePointsContainer');
+  if (!container) return;
+
   const activeCategories = getActiveDoublePointsCategories();
   
-  // Check if today is a double points day
   if (activeCategories.length > 0) {
-    const today = new Date().toDateString(); // Get a unique string for the current date
-    const lastShownDate = localStorage.getItem('doublePointsBannerLastShown');
+    const today = new Date().toDateString();
+    const lastShownDate = localStorage.getItem('doublePointsCoinLastShown');
 
-    // Only show the banner if it hasn't been shown today
     if (lastShownDate !== today) {
-      const categoryText = activeCategories.length === 1 
-        ? activeCategories[0]
-        : `${activeCategories.length} Categories`;
+      const categoryText = activeCategories.join(', ');
       
-      flagMainText.textContent = '2X POINTS!';
-      flagCategory.textContent = categoryText;
+      // Create coin
+      container.innerHTML = `
+        <div class="coin-wrapper">
+          <div class="coin">
+              <div class="coin-face front">
+                  <span>2X</span>
+                  <small>${categoryText}</small>
+              </div>
+              <div class="coin-face back"></div>
+          </div>
+          <div class="coin-shadow"></div>
+        </div>
+      `;
+
+      const wrapper = container.querySelector('.coin-wrapper');
       
-      // 1. Show the banner
-      banner.classList.add('active');
+      // Start "toss in" animation
+      wrapper.classList.add('toss-in');
       
-      // 2. Hide the banner after 3 seconds
+      // Set timer for "melt out" animation
       setTimeout(() => {
-        banner.classList.remove('active');
-      }, 3000); // 3000 milliseconds = 3 seconds
-      
-      // 3. Remember that the banner was shown today
-      localStorage.setItem('doublePointsBannerLastShown', today);
+        wrapper.classList.add('melt-out');
+      }, 4000); // Start melting after 4 seconds
+
+      // Remove from DOM after animation finishes
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 5500); // Total duration of toss + melt
+
+      localStorage.setItem('doublePointsCoinLastShown', today);
     }
-  } else {
-    // If it's not a double points day, ensure the banner is hidden
-    banner.classList.remove('active');
   }
 }
-  // Show confirmation/alert messages
-  function showMessage(message, color) {
-    if (!elements.confirmEl) return;
-    
-    elements.confirmEl.textContent = message;
-    elements.confirmEl.style.color = color;
-    elements.confirmEl.style.backgroundColor =
-      color === "green" ? "rgba(40,167,69,0.2)" :
-      color === "red"   ? "rgba(220,53,69,0.2)" :
-      color === "blue"  ? "rgba(13,110,253,0.2)" :
-      "rgba(255,193,7,0.2)";
-    elements.confirmEl.classList.remove("hidden");
-    
-    // Auto-hide non-error messages after 5 seconds
-    if (color !== "red") {
-      setTimeout(() => {
-        elements.confirmEl.classList.add("hidden");
-      }, 5000);
-    }
-  }
-  
-  // Initialize mobile navigation toggle
+
+  // ───────────────────────────────────────────────────────────
+  // NAVIGATION & OTHER FUNCTIONS
+  // ───────────────────────────────────────────────────────────
   if (elements.navToggle) {
     elements.navToggle.addEventListener('click', () => {
       const navbar = document.querySelector('.navbar');
@@ -815,206 +431,19 @@ function updateDoublePointsBanner() {
   }
 });
 
-  // ───────────────────────────────────────────────────────────
-  // Pro Range Session 
-  // ───────────────────────────────────────────────────────────
+function submitTasks() { window.location.href = "submit-task.html"; }
+function viewLeaderboard() { window.location.href = "leaderboard.html"; }
+function viewHistory() { window.location.href = "history.html"; }
+function viewTournament() { window.open("https://www.youtube.com/playlist?list=PLk4_nsOUDG273ux1NuupxwnYUoxfWAq2_", "_blank"); }
+function viewMatchPlay() { window.location.href = "match-play.html"; }
+function viewImportantDates() { window.location.href = "important-dates.html"; }
+function viewProSessions() { window.location.href = "pro-range-session.html"; }
+function manageTasks() { window.location.href = "manage-tasks.html"; }
 
-// Wait for the DOM to load before adding event listeners
-document.addEventListener("DOMContentLoaded", () => {
-  const profileButton = document.getElementById("kriekProfileBtn");
-
-  // Open Kriek's profile in a new tab when button is clicked
-  profileButton.addEventListener("click", () => {
-    window.open("https://sunshinetour.com/playerprofile/KRI012", "_blank");
-  });
-});
-
-// ───────────────────────────────────────────────────────────
-// Updated Nav Functions
-// ───────────────────────────────────────────────────────────
-
-// Navigation functionality for golf dashboard
-document.addEventListener('DOMContentLoaded', function() {
-    // Get navigation elements
-    const navLinks = document.querySelectorAll('.navbar a');
-    
-    // Handle active link clicks
-    navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
-            // Set active link
-            navLinks.forEach(l => l.classList.remove('active'));
-            this.classList.add('active');
-        });
-    });
-
-    // Toggle mobile navbar visibility
-const navToggleBtn = document.getElementById('navToggle');
-const navbar = document.querySelector('.navbar');
-
-if (navToggleBtn && navbar) {
-    navToggleBtn.addEventListener('click', function () {
-        navbar.classList.toggle('active');
-    });
-  }
-    
-    // Set initial active state based on current page
-    function setInitialActiveLink() {
-        // Get current page URL
-        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
-        
-        // Find matching link or default to first
-        let activeLink = null;
-        navLinks.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href && href.includes(currentPage)) {
-                activeLink = link;
-            }
-        });
-        
-        // If no matching link found, set first as active
-        if (!activeLink && navLinks.length > 0) {
-            activeLink = navLinks[0];
-        }
-        
-        // Apply active class
-        if (activeLink) {
-            activeLink.classList.add('active');
-        }
-    }
-    
-    setInitialActiveLink();
-    
-    // Add shimmer effect to nav items
-    function addShimmerEffect() {
-        const navItems = document.querySelectorAll('.navbar li a');
-        
-        navItems.forEach(item => {
-            item.addEventListener('mouseenter', function() {
-                // Remove any existing shimmers first
-                const existingShimmers = this.querySelectorAll('.nav-shimmer');
-                existingShimmers.forEach(s => s.remove());
-                
-                const shimmer = document.createElement('div');
-                shimmer.className = 'nav-shimmer';
-                
-                // Ensure item has relative position for absolute positioning of shimmer
-                this.style.position = 'relative';
-                this.style.overflow = 'hidden';
-                this.appendChild(shimmer);
-                
-                setTimeout(() => {
-                    shimmer.remove();
-                }, 1000);
-            });
-        });
-    }
-    
-    addShimmerEffect();
-
-    // Mobile UX: dimmed overlay focus for nav
-    function setupMobileNavOverlay() {
-        const overlay = document.createElement('div');
-        overlay.classList.add('mobile-nav-overlay');
-        document.body.appendChild(overlay);
-
-        const nav = document.querySelector('.navbar');
-        const navLinks = nav.querySelectorAll('a');
-
-        navLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                overlay.classList.remove('active');
-            });
-
-            link.addEventListener('touchstart', () => {
-                overlay.classList.add('active');
-                setTimeout(() => overlay.classList.remove('active'), 1000);
-            });
-        });
-
-        overlay.addEventListener('click', () => {
-            overlay.classList.remove('active');
-        });
-    }
-
-    // Handle overflow scrolling for mobile
-    function handleScrolling() {
-        if (window.innerWidth <= 768) {
-            const navbar = document.querySelector('.navbar ul');
-            
-            // Check if there's overflow
-            if (navbar.scrollWidth > navbar.clientWidth) {
-                // Add tactile feedback (subtle scrolling indicators)
-                navbar.style.paddingLeft = '8px';
-                navbar.style.paddingRight = '8px';
-                
-                // Add smooth scrolling behavior
-                navbar.style.scrollBehavior = 'smooth';
-                
-                // Optional: Add scroll snap
-                navbar.style.scrollSnapType = 'x mandatory';
-                
-                // Add snap points to nav items
-                const navItems = navbar.querySelectorAll('li');
-                navItems.forEach(item => {
-                    item.style.scrollSnapAlign = 'center';
-                });
-            }
-        }
-    }
-    
-    // Run on load and resize
-    handleScrolling();
-    window.addEventListener('resize', handleScrolling);
-
-    
-});
-
-
-// Navigation Functions
-function submitTasks() {
-  window.location.href = "submit-task.html";
-}
-
-function viewLeaderboard() {
-  window.location.href = "leaderboard.html";
-}
-
-function viewHistory() {
-  window.location.href = "history.html";
-}
-
-function viewTournament() {
-  window.open("https://www.youtube.com/playlist?list=PLk4_nsOUDG273ux1NuupxwnYUoxfWAq2_", "_blank");
-}
-
-function viewMatchPlay() {
-  window.location.href = "match-play.html";
-}
-
-function viewImportantDates() {
-  window.location.href = "important-dates.html";
-}
-
-function viewProSessions() {
-  window.location.href = "pro-range-session.html";
-}
-
-function manageTasks() {
-  window.location.href = "manage-tasks.html";
-}
-
-// Logout function
 function logout() {
   if (typeof firebase !== 'undefined' && firebase.auth) {
-    firebase.auth().signOut()
-      .then(() => {
-        window.location.href = "index.html";
-      })
-      .catch((error) => {
-        console.error("Logout error:", error);
-      });
-  } else {
-    console.error("Firebase auth not initialized for logout");
-    window.location.href = "index.html";
+    firebase.auth().signOut().then(() => {
+      window.location.href = "index.html";
+    }).catch((error) => console.error("Logout error:", error));
   }
 }
