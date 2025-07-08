@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Reports</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.16.9/xlsx.full.min.js"></script>
+</head>
+<body>
+    <video autoplay muted loop class="background-video">
+        <source src="assets/video/back.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
+    <div class="blur-overlay"></div>
+
+    <button onclick="history.back()" class="back-button">← Back</button>
+
+    <main class="main-content-form">
+        <div class="auth-container">
+            <h1>Download Daily Reports</h1>
+            <p>Generate an Excel file summarizing total points for each day across all users.</p>
+
+            <div class="form-group">
+                <label for="userSelector">Select User (Optional)</label>
+                <select id="userSelector">
+                    <option value="all">All Users</option>
+                    </select>
+            </div>
+
+            <button id="downloadReportBtn" class="primary-btn">
+                <i class="fas fa-download"></i> Download Report
+            </button>
+            <div id="loadingMessage" style="display: none; color: white; margin-top: 15px;">Generating report...</div>
+        </div>
+    </main>
+
+    <script src="js/admin-reports.js"></script>
+</body>
+</html>
