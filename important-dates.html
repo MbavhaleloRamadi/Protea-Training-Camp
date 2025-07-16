@@ -1,15 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="description"
+        content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
     <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
     <meta name="author" content="Mbavhalelo Innocent Ramadi">
     <title>Important Dates</title>
-    
+
     <link rel="stylesheet" href="css/styles.css">
-    
+
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -19,63 +21,64 @@
 
 
 </head>
+
 <body>
-       <div class="training-camp">
+    <div class="training-camp">
         <div class="training-camp__header">
             <h1 class="training-camp__title">Champions Training Camp</h1>
         </div>
 
         <div class="tournament-schedule-container">
-    <h2 class="tournament-schedule-title">Tournament Schedule</h2>
-    <div class="tournament-schedule">
-        <table class="tournament-table">
-            <thead>
-                <tr>
-                    <th>Day</th>
-                    <th>Morning</th>
-                    <th>Afternoon</th>
-                    <th>Evening</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr class="light-yellow">
-                    <td class="day-column">Day 1<br>24 Sept 2025 (Wednesday)</td>
-                    <td>Players Arrive @ Accommodation</td>
-                    <td>Practice Round</td>
-                    <td>Opening Ceremony & Pairings Picks</td>
-                </tr>
-                
-                <tr class="light-blue">
-                    <td class="day-column">Day 2<br>25 Sept 2025 (Thursday)</td>
-                    <td>Round 1 – Foursomes</td>
-                    <td>Lunch Break</td>
-                    <td>Round 2 – Better Ball Scramble Drive</td>
-                </tr>
-                
-                <tr class="light-pink">
-                    <td class="day-column">Day 3<br>26 Sept 2025 (Friday)</td>
-                    <td>Round 3 – Singles Match Play</td>
-                    <td>Skills Challenge</td>
-                    <td>Team Strategy Session</td>
-                </tr>
-                
-                <tr class="light-green">
-                    <td class="day-column">Day 4<br>27 Sept 2025 (Saturday)</td>
-                    <td>Round 4 – Four-Ball</td>
-                    <td>Lunch & Recovery</td>
-                    <td>Round 5 – Alternate Shot</td>
-                </tr>
-                
-                <tr class="light-yellow">
-                    <td class="day-column">Day 5<br>28 Sept 2025 (Sunday)</td>
-                    <td>Final Round – Singles</td>
-                    <td>Awards Ceremony</td>
-                    <td>Closing Dinner & Departure</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div> 
+            <h2 class="tournament-schedule-title">Tournament Schedule</h2>
+            <div class="tournament-schedule">
+                <table class="tournament-table">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Morning</th>
+                            <th>Afternoon</th>
+                            <th>Evening</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="light-yellow">
+                            <td class="day-column">Day 1<br>24 Sept 2025 (Wednesday)</td>
+                            <td>Players Arrive @ Accommodation</td>
+                            <td>Practice Round</td>
+                            <td>Opening Ceremony & Pairings Picks</td>
+                        </tr>
+
+                        <tr class="light-blue">
+                            <td class="day-column">Day 2<br>25 Sept 2025 (Thursday)</td>
+                            <td>Round 1 – Foursomes</td>
+                            <td>Lunch Break</td>
+                            <td>Round 2 – Better Ball Scramble Drive</td>
+                        </tr>
+
+                        <tr class="light-pink">
+                            <td class="day-column">Day 3<br>26 Sept 2025 (Friday)</td>
+                            <td>Round 3 – Singles Match Play</td>
+                            <td>Skills Challenge</td>
+                            <td>Team Strategy Session</td>
+                        </tr>
+
+                        <tr class="light-green">
+                            <td class="day-column">Day 4<br>27 Sept 2025 (Saturday)</td>
+                            <td>Round 4 – Four-Ball</td>
+                            <td>Lunch & Recovery</td>
+                            <td>Round 5 – Alternate Shot</td>
+                        </tr>
+
+                        <tr class="light-yellow">
+                            <td class="day-column">Day 5<br>28 Sept 2025 (Sunday)</td>
+                            <td>Final Round – Singles</td>
+                            <td>Awards Ceremony</td>
+                            <td>Closing Dinner & Departure</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
 
         <div class="bonus-points">
             <h2 class="bonus-points__title">Weekly Bonus Points <span>X2</span></h2>
@@ -113,10 +116,10 @@
 
         <div class="important-dates">
             <h2 class="important-dates__title">Important Dates</h2>
-            
+
             <div id="calendar-container" class="calendar-container">
-                </div>
-            
+            </div>
+
             <ul class="important-dates__list">
                 <li class="important-date">
                     <strong>Quiz Night Break - 12 Sept</strong>
@@ -125,7 +128,7 @@
                     <strong>Driving Range Games - date not specified</strong>
                 </li>
                 <li class="important-date">
-                    <strong>Irons only 18 Holes -  date not specified</strong>
+                    <strong>Irons only 18 Holes - date not specified</strong>
                 </li>
                 <li class="important-date">
                     <strong>Every Tuesday 15h - 9 Holes free on Wingate</strong>
@@ -151,6 +154,8 @@
         <a href="#" class="back-button">Back to Dashboard</a>
     </div>
 
-  <script src="js/important-dates.js"></script>
+    <script src="js/important-dates.js"></script>
+    <script src="js/session-handler.js"></script>
 </body>
+
 </html>

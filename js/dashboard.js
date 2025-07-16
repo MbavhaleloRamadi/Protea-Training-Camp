@@ -153,7 +153,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // 6) LOADING INDICATORS
   // ───────────────────────────────────────────────────────────
   function showLoadingIndicators() {
-    if (elements.weeklyLoading) elements.weeklyLoading.style.display = 'inline-block';
+    if (elements.weeklyLoading) {
+      elements.weeklyLoading.style.display = 'inline-block';
+    }
     if (elements.allTimeLoading) elements.allTimeLoading.style.display = 'inline-block';
     if (elements.leaderboardLoading) elements.leaderboardLoading.style.display = 'inline-block';
   }
@@ -377,22 +379,21 @@ function updateDoublePointsNotification() {
   if (!container) return;
 
   const activeCategories = getActiveDoublePointsCategories();
-  
+
   if (activeCategories.length > 0) {
     const today = new Date().toDateString();
     const lastShownDate = localStorage.getItem('doublePointsCoinLastShown');
 
     if (lastShownDate !== today) {
-      const categoryText = activeCategories.join(', ');
-      
-      // Create coin
+      const categoryText = activeCategories.join(', '); // Join active categories with a comma and space
+
+      // Create coin HTML with categoryText inside the <small> tag
       container.innerHTML = `
         <div class="coin-wrapper">
           <div class="coin">
               <div class="coin-face front">
                   <span>2X</span>
-                  <small>${categoryText}</small>
-              </div>
+                  <small>${categoryText}</small> </div>
               <div class="coin-face back"></div>
           </div>
           <div class="coin-shadow"></div>
@@ -400,10 +401,10 @@ function updateDoublePointsNotification() {
       `;
 
       const wrapper = container.querySelector('.coin-wrapper');
-      
+
       // Start "toss in" animation
       wrapper.classList.add('toss-in');
-      
+
       // Set timer for "melt out" animation
       setTimeout(() => {
         wrapper.classList.add('melt-out');

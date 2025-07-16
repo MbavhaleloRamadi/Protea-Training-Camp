@@ -1,49 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
-    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
-    <meta name="author" content="Mbavhalelo Innocent Ramadi">
-    <title>Pro Range Session</title>
-    
-    <!-- Linking the main stylesheet -->
-    <link rel="stylesheet" href="css/styles.css">
-    
-    <!-- Adding Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+  <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+  <meta name="author" content="Mbavhalelo Innocent Ramadi">
+  <title>Pro Range Session</title>
+
+  <!-- Linking the main stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Adding Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 
 </head>
+
 <body>
 
-         <!-- Background Video -->
-    <video autoplay muted loop class="background-video" id="bg-video">
-       <source src="assets/video/back.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-        
-    <!-- Fullscreen Fun Loader -->
-    <div class="loader-overlay" id="loader">
-      <div class="loader-container">
-        <div class="golf-loader"></div>
-        <p>Warming up the greens...</p>
-      </div>
-    </div>
+  <!-- Background Video -->
+  <video autoplay muted loop class="background-video" id="bg-video">
+    <source src="assets/video/back.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
 
-    <button onclick="history.back()" class="back-button">← Back</button>
-    
+  <!-- Fullscreen Fun Loader -->
+  <div class="loader-overlay" id="loader">
+    <div class="loader-container">
+      <div class="golf-loader"></div>
+      <p>Warming up the greens...</p>
+    </div>
+  </div>
+
+  <button onclick="history.back()" class="back-button">← Back</button>
+
   <div class="container">
     <h1>Christiaan Kriek Tour Pro</h1>
     <h2>
-      Kriek agreed to having a Group Putting Session and a range session for 2 players at a time. 
+      Kriek agreed to having a Group Putting Session and a range session for 2 players at a time.
       Follow our WhatsApp group for more information.
     </h2>
 
@@ -59,5 +62,7 @@
   </div>
 
   <script src="js/dashboard.js"></script>
+  <script src="js/session-handler.js"></script>
 </body>
+
 </html>
