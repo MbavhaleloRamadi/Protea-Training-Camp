@@ -31,7 +31,6 @@ document.addEventListener("DOMContentLoaded", () => {
             populateUserSelector();
             downloadBtn.disabled = false;
         } else {
-            console.log("No user logged in. Redirecting to login.");
             window.location.href = "login.html";
             downloadBtn.disabled = true;
         }
@@ -58,14 +57,10 @@ document.addEventListener("DOMContentLoaded", () => {
     downloadBtn.addEventListener("click", async () => {
         loadingMessage.style.display = "block";
         downloadBtn.disabled = true;
-
         const selectedUserId = userSelector.value;
-
         try {
-            // This function is updated to process data in the new format
             const processedData = await fetchAndProcessSubmissions(selectedUserId);
-            // This function is updated to generate the new Excel layout
-            generateExcel(processedData, selectedUserId);
+            generateExcel(processedData);
         } catch (error) {
             console.error("Error generating report:", error);
             alert("Failed to generate report. See console for details.");
@@ -76,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     // ───────────────────────────────────────────────────────────
-    // DATA FETCHING AND PROCESSING (MODIFIED)
+    // DATA FETCHING AND PROCESSING (MODIFIED FOR PRACTICE-LEVEL DETAIL)
     // ───────────────────────────────────────────────────────────
     async function fetchAndProcessSubmissions(userId) {
         const processedData = {};
@@ -99,90 +94,113 @@ document.addEventListener("DOMContentLoaded", () => {
                 const submissionData = subDoc.data();
                 const date = submissionData.date;
                 const username = user.data.username || user.data.fullName || "Unnamed User";
-
-                // Ensure date and username exist before processing
                 if (!date || !username) continue;
 
-                // Create a unique key for the day and player
                 const dayPlayerKey = `${date}_${username}`;
-
                 if (!processedData[dayPlayerKey]) {
+                    // Initialize with arrays to hold practice strings
                     processedData[dayPlayerKey] = {
                         "Date": date,
-                        "Player Name": username,
-                        "Putting": 0,
-                        "Chipping": 0,
-                        "Irons & Tee Shot": 0,
-                        "Mental": 0,
-                        "On The Course": 0,
-                        "Tournament Prep": 0,
-                        "Fitness": 0,
+                        "Player": username,
+                        "Putting": [],
+                        "Chipping": [],
+                        "Irons & Tee Shot": [],
+                        "Mental": [],
+                        "On The Course": [],
+                        "Tournament Prep": [],
+                        "Fitness": [],
                         "Total Daily Points": 0
                     };
                 }
                 
-                // Get points from categories sub-collection
                 const categoriesSnapshot = await subDoc.ref.collection("categories").get();
-                categoriesSnapshot.forEach(catDoc => {
+                for (const catDoc of categoriesSnapshot.docs) {
                     const categoryData = catDoc.data();
                     const categoryName = categoryData.categoryDisplayName;
-                    const points = categoryData.totalPoints || 0;
+                    const practices = categoryData.practices || [];
 
-                    if (processedData[dayPlayerKey].hasOwnProperty(categoryName)) {
-                        processedData[dayPlayerKey][categoryName] += points;
-                        processedData[dayPlayerKey]["Total Daily Points"] += points;
+                    for (const practice of practices) {
+                        // Calculate points for this specific practice, accounting for double points
+                        const practicePoints = practice.isDoublePoints ? (practice.points || 0) * 2 : (practice.points || 0);
+                        const practiceName = practice.name || practice.practiceDescription || "Unnamed Practice";
+
+                        // Create the string "Practice Name (X pts)"
+                        const practiceDetailString = `${practiceName} (${practicePoints} pts)`;
+
+                        // Add the string to the correct category array
+                        if (processedData[dayPlayerKey].hasOwnProperty(categoryName)) {
+                            processedData[dayPlayerKey][categoryName].push(practiceDetailString);
+                            processedData[dayPlayerKey]["Total Daily Points"] += practicePoints;
+                        }
                     }
-                });
+                }
             }
         }
-        return Object.values(processedData); // Return as an array
+        return Object.values(processedData);
     }
 
     // ───────────────────────────────────────────────────────────
-    // EXCEL FILE GENERATION (MODIFIED)
+    // EXCEL FILE GENERATION (MODIFIED TO HANDLE LISTS OF PRACTICES)
     // ───────────────────────────────────────────────────────────
-    function generateExcel(data, selectedUserId) {
+    function generateExcel(data) {
         if (!data || data.length === 0) {
             alert("No practice data found for the selected user(s).");
             return;
         }
+        
+        // Join the arrays of practices into newline-separated strings for each cell
+        const dataForSheet = data.map(row => ({
+            "Date of Submission": row.Date,
+            "Player": row.Player,
+            "Putting Practice": row.Putting.join('\n'),
+            "Chipping Practice": row.Chipping.join('\n'),
+            "Irons & Tee Shots": row["Irons & Tee Shot"].join('\n'),
+            "Mind Gym": row.Mental.join('\n'),
+            "On-Course Performance": row["On The Course"].join('\n'),
+            "Tournament Preparation": row["Tournament Prep"].join('\n'),
+            "Fitness & Wellness": row.Fitness.join('\n'),
+            "Daily Point Total": row["Total Daily Points"]
+        }));
 
-        // Sort data by Date, then by Player Name
-        data.sort((a, b) => {
-            if (a.Date < b.Date) return -1;
-            if (a.Date > b.Date) return 1;
-            if (a["Player Name"] < b["Player Name"]) return -1;
-            if (a["Player Name"] > b["Player Name"]) return 1;
+        dataForSheet.sort((a, b) => {
+            const dateA = new Date(a["Date of Submission"]);
+            const dateB = new Date(b["Date of Submission"]);
+            if (dateA < dateB) return -1;
+            if (dateA > dateB) return 1;
+            if (a.Player < b.Player) return -1;
+            if (a.Player > b.Player) return 1;
             return 0;
         });
 
         const wb = XLSX.utils.book_new();
-        const ws = XLSX.utils.json_to_sheet(data);
+        const ws = XLSX.utils.json_to_sheet(dataForSheet);
 
-        // Define the headers in the exact order you want
-        const headers = [
-            "Date", 
-            "Player Name", 
-            "Putting", 
-            "Chipping", 
-            "Irons & Tee Shot", 
-            "Mental", 
-            "On The Course", 
-            "Tournament Prep", 
-            "Fitness", 
-            "Total Daily Points"
+        ws['!cols'] = [
+            { wch: 20 }, { wch: 25 }, { wch: 30 }, { wch: 30 }, { wch: 30 },
+            { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 18 }
         ];
-        
-        // Set the header for the worksheet
-        XLSX.utils.sheet_add_aoa(ws, [headers], { origin: "A1" });
+
+        // --- NEW: Set row heights to auto-fit the content ---
+        // This makes sure the list of practices is visible
+        ws['!rows'] = dataForSheet.map((row, i) => {
+            // Find the category with the most practices for this row
+            const maxPractices = Math.max(
+                row["Putting Practice"].split('\n').length,
+                row["Chipping Practice"].split('\n').length,
+                row["Irons & Tee Shots"].split('\n').length,
+                row["Mind Gym"].split('\n').length,
+                row["On-Course Performance"].split('\n').length,
+                row["Tournament Preparation"].split('\n').length,
+                row["Fitness & Wellness"].split('\n').length
+            );
+            // Set row height based on number of lines (15 pts per line)
+            return { hpt: Math.max(15, (maxPractices -1) * 15) };
+        });
 
 
-        // Append the worksheet to the workbook
         XLSX.utils.book_append_sheet(wb, ws, "Practice Report");
 
-        const userName = selectedUserId === 'all' ? 'All_Users' : userSelector.options[userSelector.selectedIndex].text;
-        const fileName = `Practice_Report_${userName}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
+        const fileName = `Practice_Detail_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
         XLSX.writeFile(wb, fileName);
     }
 });

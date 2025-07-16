@@ -1,82 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
-    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
-    <meta name="author" content="Mbavhalelo Innocent Ramadi">
-    <title>Match-Play Rules</title>
-    
-    <!-- Linking the main stylesheet -->
-    <link rel="stylesheet" href="css/styles.css">
-    
-    <!-- Adding Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    
-    <!-- Font Awesome for icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+  <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+  <meta name="author" content="Mbavhalelo Innocent Ramadi">
+  <title>Match-Play Rules</title>
+
+  <!-- Linking the main stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Adding Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 </head>
 
 <body>
-    <!-- Background Video -->
-    <video autoplay muted loop class="background-video" id="bg-video">
-        <source src="assets/video/back.mp4" type="video/mp4">
-        Your browser does not support the video tag.
-    </video>
-    
-    <!-- Fullscreen Fun Loader -->
-    <div class="loader-overlay" id="loader">
-      <div class="loader-container">
-        <div class="golf-loader"></div>
-        <p>Warming up the greens...</p>
-      </div>
-    </div>
-    
-    <!-- SVG Background Wrappers -->
-<div class="svg-bg left-bg">
-  <img src="assets/images/Guarra Logo.jpg.svg" alt="Left Logo" class="svg-logo left-logo" />
-</div>
-<div class="svg-bg right-bg">
-  <img src="assets/images/Proteas Logo.png.svg" alt="Right Logo" class="svg-logo right-logo" />
-</div>
+  <!-- Background Video -->
+  <video autoplay muted loop class="background-video" id="bg-video">
+    <source src="assets/video/back.mp4" type="video/mp4">
+    Your browser does not support the video tag.
+  </video>
 
-<div class="lobby-container">
+  <!-- Fullscreen Fun Loader -->
+  <div class="loader-overlay" id="loader">
+    <div class="loader-container">
+      <div class="golf-loader"></div>
+      <p>Warming up the greens...</p>
+    </div>
+  </div>
+
+  <!-- SVG Background Wrappers -->
+  <div class="svg-bg left-bg">
+    <img src="assets/images/Guarra Logo.jpg.svg" alt="Left Logo" class="svg-logo left-logo" />
+  </div>
+  <div class="svg-bg right-bg">
+    <img src="assets/images/Proteas Logo.png.svg" alt="Right Logo" class="svg-logo right-logo" />
+  </div>
+
+  <div class="lobby-container">
     <div class="instructions">
       <p>Click the button below to view the tournament rules:</p>
     </div>
-    
+
     <div class="logo-wrapper">
       <a href="https://www.randa.org/en/rog/the-rules-of-golf" target="_blank" rel="noopener">
-        <img
-          src="assets/images/the-ra-seeklogo-2.svg"
-          alt="Tournament Rules Logo"
-          class="rotating-logo"
-          id="rulesLogo"
-        />
+        <img src="assets/images/the-ra-seeklogo-2.svg" alt="Tournament Rules Logo" class="rotating-logo"
+          id="rulesLogo" />
       </a>
     </div>
-    
+
     <div class="external-link-info">
-        <a href="https://www.randa.org/en/rog/the-rules-of-golf" target="_blank" rel="noopener" class="btn official-button">View Official Golf Rules</a>
+      <a href="https://www.randa.org/en/rog/the-rules-of-golf" target="_blank" rel="noopener"
+        class="btn official-button">View Official Golf Rules</a>
     </div>
-    
+
     <div class="download-buttons">
-      <a href="https://play.google.com/store/apps/details?id=com.randa.android&pcampaignid=web_share" target="_blank" rel="noopener" class="btn android">Download for Android</a>
-      <a href="https://apps.apple.com/ro/app/rules-of-golf-2023/id1435204099" target="_blank" rel="noopener" class="btn ios">Download for iOS</a>
+      <a href="https://play.google.com/store/apps/details?id=com.randa.android&pcampaignid=web_share" target="_blank"
+        rel="noopener" class="btn android">Download for Android</a>
+      <a href="https://apps.apple.com/ro/app/rules-of-golf-2023/id1435204099" target="_blank" rel="noopener"
+        class="btn ios">Download for iOS</a>
     </div>
-    
-    </div><button class="back-button" onclick="window.location.href='dashboard.html'">
-      <i class="fas fa-arrow-left"></i> Back to Dashboard
-    </button>
+
+  </div><button class="back-button" onclick="window.location.href='dashboard.html'">
+    <i class="fas fa-arrow-left"></i> Back to Dashboard
+  </button>
   </div>
 
-<script src="js/scripts.js"></script>
+  <script src="js/scripts.js"></script>
+  <script src="js/session-handler.js"></script>
 </body>
+
 </html>

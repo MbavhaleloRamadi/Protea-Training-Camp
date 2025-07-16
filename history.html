@@ -1,31 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
-    <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
-    <meta name="author" content="Mbavhalelo Innocent Ramadi">
-    <title>History</title>
-    
-    <!-- Linking the main stylesheet -->
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="preload" href="css/styles.css" as="style">
-    <link rel="preload" href="js/history.js" as="script">
-    
-    <!-- Adding Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
-    
-    <!-- Font Awesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+  <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
+  <meta name="author" content="Mbavhalelo Innocent Ramadi">
+  <title>History</title>
+
+  <!-- Linking the main stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="preload" href="css/styles.css" as="style">
+  <link rel="preload" href="js/history.js" as="script">
+
+  <!-- Adding Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
 </head>
+
 <body>
   <!-- Video Background -->
   <video class="background-video" autoplay muted loop>
@@ -44,7 +47,7 @@
   <!-- Main Content -->
   <div class="history-container">
     <h1>Your Practice History</h1>
-    
+
     <!-- Stats Overview Section -->
     <div class="stats-overview">
       <div class="stat-card">
@@ -52,20 +55,20 @@
         <div class="stat-value" id="totalPractices">0</div>
         <div class="stat-detail">Submissions made</div>
       </div>
-      
+
       <div class="stat-card">
         <h3>Practice Streak</h3>
         <div class="stat-value" id="currentStreak">0</div>
         <div class="stat-detail">Days in a row</div>
       </div>
-      
+
       <div class="stat-card">
         <h3>Longest Streak</h3>
         <div class="stat-value" id="longestStreak">0</div>
         <div class="stat-detail">Best performance</div>
       </div>
     </div>
-    
+
     <!-- Most Practiced Section -->
     <div class="most-practiced">
       <h2>Most Practiced</h2>
@@ -73,11 +76,11 @@
         <!-- Will be populated with JavaScript -->
       </div>
     </div>
-    
+
     <!-- History Timeline Section -->
     <div class="history-timeline">
       <h2>Practice Timeline</h2>
-      
+
       <div class="timeline-filters">
         <div class="filter-group">
           <label for="practiceFilter">Filter by:</label>
@@ -86,7 +89,7 @@
             <!-- Will be populated with JavaScript -->
           </select>
         </div>
-        
+
         <div class="filter-group">
           <label for="dateRangeStart">From:</label>
           <input type="date" id="dateRangeStart">
@@ -94,7 +97,7 @@
           <input type="date" id="dateRangeEnd">
         </div>
       </div>
-      
+
       <div class="timeline-container" id="timelineContainer">
         <div class="loading-placeholder">
           <div class="loading-spinner"></div>
@@ -102,7 +105,7 @@
         </div>
       </div>
     </div>
-    
+
     <!-- Export/Print Controls -->
     <div class="export-controls">
       <button class="export-btn" id="exportCsvBtn">
@@ -112,7 +115,7 @@
         <i class="fas fa-print"></i> Print History
       </button>
     </div>
-    
+
     <!-- Back Button -->
     <button class="back-button" onclick="window.location.href='dashboard.html'">
       <i class="fas fa-arrow-left"></i> Back to Dashboard
@@ -128,24 +131,24 @@
           <i class="fas fa-times"></i>
         </button>
       </div>
-      
+
       <div class="modal-body">
         <form id="editPracticeForm" onsubmit="event.preventDefault(); saveEditedPractice();">
           <div class="form-group">
             <label for="editPracticeName">Practice Name</label>
             <input type="text" id="editPracticeName" required>
           </div>
-          
+
           <div class="form-group">
             <label for="editPracticeDescription">Description</label>
             <textarea id="editPracticeDescription" rows="3"></textarea>
           </div>
-          
+
           <div class="form-group">
             <label for="editPracticePoints">Points</label>
             <input type="number" id="editPracticePoints" min="0" required>
           </div>
-          
+
           <div class="modal-actions">
             <button type="button" class="btn-secondary" onclick="closeEditPracticeModal()">
               <i class="fas fa-times"></i> Cancel
@@ -178,7 +181,7 @@
           <i class="fas fa-times"></i>
         </button>
       </div>
-      
+
       <div class="modal-body">
         <div class="confirmation-content">
           <div class="confirmation-icon">
@@ -187,7 +190,7 @@
           <p id="confirmationMessage">Are you sure you want to proceed?</p>
         </div>
       </div>
-      
+
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeConfirmationModal()">
           <i class="fas fa-times"></i> Cancel
@@ -212,6 +215,8 @@
 
   <!-- Include the JavaScript for this page -->
   <script src="js/history.js"></script>
+  <script src="js/session-handler.js"></script>
 
 </body>
+
 </html>

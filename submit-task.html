@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
+    <meta name="description"
+        content="Real-time golf leaderboard app where golfers can register, submit scores, and see rankings.">
     <meta name="keywords" content="golf, leaderboard, real-time scores, golfers, sports">
     <meta name="author" content="Mbavhalelo Innocent Ramadi">
     <title>Submit Task</title>
@@ -16,13 +18,14 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
+
 <body>
     <!-- Background Video -->
     <video autoplay muted loop class="background-video" id="bg-video">
         <source src="assets/video/back.mp4" type="video/mp4">
         Your browser does not support the video tag.
     </video>
-    
+
     <!-- Fullscreen Fun Loader -->
     <div class="loader-overlay" id="loader">
         <div class="loader-container">
@@ -30,21 +33,22 @@
             <p>Warming up the greens...</p>
         </div>
     </div>
-    
+
     <button onclick="history.back()" class="back-button">← Back</button>
-    
+
     <main class="main-content-form">
         <form id="submitTaskForm" action="#">
             <h1>Log your Training</h1>
-            <p>User are allowed to submit unlimited practises, but can only submit one of each, except for the <strong>On the Course Items</strong>. On the course items can be logged unlimited times per day.
-            
-            <!-- Golfer Name Display (auto-filled from Firebase) -->
+            <p>User are allowed to submit unlimited practises, but can only submit one of each, except for the
+                <strong>On the Course Items</strong>. On the course items can be logged unlimited times per day.
+
+                <!-- Golfer Name Display (auto-filled from Firebase) -->
             <div class="form-group">
                 <label>Your Name</label>
                 <p id="golferNameDisplay" class="readonly-display">Loading...</p>
                 <input type="hidden" id="golferName" name="golferName" />
             </div>
-            
+
             <!-- Category Selector -->
             <div class="form-group">
                 <label for="taskCategory">Category</label>
@@ -59,27 +63,29 @@
                     <option value="Fitness">Fitness</option>
                 </select>
             </div>
-            
+
             <div id="practiceContainer" class="form-group hidden">
                 <div id="practiceList" class="practice-list-scrollable"></div>
             </div>
-            
+
             <!-- Selected Practices List -->
             <div class="form-group">
                 <label id="selectedLabel">Selected Practices</label>
                 <ul id="selectedList"></ul>
             </div>
-            
+
             <!-- Submit Button -->
             <button type="submit" id="submitBtn">Submit Practice</button>
-            
+
             <!-- Confirmation Message (moved below the button) -->
             <div id="confirmationMessage" class="confirmation-message hidden"></div>
         </form>
     </main>
-    
+
     <!-- Your main JavaScript file -->
     <script src="js/submit-task.js" defer></script>
+    <script src="js/session-handler.js"></script>
 
 </body>
+
 </html>
