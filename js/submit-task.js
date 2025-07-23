@@ -59,6 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    let limitedPracticeCounts = {};
+
     // Get today's date in YYYY-MM-DD format
     const today = new Date().toISOString().split("T")[0];
 
@@ -96,11 +98,22 @@ document.addEventListener("DOMContentLoaded", () => {
       .doc(userId)
       .get()
       .then((doc) => {
+        // 2. Fetch the special practice counts along with other user data
         if (doc.exists && doc.data().username) {
-          const { username } = doc.data();
+          const { username, special_practice_counts } = doc.data(); // Destructure counts from doc data
           nameDisplay.textContent = username;
           nameInput.value = username;
+
+          // Store the fetched counts for later use in the UI
+          if (special_practice_counts) {
+            limitedPracticeCounts = special_practice_counts;
+          }
+
           console.log("Username loaded from Firestore:", username);
+          console.log(
+            "Fetched limited practice counts:",
+            limitedPracticeCounts
+          );
         } else {
           console.log("Username not found in Firestore, trying Realtime DB");
           // Fallback to Realtime DB if Firestore doesn't have username
@@ -206,6 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitButton = document.getElementById("submitBtn");
 
   let todaysCompletedPractices = []; // This will store practices completed today
+  let limitedPracticeCounts = {};
 
   // Add special points info element
   const specialPointsInfo = document.createElement("div");
@@ -812,6 +826,38 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       practicesData[cat].forEach((practice) => {
+        // Define the submission limits for specific practices
+        const practiceLimits = {
+          "TP-Visualize": 18,
+          "TP-Recon": 10,
+        };
+
+        const practiceName = practice.name;
+        const limit = practiceLimits[practiceName];
+        // Use the 'limitedPracticeCounts' variable we defined earlier
+        const currentCount = limitedPracticeCounts[practiceName] || 0;
+
+        // Check if a limit applies and if it has been reached
+        if (limit !== undefined && currentCount >= limit) {
+          // If the limit is reached, render a disabled card and stop
+          const disabledCard = document.createElement("div");
+          disabledCard.className = "practice-card disabled";
+          disabledCard.style.cssText = `
+                padding: 16px; border-radius: 8px; margin-bottom: 12px;
+                background-color: #f1f1f1; cursor: not-allowed; opacity: 0.7;
+                border-left: 4px solid #dc3545; display: flex; flex-direction: column;
+                min-height: 140px;
+            `;
+          disabledCard.innerHTML = `
+                <h4 style="margin-top: 0; margin-bottom: 8px; color: #6c757d; text-decoration: line-through;">${practice.name}</h4>
+                <p style="margin: 0 0 10px; color: #6c757d;">${practice.description}</p>
+                <div style="margin-top: auto; font-weight: bold; color: #dc3545; padding-top: 8px; border-top: 1px solid rgba(0,0,0,0.05);">
+                    Limit Reached (${currentCount}/${limit})
+                </div>
+            `;
+          practiceList.appendChild(disabledCard);
+          return; // Skip rendering the regular card for this item
+        }
         // If the practice does not allow multiple submissions AND it has already been completed today, skip it.
         if (
           !practice.allowMultiple &&
@@ -1449,6 +1495,24 @@ document.addEventListener("DOMContentLoaded", () => {
         const userId = user.uid;
         const username = document.getElementById("golferName").value;
         const currentDate = new Date().toISOString().split("T")[0];
+
+        // 4. Increment the count for limited practices on submission
+        const practiceCountUpdates = {};
+        selectedPractices.forEach(practice => {
+          if (practice.name === "TP-Visualize" || practice.name === "TP-Recon") {
+            // Prepare an atomic increment operation for the specific practice
+            const fieldName = `special_practice_counts.${practice.name}`;
+            practiceCountUpdates[fieldName] = firebase.firestore.FieldValue.increment(1);
+          }
+        });
+
+        // If there are counts to update, send the update to Firestore
+        if (Object.keys(practiceCountUpdates).length > 0) {
+          const userDocRef = dbFirestore.collection("users").doc(userId);
+          // Using { merge: true } ensures the special_practice_counts field is created if it doesn't exist
+          await userDocRef.update(practiceCountUpdates, { merge: true });
+          console.log("Updated special practice submission counts in Firestore.");
+        }
 
         // Get daily submission ID
         const dailySubmissionId = await getDailySubmissionId(

@@ -71,14 +71,6 @@ function renderCalendar(containerId, year, month, highlights) {
         // Tuesday events (Training) from original code
         if ((day + firstDay - 1) % 7 === 2) {
             if (!eventClass) {
-                eventClass = 'event-training';
-                tooltipText = 'Driving Range Games - Irons only';
-            }
-        }
-        
-        // Wednesday events (Free Play) from original code
-        if ((day + firstDay - 1) % 7 === 3) {
-            if (!eventClass) {
                 eventClass = 'event-free';
                 tooltipText = 'Free 9 Holes';
             }
